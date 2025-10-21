@@ -116,4 +116,27 @@ class APIClient {
             throw new Error(`Exportación falló: ${error.message}`);
         }
     }
+
+    static async getResult(filename) {
+        try {
+            const response = await fetch(`${this.baseURL}/result/${filename}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            window.APP_LOGGER.debug('Result loaded:', filename);
+            return data;
+            
+        } catch (error) {
+            window.APP_LOGGER.error('Failed to load result:', error);
+            throw new Error(`No se pudo cargar el análisis: ${error.message}`);
+        }
+    }
 }

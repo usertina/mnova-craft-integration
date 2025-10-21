@@ -225,7 +225,177 @@
                 </div>
             </div>
 
-            <!-- Other tabs content would go here -->
+            <!-- History Tab -->
+            <div id="history-tab" class="tab-content">
+                <div class="history-container">
+                    <div class="history-header">
+                        <h2><i class="fas fa-history"></i> <span data-i18n="history.title">Historial de Análisis</span></h2>
+                        <div class="history-actions">
+                            <button class="btn btn-outline" id="refreshHistoryBtn">
+                                <i class="fas fa-sync-alt"></i> <span data-i18n="history.refresh">Actualizar</span>
+                            </button>
+                            <button class="btn btn-outline" id="clearHistoryBtn">
+                                <i class="fas fa-trash"></i> <span data-i18n="history.clear">Limpiar</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="history-filters">
+                        <input type="text" id="historySearch" placeholder="Buscar por nombre..." class="filter-input">
+                        <select id="historyDateFilter" class="filter-select">
+                            <option value="all" data-i18n="history.all">Todos</option>
+                            <option value="today" data-i18n="history.today">Hoy</option>
+                            <option value="week" data-i18n="history.week">Esta semana</option>
+                            <option value="month" data-i18n="history.month">Este mes</option>
+                        </select>
+                    </div>
+                    
+                    <div class="history-list" id="historyList">
+                        <div class="empty-state">
+                            <i class="fas fa-folder-open"></i>
+                            <p data-i18n="history.empty">No hay análisis guardados</p>
+                            <p class="empty-subtitle" data-i18n="history.emptySubtitle">Los análisis aparecerán aquí automáticamente</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Methods Tab -->
+            <div id="methods-tab" class="tab-content">
+                <div class="methods-container">
+                    <h2><i class="fas fa-flask"></i> <span data-i18n="methods.title">Métodos de Análisis</span></h2>
+                    
+                    <div class="methods-grid">
+                        <!-- Method 1: PFAS Detection -->
+                        <div class="method-card">
+                            <div class="method-header">
+                                <i class="fas fa-vial"></i>
+                                <h3 data-i18n="methods.pfas.title">Detección de PFAS</h3>
+                                <span class="badge">Por defecto</span>
+                            </div>
+                            <div class="method-body">
+                                <p data-i18n="methods.pfas.description">Método estándar para detección y cuantificación de PFAS en muestras ambientales</p>
+                                
+                                <div class="method-params">
+                                    <h4 data-i18n="methods.parameters">Parámetros:</h4>
+                                    <table class="params-table">
+                                        <tr>
+                                            <td data-i18n="methods.fluorRange">Rango Flúor:</td>
+                                            <td>-150 a -50 ppm</td>
+                                        </tr>
+                                        <tr>
+                                            <td data-i18n="methods.pfasRange">Rango PFAS:</td>
+                                            <td>-130 a -60 ppm</td>
+                                        </tr>
+                                        <tr>
+                                            <td data-i18n="methods.concentration">Concentración:</td>
+                                            <td>1.0 mM</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                
+                                <div class="method-actions">
+                                    <button class="btn btn-primary btn-block" onclick="applyMethod('pfas')">
+                                        <i class="fas fa-check"></i> <span data-i18n="methods.apply">Aplicar Método</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Method 2: High Sensitivity -->
+                        <div class="method-card">
+                            <div class="method-header">
+                                <i class="fas fa-crosshairs"></i>
+                                <h3 data-i18n="methods.highSens.title">Alta Sensibilidad</h3>
+                                <span class="badge" style="background: #3498db;">Avanzado</span>
+                            </div>
+                            <div class="method-body">
+                                <p data-i18n="methods.highSens.description">Para muestras con bajas concentraciones de PFAS</p>
+                                
+                                <div class="method-params">
+                                    <h4 data-i18n="methods.parameters">Parámetros:</h4>
+                                    <table class="params-table">
+                                        <tr>
+                                            <td data-i18n="methods.fluorRange">Rango Flúor:</td>
+                                            <td>-160 a -40 ppm</td>
+                                        </tr>
+                                        <tr>
+                                            <td data-i18n="methods.pfasRange">Rango PFAS:</td>
+                                            <td>-135 a -55 ppm</td>
+                                        </tr>
+                                        <tr>
+                                            <td data-i18n="methods.concentration">Concentración:</td>
+                                            <td>0.1 mM</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                
+                                <div class="method-actions">
+                                    <button class="btn btn-primary btn-block" onclick="applyMethod('highSens')">
+                                        <i class="fas fa-check"></i> <span data-i18n="methods.apply">Aplicar Método</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Method 3: Custom -->
+                        <div class="method-card">
+                            <div class="method-header">
+                                <i class="fas fa-cog"></i>
+                                <h3 data-i18n="methods.custom.title">Método Personalizado</h3>
+                                <span class="badge" style="background: #f39c12;">Personalizado</span>
+                            </div>
+                            <div class="method-body">
+                                <p data-i18n="methods.custom.description">Crea y guarda tus propios parámetros de análisis</p>
+                                
+                                <div class="method-params">
+                                    <h4 data-i18n="methods.createCustom">Crear Método:</h4>
+                                    <div class="custom-method-form">
+                                        <div class="param-group">
+                                            <label data-i18n="methods.methodName">Nombre del método:</label>
+                                            <input type="text" id="customMethodName" placeholder="Mi método">
+                                        </div>
+                                        <div class="param-group">
+                                            <label data-i18n="methods.fluorRange">Rango Flúor (ppm):</label>
+                                            <div class="range-inputs">
+                                                <input type="number" id="customFluorMin" value="-150">
+                                                <span>a</span>
+                                                <input type="number" id="customFluorMax" value="-50">
+                                            </div>
+                                        </div>
+                                        <div class="param-group">
+                                            <label data-i18n="methods.pfasRange">Rango PFAS (ppm):</label>
+                                            <div class="range-inputs">
+                                                <input type="number" id="customPfasMin" value="-130">
+                                                <span>a</span>
+                                                <input type="number" id="customPfasMax" value="-60">
+                                            </div>
+                                        </div>
+                                        <div class="param-group">
+                                            <label data-i18n="methods.concentration">Concentración (mM):</label>
+                                            <input type="number" id="customConcentration" value="1.0" step="0.1">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="method-actions">
+                                    <button class="btn btn-success btn-block" onclick="saveCustomMethod()">
+                                        <i class="fas fa-save"></i> <span data-i18n="methods.save">Guardar Método</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Saved Custom Methods -->
+                    <div class="saved-methods" id="savedMethods" style="display: none;">
+                        <h3><i class="fas fa-bookmark"></i> <span data-i18n="methods.savedMethods">Métodos Guardados</span></h3>
+                        <div id="savedMethodsList" class="methods-list">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- Notifications System -->

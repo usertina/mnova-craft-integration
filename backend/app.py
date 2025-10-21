@@ -278,17 +278,92 @@ def list_files():
             })
     return jsonify({"files": files})
 
+# ============================================================================
+# API - Gestión de Archivos - ENDPOINT ACTUALIZADO
+# ============================================================================
+
 @app.route("/api/analysis", methods=["GET"])
 def list_analysis():
-    """Listar análisis disponibles"""
+    """Listar análisis disponibles con resumen de datos"""
     analyses = []
+    
     for f in ANALYSIS_DIR.glob("*.json"):
-        analyses.append({
-            "name": f.name,
-            "size": f.stat().st_size,
-            "created": datetime.fromtimestamp(f.stat().st_ctime).isoformat()
-        })
-    return jsonify({"analyses": analyses})
+        try:
+            # Leer el contenido del archivo JSON
+            with open(f, 'r') as file:
+                data = json.load(file)
+            
+            # Extraer datos clave para el historial
+            analysis_summary = {
+                "name": f.name,
+                "size": f.stat().st_size,
+                "created": datetime.fromtimestamp(f.stat().st_ctime).isoformat(),
+                "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+                # Datos del análisis
+                "fluor": data.get("analysis", {}).get("fluor_percentage"),
+                "pfas": data.get("analysis", {}).get("pifas_percentage"),
+                "concentration": data.get("analysis", {}).get("pifas_concentration"),
+                "quality": data.get("quality_score"),
+                "filename": data.get("filename", f.name)
+            }
+            
+            analyses.append(analysis_summary)
+            
+        except Exception as e:
+            # Si hay error leyendo el archivo, incluirlo con datos limitados
+            print(f"⚠️  Error leyendo {f.name}: {str(e)}")
+            analyses.append({
+                "name": f.name,
+                "size": f.stat().st_size,
+                "created": datetime.fromtimestamp(f.stat().st_ctime).isoformat(),
+                "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+                "error": str(e)
+            })
+    
+    # Ordenar por fecha de creación (más reciente primero)
+    analyses.sort(key=lambda x: x.get("created", ""), reverse=True)
+    
+    return jsonify({"analyses": analyses, "total": len(analyses)})
+
+# ============================================================================
+# API - Eliminar Análisis Individual
+# ============================================================================
+
+@app.route("/api/analysis/<path:filename>", methods=["DELETE"])
+def delete_analysis(filename):
+    """Eliminar un análisis específico"""
+    try:
+        file_path = ANALYSIS_DIR / filename
+        
+        # Verificar que el archivo existe
+        if not file_path.exists():
+            return jsonify({
+                "error": "Analysis not found",
+                "filename": filename
+            }), 404
+        
+        # Verificar que está dentro del directorio permitido (seguridad)
+        if not str(file_path.resolve()).startswith(str(ANALYSIS_DIR.resolve())):
+            return jsonify({
+                "error": "Invalid file path"
+            }), 403
+        
+        # Eliminar el archivo
+        file_path.unlink()
+        
+        print(f"🗑️  Análisis eliminado: {filename}")
+        
+        return jsonify({
+            "message": "Analysis deleted successfully",
+            "filename": filename
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error eliminando análisis: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            "error": f"Failed to delete analysis: {str(e)}"
+        }), 500
 
 @app.route("/api/upload", methods=["POST"])
 def upload_file():

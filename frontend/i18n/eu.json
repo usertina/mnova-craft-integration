@@ -86,7 +86,45 @@
     "yaxis": "Intentsitatea",
     "traceName": "EMN Espektroa",
     "hover": "ppm: %{x:.2f}<br>Intentsitatea: %{y:.2f}<extra></extra>"
-},
+  },
+  "history": {
+    "title": "Analisi Historiala",
+    "refresh": "Eguneratu",
+    "clear": "Garbitu",
+    "all": "Guztiak",
+    "today": "Gaur",
+    "week": "Aste honetan",
+    "month": "Hilabete honetan",
+    "empty": "Ez dago gordetako analisirik",
+    "emptySubtitle": "Analisiak hemen agertuko dira automatikoki",
+    "confirmDelete": "Ziur zaude \"{name}\" analisia ezabatu nahi duzula?\n\nEkintza hau ezin da desegin.",
+    "deleteSuccess": "\"{name}\" analisia ondo ezabatu da",
+    "deleteError": "Errorea ezabatzean: {error}"
+  },
+  "methods": {
+    "title": "Analisi Metodoak",
+    "parameters": "Parametroak",
+    "apply": "Aplikatu Metodoa",
+    "fluorRange": "Fluor Tartea",
+    "pfasRange": "PFAS Tartea",
+    "concentration": "Kontzentrazioa",
+    "pfas": {
+      "title": "PFAS Detekzioa",
+      "description": "Metodo estandarra ingurumen laginetan PFAS detektatu eta kuantifikatzeko"
+    },
+    "highSens": {
+      "title": "Sentikortasun Altua",
+      "description": "PFAS kontzentrazio baxuko laginetarako"
+    },
+    "custom": {
+      "title": "Metodo Pertsonalizatua",
+      "description": "Sortu eta gorde zure analisi parametroak"
+    },
+    "methodName": "Metodoaren izena",
+    "createCustom": "Sortu Metodoa",
+    "save": "Gorde Metodoa",
+    "savedMethods": "Gordetako Metodoak"
+  },
   "languages": {
     "es": "Español",
     "en": "English",

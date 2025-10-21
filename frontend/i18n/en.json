@@ -86,7 +86,45 @@
     "yaxis": "Intensity",
     "traceName": "NMR Spectrum",
     "hover": "ppm: %{x:.2f}<br>Intensity: %{y:.2f}<extra></extra>"
-},
+  },
+  "history": {
+    "title": "Analysis History",
+    "refresh": "Refresh",
+    "clear": "Clear",
+    "all": "All",
+    "today": "Today",
+    "week": "This week",
+    "month": "This month",
+    "empty": "No saved analyses",
+    "emptySubtitle": "Analyses will appear here automatically",
+    "confirmDelete": "Are you sure you want to delete the analysis \"{name}\"?\n\nThis action cannot be undone.",
+    "deleteSuccess": "Analysis \"{name}\" deleted successfully",
+    "deleteError": "Error deleting: {error}"
+  },
+  "methods": {
+    "title": "Analysis Methods",
+    "parameters": "Parameters",
+    "apply": "Apply Method",
+    "fluorRange": "Fluorine Range",
+    "pfasRange": "PFAS Range",
+    "concentration": "Concentration",
+    "pfas": {
+      "title": "PFAS Detection",
+      "description": "Standard method for detection and quantification of PFAS in environmental samples"
+    },
+    "highSens": {
+      "title": "High Sensitivity",
+      "description": "For samples with low PFAS concentrations"
+    },
+    "custom": {
+      "title": "Custom Method",
+      "description": "Create and save your own analysis parameters"
+    },
+    "methodName": "Method name",
+    "createCustom": "Create Method",
+    "save": "Save Method",
+    "savedMethods": "Saved Methods"
+  },
   "languages": {
     "es": "Spanish",
     "en": "English",

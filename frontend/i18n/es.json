@@ -86,7 +86,45 @@
     "yaxis": "Intensidad",
     "traceName": "Espectro RMN",
     "hover": "ppm: %{x:.2f}<br>Intensidad: %{y:.2f}<extra></extra>"
-},
+  },
+  "history": {
+    "title": "Historial de Análisis",
+    "refresh": "Actualizar",
+    "clear": "Limpiar",
+    "all": "Todos",
+    "today": "Hoy",
+    "week": "Esta semana",
+    "month": "Este mes",
+    "empty": "No hay análisis guardados",
+    "emptySubtitle": "Los análisis aparecerán aquí automáticamente",
+    "confirmDelete": "¿Estás seguro de que quieres eliminar el análisis \"{name}\"?\n\nEsta acción no se puede deshacer.",
+    "deleteSuccess": "Análisis \"{name}\" eliminado correctamente",
+    "deleteError": "Error al eliminar: {error}"
+  },
+  "methods": {
+    "title": "Métodos de Análisis",
+    "parameters": "Parámetros",
+    "apply": "Aplicar Método",
+    "fluorRange": "Rango Flúor",
+    "pfasRange": "Rango PFAS",
+    "concentration": "Concentración",
+    "pfas": {
+      "title": "Detección de PFAS",
+      "description": "Método estándar para detección y cuantificación de PFAS en muestras ambientales"
+    },
+    "highSens": {
+      "title": "Alta Sensibilidad",
+      "description": "Para muestras con bajas concentraciones de PFAS"
+    },
+    "custom": {
+      "title": "Método Personalizado",
+      "description": "Crea y guarda tus propios parámetros de análisis"
+    },
+    "methodName": "Nombre del método",
+    "createCustom": "Crear Método",
+    "save": "Guardar Método",
+    "savedMethods": "Métodos Guardados"
+  },
   "languages": {
     "es": "Español",
     "en": "English",
