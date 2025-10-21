@@ -677,3 +677,27 @@
     display: flex;
     gap: 0.5rem;
 }
+
+/* --- Arreglo para el Logo y Título --- */
+
+.logo {
+    /* Convierte el logo en un contenedor flex */
+    display: flex;
+    align-items: center; /* Centra la imagen y el texto verticalmente */
+}
+
+.logo-img {
+    /* Ajusta el tamaño de tu logo .webp */
+    height: 30px; /* Puedes cambiar esta altura */
+    width: auto;
+    margin-right: 12px; /* Espacio entre la imagen y el texto */
+    flex-shrink: 0; /* Evita que la imagen se encoja */
+}
+
+.logo-text {
+    /* FORZA a que el texto no se rompa en varias líneas */
+    white-space: nowrap; 
+    font-size: 1.25rem; /* Ajusta el tamaño del título */
+    font-weight: 600;
+}
+

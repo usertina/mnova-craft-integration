@@ -297,3 +297,61 @@
         max-height: 250px;
     }
 }
+/* --- Media Queries para Cabecera Responsive --- */
+
+/* Para tablets y pantallas medianas (menos de 1024px) */
+@media (max-width: 1024px) {
+    .logo-text {
+        font-size: 1.1rem; /* Hacemos el texto del logo un poco más pequeño */
+    }
+    .main-nav .nav-btn {
+        padding: 0.5rem 0.8rem; /* Botones de navegación más pequeños */
+    }
+}
+
+
+/* Para móviles (menos de 768px) */
+@media (max-width: 768px) {
+    
+    .app-header {
+        /* Apila las secciones (izquierda y derecha) verticalmente */
+        flex-direction: column; 
+        align-items: flex-start; /* Alinea todo a la izquierda */
+        padding: 0.75rem 1rem;
+    }
+
+    .header-left {
+        /* La sección de logo + nav también se apila */
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .main-nav {
+        margin-top: 0.75rem; /* Espacio entre el logo y la navegación */
+        width: 100%;
+        /* Permite que los botones se deslicen horizontalmente si no caben */
+        overflow-x: auto; 
+    }
+
+    .header-right {
+        /* La sección de idioma/usuario se alinea a la izquierda */
+        justify-content: flex-start;
+        margin-top: 0.75rem;
+        width: 100%;
+    }
+}
+
+
+/* Para móviles muy pequeños (menos de 480px) */
+@media (max-width: 480px) {
+    .logo-text {
+        /* En pantallas muy pequeñas, ocultamos el texto largo */
+        display: none; 
+    }
+    
+    .logo {
+        /* Damos un poco más de espacio al logo cuando el texto desaparece */
+        margin-bottom: 0.5rem;
+    }
+}

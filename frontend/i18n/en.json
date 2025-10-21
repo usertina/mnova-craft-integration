@@ -2,7 +2,7 @@
   "app": {
     "title": "CraftRMN Pro - Professional NMR Analyzer",
     "loading": "Initializing NMR Analyzer...",
-    "logo": "CraftRMN Pro"
+    "logo": "Professional NMR Analyzer"
   },
   "header": {
     "analyzer": "Analyzer",

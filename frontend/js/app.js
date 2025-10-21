@@ -283,33 +283,40 @@ class RMNAnalyzerApp {
     }
     
     updateResultsTable(detailedResults) {
-    const tbody = document.querySelector('#resultsTable tbody');
-    tbody.innerHTML = '';
-    
-    Object.entries(detailedResults).forEach(([param, data]) => {
-        // Formatear el valor correctamente
-        let displayValue = '--';
-        if (data.value !== null && data.value !== undefined) {
-            if (typeof data.value === 'number') {
-                displayValue = data.value.toFixed(4);
-            } else {
-                displayValue = data.value;
+        const tbody = document.querySelector('#resultsTable tbody');
+        tbody.innerHTML = '';
+        
+        Object.entries(detailedResults).forEach(([param, data]) => {
+            // Formatear el valor
+            let displayValue = '--';
+            if (data.value !== null && data.value !== undefined) {
+                if (typeof data.value === 'number') {
+                    displayValue = data.value.toFixed(4);
+                } else {
+                    displayValue = data.value;
+                }
             }
-        }
-        
-        // Traducir el nombre del parámetro
-        const translatedParam = LanguageManager.t(`results.${param}`) || param;
-        
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${translatedParam}</td>
-            <td>${displayValue}</td>
-            <td>${data.unit || '--'}</td>
-            <td>${data.limits || 'N/A'}</td>
-        `;
-        tbody.appendChild(row);
-    });
+            
+            // Traducir nombre del parámetro
+            const translatedParam = LanguageManager.t(`results.${param}`) || param;
+            
+            // Reemplazar N/A por guión
+            let displayLimits = data.limits || '--';
+            if (displayLimits === 'N/A' || displayLimits === 'n/a') {
+                displayLimits = '—';  // ← ESTO ELIMINA EL N/A
+            }
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${translatedParam}</td>
+                <td>${displayValue}</td>
+                <td>${data.unit || '--'}</td>
+                <td>${displayLimits}</td>
+            `;
+            tbody.appendChild(row);
+        });
     }
+
     
     getAnalysisParameters() {
         return {
