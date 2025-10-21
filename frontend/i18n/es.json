@@ -1,0 +1,83 @@
+{
+  "app": {
+    "title": "CraftRMN Pro - Analizador Profesional de RMN",
+    "loading": "Inicializando Analizador RMN...",
+    "logo": "CraftRMN Pro"
+  },
+  "header": {
+    "analyzer": "Analizador",
+    "batch": "Procesamiento por Lotes",
+    "history": "Historial",
+    "methods": "Métodos",
+    "user": "Usuario"
+  },
+  "analyzer": {
+    "title": "Analizador de Espectros",
+    "waitingData": "Esperando datos...",
+    "sampleName": "Muestra: {name}",
+    "loadSpectrum": "Cargar Espectro",
+    "dragDrop": "Arrastra archivos de Craft aquí o",
+    "browse": "Examinar",
+    "analysisParams": "Parámetros de Análisis",
+    "fluorRange": "Rango Flúor (ppm):",
+    "pifasRange": "Rango PIFAS (ppm):",
+    "concentration": "Concentración (mM):",
+    "to": "a",
+    "actions": "Acciones",
+    "runAnalysis": "Ejecutar Análisis",
+    "exportReport": "Exportar Reporte",
+    "analyzing": "Analizando...",
+    "fullscreen": "Pantalla completa"
+  },
+  "batch": {
+    "title": "Procesamiento por Lotes",
+    "dragDrop": "Arrastra múltiples archivos de Craft aquí",
+    "selectFiles": "Seleccionar Archivos",
+    "runAnalysis": "Ejecutar Análisis por Lotes",
+    "analyzing": "Procesando lote..."
+  },
+  "results": {
+    "fluor": "Flúor",
+    "pifas": "PIFAS",
+    "concentration": "Concentración",
+    "quality": "Calidad",
+    "detailedResults": "Resultados Detallados",
+    "parameter": "Parámetro",
+    "value": "Valor",
+    "units": "Unidades",
+    "limits": "Límites",
+    "percentage": "%",
+    "millimolar": "mM",
+    "qualityScore": "/10"
+  },
+  "notifications": {
+    "fileLoaded": "Archivo cargado: {filename}",
+    "batchFilesLoaded": "{count} archivos cargados para procesamiento por lotes",
+    "analysisComplete": "Análisis completado exitosamente",
+    "batchComplete": "Procesamiento por lotes completado: {count} archivos analizados",
+    "analysisError": "Error en el análisis: {error}",
+    "batchError": "Error en procesamiento por lotes: {error}",
+    "fileReadError": "Error leyendo el archivo",
+    "connected": "Conectado al servidor de análisis",
+    "connectionError": "Error conectando al servidor",
+    "exportSuccess": "Reporte exportado exitosamente",
+    "exportError": "Error exportando el reporte: {error}"
+  },
+  "errors": {
+    "backendUnavailable": "Servidor no disponible",
+    "analysisFailed": "Análisis falló",
+    "exportFailed": "Exportación falló",
+    "invalidFile": "Archivo inválido",
+    "initialization": "Error inicializando la aplicación"
+  },
+  "connection": {
+    "connecting": "Conectando...",
+    "connected": "Conectado",
+    "disconnected": "Desconectado"
+  },
+  "languages": {
+    "es": "Español",
+    "en": "English",
+    "eu": "Euskara"
+  }
+}

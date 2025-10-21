@@ -1,0 +1,24 @@
+{
+  "name": "mnova-integration-frontend",
+  "version": "1.0.0",
+  "description": "Professional NMR Spectrum Analyzer Frontend",
+  "main": "index.html",
+  "scripts": {
+    "dev": "live-server --port=3000 --entry-file=index.html",
+    "serve": "python -m http.server 3000",
+    "build": "echo 'No build step needed for static frontend'",
+    "test": "echo 'No tests specified'"
+  },
+  "keywords": [
+    "nmr",
+    "spectrum",
+    "analyzer",
+    "chemistry",
+    "craft"
+  ],
+  "author": "Your Company",
+  "license": " proprietary",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

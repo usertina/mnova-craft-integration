@@ -1,19 +1,244 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>MNova - Craft Analyzer</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="app.title">CraftRMN Pro - Analizador Profesional de RMN</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/responsive.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
 </head>
 <body>
-<h1>Archivos y Análisis</h1>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p data-i18n="app.loading">Inicializando Analizador RMN...</p>
+        </div>
+    </div>
 
-<h2>Archivos MNova</h2>
-<ul id="files"></ul>
+    <!-- Main Container -->
+    <div id="app" class="app-container hidden">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo">
+                    <i class="fas fa-atom"></i>
+                    <span class="logo-text" data-i18n="app.logo">CraftRMN Pro</span>
+                </div>
+                <nav class="main-nav">
+                    <button class="nav-btn active" data-tab="analyzer" data-i18n="header.analyzer">Analizador</button>
+                    <button class="nav-btn" data-tab="batch" data-i18n="header.batch">Procesamiento por Lotes</button>
+                    <button class="nav-btn" data-tab="history" data-i18n="header.history">Historial</button>
+                    <button class="nav-btn" data-tab="methods" data-i18n="header.methods">Métodos</button>
+                </nav>
+            </div>
+            <div class="header-right">
+                <!-- Language Selector -->
+                <div class="language-selector">
+                    <select id="languageSelector" class="language-dropdown">
+                        <!-- Opciones se llenan dinámicamente -->
+                    </select>
+                </div>
+                <div class="user-menu">
+                    <span class="user-name" data-i18n="header.user">Usuario</span>
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                </div>
+            </div>
+        </header>
 
-<h2>Análisis</h2>
-<ul id="analysis"></ul>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Analyzer Tab -->
+            <div id="analyzer-tab" class="tab-content active">
+                <div class="workspace">
+                    <!-- Left Panel - Controls -->
+                    <div class="control-panel">
+                        <div class="panel-section">
+                            <h3><i class="fas fa-upload"></i> <span data-i18n="analyzer.loadSpectrum">Cargar Espectro</span></h3>
+                            <div class="upload-area" id="uploadArea">
+                                <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                                <p data-i18n="analyzer.dragDrop">Arrastra archivos de Craft aquí o</p>
+                                <button class="btn btn-primary" id="browseFiles">
+                                    <i class="fas fa-folder-open"></i> 
+                                    <span data-i18n="analyzer.browse">Examinar</span>
+                                </button>
+                                <input type="file" id="fileInput" accept=".csv,.txt,.json" hidden>
+                            </div>
+                            <div class="file-list" id="fileList"></div>
+                        </div>
 
-<script src="script.js"></script>
+                        <div class="panel-section">
+                            <h3><i class="fas fa-sliders-h"></i> <span data-i18n="analyzer.analysisParams">Parámetros de Análisis</span></h3>
+                            <div class="param-group">
+                                <label for="fluorRange" data-i18n="analyzer.fluorRange">Rango Flúor (ppm):</label>
+                                <div class="range-inputs">
+                                    <input type="number" id="fluorMin" value="-150" step="0.1">
+                                    <span data-i18n="analyzer.to">a</span>
+                                    <input type="number" id="fluorMax" value="-50" step="0.1">
+                                </div>
+                            </div>
+                            <div class="param-group">
+                                <label for="pifasRange" data-i18n="analyzer.pifasRange">Rango PIFAS (ppm):</label>
+                                <div class="range-inputs">
+                                    <input type="number" id="pifasMin" value="0" step="0.1">
+                                    <span data-i18n="analyzer.to">a</span>
+                                    <input type="number" id="pifasMax" value="10" step="0.1">
+                                </div>
+                            </div>
+                            <div class="param-group">
+                                <label for="concentration" data-i18n="analyzer.concentration">Concentración (mM):</label>
+                                <input type="number" id="concentration" value="1.0" step="0.1">
+                            </div>
+                        </div>
+
+                        <div class="panel-section">
+                            <h3><i class="fas fa-play-circle"></i> <span data-i18n="analyzer.actions">Acciones</span></h3>
+                            <button class="btn btn-success btn-block" id="analyzeBtn" disabled>
+                                <i class="fas fa-play"></i> 
+                                <span data-i18n="analyzer.runAnalysis">Ejecutar Análisis</span>
+                            </button>
+                            <button class="btn btn-outline btn-block" id="exportBtn" disabled>
+                                <i class="fas fa-download"></i> 
+                                <span data-i18n="analyzer.exportReport">Exportar Reporte</span>
+                            </button>
+                            <div class="connection-status" id="connectionStatus">
+                                <i class="fas fa-circle connection-dot"></i>
+                                <span data-i18n="connection.connecting">Conectando...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel - Results -->
+                    <div class="results-panel">
+                        <div class="results-header">
+                            <h2 id="sampleName" data-i18n="analyzer.waitingData">Esperando datos...</h2>
+                            <div class="result-actions">
+                                <button class="btn btn-icon" id="fullscreenBtn" title="Pantalla completa">
+                                    <i class="fas fa-expand"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Spectrum Chart -->
+                        <div class="chart-container">
+                            <div id="spectrumChart" class="spectrum-chart"></div>
+                        </div>
+
+                        <!-- Analysis Results -->
+                        <div class="results-grid">
+                            <div class="result-card">
+                                <div class="result-icon fluor">
+                                    <i class="fas fa-vial"></i>
+                                </div>
+                                <div class="result-content">
+                                    <h4 data-i18n="results.fluor">Flúor</h4>
+                                    <div class="result-value" id="fluorResult">--</div>
+                                    <div class="result-unit" data-i18n="results.percentage">%</div>
+                                </div>
+                            </div>
+
+                            <div class="result-card">
+                                <div class="result-icon pifas">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                                <div class="result-content">
+                                    <h4 data-i18n="results.pifas">PIFAS</h4>
+                                    <div class="result-value" id="pifasResult">--</div>
+                                    <div class="result-unit" data-i18n="results.percentage">%</div>
+                                </div>
+                            </div>
+
+                            <div class="result-card">
+                                <div class="result-icon concentration">
+                                    <i class="fas fa-flask"></i>
+                                </div>
+                                <div class="result-content">
+                                    <h4 data-i18n="results.concentration">Concentración</h4>
+                                    <div class="result-value" id="concentrationResult">--</div>
+                                    <div class="result-unit" data-i18n="results.millimolar">mM</div>
+                                </div>
+                            </div>
+
+                            <div class="result-card">
+                                <div class="result-icon quality">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="result-content">
+                                    <h4 data-i18n="results.quality">Calidad</h4>
+                                    <div class="result-value" id="qualityResult">--</div>
+                                    <div class="result-unit" data-i18n="results.qualityScore">/10</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Results Table -->
+                        <div class="detailed-results">
+                            <h3 data-i18n="results.detailedResults">Resultados Detallados</h3>
+                            <div class="table-container">
+                                <table id="resultsTable">
+                                    <thead>
+                                        <tr>
+                                            <th data-i18n="results.parameter">Parámetro</th>
+                                            <th data-i18n="results.value">Valor</th>
+                                            <th data-i18n="results.units">Unidades</th>
+                                            <th data-i18n="results.limits">Límites</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Filled by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batch Processing Tab -->
+            <div id="batch-tab" class="tab-content">
+                <div class="batch-container">
+                    <h2 data-i18n="batch.title">Procesamiento por Lotes</h2>
+                    <div class="batch-upload">
+                        <div class="upload-area large" id="batchUploadArea">
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                            <p data-i18n="batch.dragDrop">Arrastra múltiples archivos de Craft aquí</p>
+                            <button class="btn btn-primary" id="browseBatchFiles">
+                                <i class="fas fa-folder-open"></i> 
+                                <span data-i18n="batch.selectFiles">Seleccionar Archivos</span>
+                            </button>
+                            <input type="file" id="batchFileInput" accept=".csv,.txt,.json" multiple hidden>
+                        </div>
+                        <div class="batch-file-list" id="batchFileList"></div>
+                    </div>
+                    <div class="batch-actions">
+                        <button class="btn btn-success" id="runBatchAnalysis" disabled>
+                            <i class="fas fa-play"></i>
+                            <span data-i18n="batch.runAnalysis">Ejecutar Análisis por Lotes</span>
+                        </button>
+                    </div>
+                    <div class="batch-results" id="batchResults"></div>
+                </div>
+            </div>
+
+            <!-- Other tabs content would go here -->
+        </main>
+
+        <!-- Notifications System -->
+        <div id="notifications" class="notifications-container"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/i18n/LanguageManager.js"></script>
+    <script src="js/apiClient.js"></script>
+    <script src="js/chartManager.js"></script>
+    <script src="js/fileProcessor.js"></script>
+    <script src="js/uiComponents.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>

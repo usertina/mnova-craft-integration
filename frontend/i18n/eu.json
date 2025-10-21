@@ -1,0 +1,83 @@
+{
+  "app": {
+    "title": "CraftRMN Pro - RMN Analizatzaile Profesionala",
+    "loading": "RMN Analizatzailea abiarazten...",
+    "logo": "CraftRMN Pro"
+  },
+  "header": {
+    "analyzer": "Analizatzailea",
+    "batch": "Sailka Prozesatzea",
+    "history": "Historiala",
+    "methods": "Metodoak",
+    "user": "Erabiltzailea"
+  },
+  "analyzer": {
+    "title": "Eskpektro Analizatzailea",
+    "waitingData": "Datuak zain...",
+    "sampleName": "Lagina: {name}",
+    "loadSpectrum": "Kargatu Eskpektroa",
+    "dragDrop": "Arrastatu Craft fitxategiak hona edo",
+    "browse": "Arakatu",
+    "analysisParams": "Analisi Parametroak",
+    "fluorRange": "Fluor Tartea (ppm):",
+    "pifasRange": "PIFAS Tartea (ppm):",
+    "concentration": "Kontzentrazioa (mM):",
+    "to": "-ra",
+    "actions": "Ekintzak",
+    "runAnalysis": "Exekutatu Analisia",
+    "exportReport": "Exportatu Txostena",
+    "analyzing": "Analizatzen...",
+    "fullscreen": "Pantaila osoa"
+  },
+  "batch": {
+    "title": "Sailka Prozesatzea",
+    "dragDrop": "Arrastatu hainbat Craft fitxategi hona",
+    "selectFiles": "Hautatu Fitxategiak",
+    "runAnalysis": "Exekutatu Sailka Analisia",
+    "analyzing": "Sailka prozesatzen..."
+  },
+  "results": {
+    "fluor": "Fluorra",
+    "pifas": "PIFAS",
+    "concentration": "Kontzentrazioa",
+    "quality": "Kalitatea",
+    "detailedResults": "Emaitza Zehatzak",
+    "parameter": "Parametroa",
+    "value": "Balioa",
+    "units": "Unitateak",
+    "limits": "Mugak",
+    "percentage": "%",
+    "millimolar": "mM",
+    "qualityScore": "/10"
+  },
+  "notifications": {
+    "fileLoaded": "Fitxategia kargatua: {filename}",
+    "batchFilesLoaded": "{count} fitxategi kargatuta sailka prozesatzeko",
+    "analysisComplete": "Analisia ondo burutu da",
+    "batchComplete": "Sailka prozesatzea osatuta: {count} fitxategi analizatuta",
+    "analysisError": "Analisi errorea: {error}",
+    "batchError": "Sailka prozesatze errorea: {error}",
+    "fileReadError": "Errorea fitxategia irakurtzean",
+    "connected": "Analisi zerbitzarira konektatuta",
+    "connectionError": "Errorea zerbitzarira konektatzean",
+    "exportSuccess": "Txostena ondo exportatu da",
+    "exportError": "Errorea txostena exportatzean: {error}"
+  },
+  "errors": {
+    "backendUnavailable": "Zerbitzaria ez dago erabilgarri",
+    "analysisFailed": "Analisiak huts egin du",
+    "exportFailed": "Exportazioak huts egin du",
+    "invalidFile": "Fitxategi baliogabea",
+    "initialization": "Errorea aplikazioa abiaraztean"
+  },
+  "connection": {
+    "connecting": "Konektatzen...",
+    "connected": "Konektatuta",
+    "disconnected": "Deskonektatuta"
+  },
+  "languages": {
+    "es": "Español",
+    "en": "English",
+    "eu": "Euskara"
+  }
+}

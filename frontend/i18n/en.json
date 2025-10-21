@@ -1,0 +1,83 @@
+{
+  "app": {
+    "title": "CraftRMN Pro - Professional NMR Analyzer",
+    "loading": "Initializing NMR Analyzer...",
+    "logo": "CraftRMN Pro"
+  },
+  "header": {
+    "analyzer": "Analyzer",
+    "batch": "Batch Processing",
+    "history": "History",
+    "methods": "Methods",
+    "user": "User"
+  },
+  "analyzer": {
+    "title": "Spectrum Analyzer",
+    "waitingData": "Waiting for data...",
+    "sampleName": "Sample: {name}",
+    "loadSpectrum": "Load Spectrum",
+    "dragDrop": "Drag Craft files here or",
+    "browse": "Browse",
+    "analysisParams": "Analysis Parameters",
+    "fluorRange": "Fluorine Range (ppm):",
+    "pifasRange": "PIFAS Range (ppm):",
+    "concentration": "Concentration (mM):",
+    "to": "to",
+    "actions": "Actions",
+    "runAnalysis": "Run Analysis",
+    "exportReport": "Export Report",
+    "analyzing": "Analyzing...",
+    "fullscreen": "Fullscreen"
+  },
+  "batch": {
+    "title": "Batch Processing",
+    "dragDrop": "Drag multiple Craft files here",
+    "selectFiles": "Select Files",
+    "runAnalysis": "Run Batch Analysis",
+    "analyzing": "Processing batch..."
+  },
+  "results": {
+    "fluor": "Fluorine",
+    "pifas": "PIFAS",
+    "concentration": "Concentration",
+    "quality": "Quality",
+    "detailedResults": "Detailed Results",
+    "parameter": "Parameter",
+    "value": "Value",
+    "units": "Units",
+    "limits": "Limits",
+    "percentage": "%",
+    "millimolar": "mM",
+    "qualityScore": "/10"
+  },
+  "notifications": {
+    "fileLoaded": "File loaded: {filename}",
+    "batchFilesLoaded": "{count} files loaded for batch processing",
+    "analysisComplete": "Analysis completed successfully",
+    "batchComplete": "Batch processing completed: {count} files analyzed",
+    "analysisError": "Analysis error: {error}",
+    "batchError": "Batch processing error: {error}",
+    "fileReadError": "Error reading file",
+    "connected": "Connected to analysis server",
+    "connectionError": "Error connecting to server",
+    "exportSuccess": "Report exported successfully",
+    "exportError": "Error exporting report: {error}"
+  },
+  "errors": {
+    "backendUnavailable": "Server unavailable",
+    "analysisFailed": "Analysis failed",
+    "exportFailed": "Export failed",
+    "invalidFile": "Invalid file",
+    "initialization": "Error initializing application"
+  },
+  "connection": {
+    "connecting": "Connecting...",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
+  },
+  "languages": {
+    "es": "Spanish",
+    "en": "English",
+    "eu": "Basque"
+  }
+}
