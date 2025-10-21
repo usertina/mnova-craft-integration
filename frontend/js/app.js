@@ -19,7 +19,7 @@ class RMNAnalyzerApp {
             
             // 3. Configurar componentes de UI
             this.setupEventListeners();
-            this.setupChart();
+            
             
             // 4. Verificar conexión con backend
             await this.checkBackendConnection();
@@ -235,19 +235,32 @@ class RMNAnalyzerApp {
     }
     
     updateResultsTable(detailedResults) {
-        const tbody = document.querySelector('#resultsTable tbody');
-        tbody.innerHTML = '';
+    const tbody = document.querySelector('#resultsTable tbody');
+    tbody.innerHTML = '';
+    
+    Object.entries(detailedResults).forEach(([param, data]) => {
+        // Formatear el valor correctamente
+        let displayValue = '--';
+        if (data.value !== null && data.value !== undefined) {
+            if (typeof data.value === 'number') {
+                displayValue = data.value.toFixed(4);
+            } else {
+                displayValue = data.value;
+            }
+        }
         
-        Object.entries(detailedResults).forEach(([param, data]) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${param}</td>
-                <td>${data.value?.toFixed(4) || '--'}</td>
-                <td>${data.unit || '--'}</td>
-                <td>${data.limits || 'N/A'}</td>
-            `;
-            tbody.appendChild(row);
-        });
+        // Traducir el nombre del parámetro
+        const translatedParam = LanguageManager.t(`results.${param}`) || param;
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${translatedParam}</td>
+            <td>${displayValue}</td>
+            <td>${data.unit || '--'}</td>
+            <td>${data.limits || 'N/A'}</td>
+        `;
+        tbody.appendChild(row);
+    });
     }
     
     getAnalysisParameters() {
@@ -281,6 +294,9 @@ class RMNAnalyzerApp {
     onLanguageChanged(lang) {
         this.updateDynamicTexts();
         
+        // Actualizar traducciones del gráfico
+        ChartManager.refreshTranslations();
+        
         if (this.analysisResults) {
             this.updateResultsDisplay(this.analysisResults);
         }
@@ -302,17 +318,29 @@ class RMNAnalyzerApp {
     }
     
     switchTab(tabName) {
-        // Update navigation
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-        
-        // Show selected tab
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.getElementById(`${tabName}-tab`).classList.add('active');
+    // Verificar si la tab existe
+    const tabElement = document.getElementById(`${tabName}-tab`);
+    if (!tabElement) {
+        console.warn(`Tab ${tabName} no existe aún`);
+        return;
+    }
+    
+    // Update navigation
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    const navBtn = document.querySelector(`[data-tab="${tabName}"]`);
+    if (navBtn) {
+        navBtn.classList.add('active');
+    }
+    
+    // Show selected tab
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    tabElement.classList.add('active');
     }
     
     hideLoadingScreen() {

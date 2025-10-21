@@ -48,7 +48,12 @@
     "limits": "Mugak",
     "percentage": "%",
     "millimolar": "mM",
-    "qualityScore": "/10"
+    "qualityScore": "/10",
+    "ppm_range": "PPM Tartea",
+    "intensity_range": "Intentsitate Tartea",
+    "mean_intensity": "Batez Besteko Intentsitatea",
+    "std_intensity": "Desbiderapen Estandarra",
+    "signal_to_noise": "Seinale/Zarata Ratioa"
   },
   "notifications": {
     "fileLoaded": "Fitxategia kargatua: {filename}",
@@ -74,6 +79,11 @@
     "connecting": "Konektatzen...",
     "connected": "Konektatuta",
     "disconnected": "Deskonektatuta"
+  },
+  "chart": {
+    "title": "RMN Eskpektroa",
+    "intensity": "Intentsitatea",
+    "spectrum": "RMN Eskpektroa"
   },
   "languages": {
     "es": "Español",

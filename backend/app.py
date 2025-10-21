@@ -98,7 +98,7 @@ def analyze_spectrum():
         
         # Guardar resultados
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        result_filename = f"{file.stem}_analysis_{timestamp}.json"
+        result_filename = f"{Path(file.filename).stem}_analysis_{timestamp}.json"
         result_path = ANALYSIS_DIR / result_filename
         
         with open(result_path, "w") as f:

@@ -4,9 +4,32 @@ class ChartManager {
     static config = null;
 
     static init() {
+        this.updateLayout();
+        this.setupConfig();
+        this.createEmptyChart();
+        
+        window.APP_LOGGER?.info('Chart manager initialized');
+    }
+    
+    static updateLayout() {
+        // Función mejorada para obtener traducciones
+        const getTranslation = (key, fallback) => {
+            try {
+                if (typeof LanguageManager === 'undefined' || !LanguageManager.t) {
+                    return fallback;
+                }
+                const translation = LanguageManager.t(key);
+                // Verificar que la traducción sea una cadena válida
+                return (translation && typeof translation === 'string') ? translation : fallback;
+            } catch (e) {
+                console.warn(`Translation error for key "${key}":`, e);
+                return fallback;
+            }
+        };
+        
         this.layout = {
             title: {
-                text: 'Espectro de RMN',
+                text: getTranslation('chart.title', 'Espectro de RMN'),
                 font: {
                     size: 16,
                     color: '#2c3e50'
@@ -29,7 +52,7 @@ class ChartManager {
             },
             yaxis: {
                 title: {
-                    text: 'Intensidad',
+                    text: getTranslation('chart.intensity', 'Intensidad'),
                     font: {
                         size: 14,
                         color: '#2c3e50'
@@ -51,6 +74,19 @@ class ChartManager {
             showlegend: false,
             hovermode: 'closest'
         };
+    }
+    
+    static setupConfig() {
+        let currentLang = 'es';
+        try {
+            if (typeof LanguageManager !== 'undefined' && LanguageManager.getCurrentLanguage) {
+                const lang = LanguageManager.getCurrentLanguage();
+                currentLang = (lang && typeof lang === 'string') ? lang : 'es';
+            }
+        } catch (e) {
+            console.warn('Error getting current language:', e);
+            currentLang = 'es';
+        }
         
         this.config = {
             responsive: true,
@@ -64,16 +100,34 @@ class ChartManager {
                 width: 800,
                 scale: 2
             },
-            scrollZoom: true
+            scrollZoom: true,
+            locale: currentLang
         };
         
-        // Initialize empty chart
-        this.createEmptyChart();
-        
-        window.APP_LOGGER.info('Chart manager initialized');
+        // Configurar locale globalmente
+        if (typeof Plotly !== 'undefined') {
+            try {
+                Plotly.setPlotConfig({ locale: currentLang });
+            } catch (e) {
+                console.warn('Could not set Plotly locale:', e);
+            }
+        }
     }
     
     static createEmptyChart() {
+        const getTranslation = (key, fallback) => {
+            try {
+                if (typeof LanguageManager === 'undefined' || !LanguageManager.t) {
+                    return fallback;
+                }
+                const translation = LanguageManager.t(key);
+                return (translation && typeof translation === 'string') ? translation : fallback;
+            } catch (e) {
+                console.warn(`Translation error for key "${key}":`, e);
+                return fallback;
+            }
+        };
+        
         const trace = {
             x: [],
             y: [],
@@ -83,18 +137,39 @@ class ChartManager {
                 color: '#3498db',
                 width: 1.5
             },
-            name: 'Espectro RMN',
-            hovertemplate: 'δ: %{x:.2f} ppm<br>Intensidad: %{y:.2f}<extra></extra>'
+            name: getTranslation('chart.spectrum', 'Espectro RMN'),
+            hovertemplate: 'δ: %{x:.2f} ppm<br>' + 
+                          getTranslation('chart.intensity', 'Intensidad') + 
+                          ': %{y:.2f}<extra></extra>'
         };
+        
+        const chartDiv = document.getElementById('spectrumChart');
+        if (!chartDiv) {
+            console.error('Chart container not found');
+            return;
+        }
         
         this.chart = Plotly.newPlot('spectrumChart', [trace], this.layout, this.config);
     }
     
     static updateSpectrumChart(spectrumData) {
         if (!spectrumData || !spectrumData.ppm || !spectrumData.intensity) {
-            window.APP_LOGGER.error('Invalid spectrum data for chart update');
+            window.APP_LOGGER?.error('Invalid spectrum data for chart update');
             return;
         }
+        
+        const getTranslation = (key, fallback) => {
+            try {
+                if (typeof LanguageManager === 'undefined' || !LanguageManager.t) {
+                    return fallback;
+                }
+                const translation = LanguageManager.t(key);
+                return (translation && typeof translation === 'string') ? translation : fallback;
+            } catch (e) {
+                console.warn(`Translation error for key "${key}":`, e);
+                return fallback;
+            }
+        };
         
         const trace = {
             x: spectrumData.ppm,
@@ -105,126 +180,53 @@ class ChartManager {
                 color: '#3498db',
                 width: 1.5
             },
-            name: 'Espectro RMN',
-            hovertemplate: 'δ: %{x:.2f} ppm<br>Intensidad: %{y:.2f}<extra></extra>'
+            name: getTranslation('chart.spectrum', 'Espectro RMN'),
+            hovertemplate: 'δ: %{x:.2f} ppm<br>' + 
+                          getTranslation('chart.intensity', 'Intensidad') + 
+                          ': %{y:.2f}<extra></extra>'
         };
         
         Plotly.react('spectrumChart', [trace], this.layout, this.config)
             .then(() => {
-                window.APP_LOGGER.debug('Spectrum chart updated successfully');
+                window.APP_LOGGER?.debug('Spectrum chart updated successfully');
             })
             .catch(error => {
-                window.APP_LOGGER.error('Error updating spectrum chart:', error);
+                window.APP_LOGGER?.error('Error updating spectrum chart:', error);
             });
     }
     
-    static addIntegrationRegion(regionData) {
-        if (!regionData || !Array.isArray(regionData)) {
-            window.APP_LOGGER.warn('Invalid region data for integration regions');
-            return;
-        }
+    static refreshTranslations() {
+        this.updateLayout();
+        this.setupConfig();
         
-        const shapes = regionData.map(region => ({
-            type: 'rect',
-            x0: region.start,
-            x1: region.end,
-            y0: 0,
-            y1: 1,
-            yref: 'paper',
-            fillcolor: 'rgba(231, 76, 60, 0.2)',
-            line: {
-                width: 1,
-                color: 'rgba(231, 76, 60, 0.8)'
-            },
-            opacity: 0.3
-        }));
-        
-        const updatedLayout = {
-            ...this.layout,
-            shapes: shapes
-        };
-        
-        Plotly.relayout('spectrumChart', updatedLayout)
-            .then(() => {
-                window.APP_LOGGER.debug('Integration regions added to chart');
-            })
-            .catch(error => {
-                window.APP_LOGGER.error('Error adding integration regions:', error);
-            });
-    }
-    
-    static clearIntegrationRegions() {
-        const updatedLayout = {
-            ...this.layout,
-            shapes: []
-        };
-        
-        Plotly.relayout('spectrumChart', updatedLayout)
-            .then(() => {
-                window.APP_LOGGER.debug('Integration regions cleared');
-            })
-            .catch(error => {
-                window.APP_LOGGER.error('Error clearing integration regions:', error);
-            });
-    }
-    
-    static updateChartTitle(title) {
-        const updatedLayout = {
-            ...this.layout,
-            title: {
-                ...this.layout.title,
-                text: title
+        if (this.chart) {
+            const chartDiv = document.getElementById('spectrumChart');
+            if (chartDiv && chartDiv.data && chartDiv.data.length > 0) {
+                Plotly.react('spectrumChart', chartDiv.data, this.layout, this.config);
+            } else {
+                this.createEmptyChart();
             }
-        };
-        
-        Plotly.relayout('spectrumChart', { title: updatedLayout.title })
-            .then(() => {
-                window.APP_LOGGER.debug('Chart title updated');
-            })
-            .catch(error => {
-                window.APP_LOGGER.error('Error updating chart title:', error);
-            });
-    }
-    
-    static exportChart(format = 'png') {
-        return Plotly.downloadImage('spectrumChart', {
-            format: format,
-            filename: `rmn_spectrum_${new Date().toISOString().split('T')[0]}`,
-            height: 600,
-            width: 800,
-            scale: 2
-        });
-    }
-    
-    static getChartData() {
-        return new Promise((resolve, reject) => {
-            Plotly.downloadImage('spectrumChart', {
-                format: 'json',
-                height: 600,
-                width: 800
-            })
-            .then(data => resolve(data))
-            .catch(error => {
-                window.APP_LOGGER.error('Error getting chart data:', error);
-                reject(error);
-            });
-        });
+        }
     }
     
     static resizeChart() {
-        Plotly.Plots.resize('spectrumChart')
-            .then(() => {
-                window.APP_LOGGER.debug('Chart resized');
-            })
-            .catch(error => {
-                window.APP_LOGGER.error('Error resizing chart:', error);
-            });
+        if (typeof Plotly !== 'undefined' && Plotly.Plots) {
+            Plotly.Plots.resize('spectrumChart')
+                .then(() => {
+                    window.APP_LOGGER?.debug('Chart resized');
+                })
+                .catch(error => {
+                    window.APP_LOGGER?.error('Error resizing chart:', error);
+                });
+        }
     }
 }
 
 // Initialize chart manager when loaded
 document.addEventListener('DOMContentLoaded', () => {
-    ChartManager.init();
+    setTimeout(() => {
+        ChartManager.init();
+    }, 200);
 });
 
 // Handle window resize

@@ -48,7 +48,12 @@
     "limits": "Límites",
     "percentage": "%",
     "millimolar": "mM",
-    "qualityScore": "/10"
+    "qualityScore": "/10",
+    "ppm_range": "Rango PPM",
+    "intensity_range": "Rango de Intensidad",
+    "mean_intensity": "Intensidad Media",
+    "std_intensity": "Desviación Estándar",
+    "signal_to_noise": "Relación Señal/Ruido"
   },
   "notifications": {
     "fileLoaded": "Archivo cargado: {filename}",
@@ -74,6 +79,11 @@
     "connecting": "Conectando...",
     "connected": "Conectado",
     "disconnected": "Desconectado"
+  },
+  "chart": {
+    "title": "Espectro de RMN",
+    "intensity": "Intensidad",
+    "spectrum": "Espectro RMN"
   },
   "languages": {
     "es": "Español",

@@ -48,7 +48,12 @@
     "limits": "Limits",
     "percentage": "%",
     "millimolar": "mM",
-    "qualityScore": "/10"
+    "qualityScore": "/10",
+    "ppm_range": "PPM Range",
+    "intensity_range": "Intensity Range",
+    "mean_intensity": "Mean Intensity",
+    "std_intensity": "Standard Deviation",
+    "signal_to_noise": "Signal-to-Noise Ratio"
   },
   "notifications": {
     "fileLoaded": "File loaded: {filename}",
@@ -74,6 +79,11 @@
     "connecting": "Connecting...",
     "connected": "Connected",
     "disconnected": "Disconnected"
+  },
+  "chart": {
+    "title": "NMR Spectrum",
+    "intensity": "Intensity",
+    "spectrum": "NMR Spectrum"
   },
   "languages": {
     "es": "Spanish",
