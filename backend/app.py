@@ -1,3 +1,4 @@
+import csv
 from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 from pathlib import Path
@@ -5,7 +6,7 @@ import os
 import json
 import sys
 from datetime import datetime
-from io import BytesIO
+from io import BytesIO, StringIO
 import traceback
 
 # Importar el analizador
@@ -196,7 +197,6 @@ def batch_analyze():
 # ============================================================================
 # API - Exportar Reportes
 # ============================================================================
-
 @app.route("/api/export", methods=["POST"])
 def export_report():
     """Exportar reporte en PDF o CSV"""
@@ -219,11 +219,12 @@ def export_report():
             )
         
         elif format_type == "csv":
-            # Exportar como CSV
-            import csv
-            output = BytesIO()
+            # --- INICIO DE LA CORRECCIÓN ---
             
-            # Escribir CSV
+            # 1. Usamos StringIO (un buffer de TEXTO) para el CSV
+            output = StringIO(newline='')
+            
+            # 2. El csv.writer escribe texto en el buffer de texto
             writer = csv.writer(output)
             writer.writerow(["Parameter", "Value", "Units"])
             
@@ -233,20 +234,31 @@ def export_report():
                 writer.writerow(["PIFAS %", analysis.get("pifas_percentage", "N/A"), "%"])
                 writer.writerow(["Concentration", analysis.get("concentration", "N/A"), "mM"])
             
-            output.seek(0)
+            # 3. Creamos un buffer de BYTES para send_file
+            byte_buffer = BytesIO()
             
+            # 4. Convertimos el texto del CSV a bytes (utf-8) y lo escribimos en el buffer de bytes
+            byte_buffer.write(output.getvalue().encode('utf-8'))
+            byte_buffer.seek(0)
+            
+            # 5. Cerramos el buffer de texto (opcional pero buena práctica)
+            output.close()
+
+            # 6. Enviamos el buffer de BYTES
             return send_file(
-                output,
+                byte_buffer,
                 mimetype="text/csv",
                 as_attachment=True,
                 download_name=f"rmn_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
             )
+            # --- FIN DE LA CORRECCIÓN ---
         
         else:
             return jsonify({"error": f"Format '{format_type}' not supported. Use 'json' or 'csv'"}), 400
             
     except Exception as e:
         print(f"❌ Error exportando: {str(e)}")
+        traceback.print_exc() # <-- Añade esto para ver más detalles del error en tu terminal de python
         return jsonify({"error": f"Export failed: {str(e)}"}), 500
 
 # ============================================================================

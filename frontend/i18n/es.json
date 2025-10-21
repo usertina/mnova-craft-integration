@@ -82,12 +82,11 @@
   },
   "chart": {
     "title": "Espectro de RMN",
-    "intensity": "Intensidad",
-    "spectrum": "Espectro RMN",
-    "ppm": "δ (ppm)",
-    "export": "Exportar Gráfico",
-    "fullscreen": "Pantalla Completa"
-  },
+    "xaxis": "Desplazamiento (ppm)",
+    "yaxis": "Intensidad",
+    "traceName": "Espectro RMN",
+    "hover": "ppm: %{x:.2f}<br>Intensidad: %{y:.2f}<extra></extra>"
+},
   "languages": {
     "es": "Español",
     "en": "English",

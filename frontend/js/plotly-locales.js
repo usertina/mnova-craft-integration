@@ -52,4 +52,45 @@ Plotly.register({
     }
 });
 
-console.log('[RMN] Plotly locales loaded');
+// Inglés
+Plotly.register({
+    moduleType: 'locale',
+    name: 'en',
+    dictionary: {}, // Deja esto vacío, Plotly usa su inglés interno
+    format: {
+        days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        shortDays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+        months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+        shortMonths: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        date: '%m/%d/%Y'
+    }
+});
+
+// Euskera
+Plotly.register({
+    moduleType: 'locale',
+    name: 'eu',
+    dictionary: {
+        'Autoscale': 'Autoeskala',
+        'Box Select': 'Kutxa hautapena',
+        'Download plot as a png': 'Deskargatu grafikoa PNG gisa',
+        'Download plot': 'Deskargatu grafikoa',
+        'Lasso Select': 'Lazo hautapena',
+        'Pan': 'Mugitu',
+        'Reset': 'Berrezarri',
+        'Reset axes': 'Berrezarri ardatzak',
+        'Show closest data on hover': 'Erakutsi datu hurbilenak', // Corregido el carácter 'к'
+        'Zoom': 'Zoom',
+        'Zoom in': 'Hurbildu',
+        'Zoom out': 'Urrundu'
+    },
+    format: {
+        days: ['Igandea', 'Astelehena', 'Asteartea', 'Asteazkena', 'Osteguna', 'Ostirala', 'Larunbata'],
+        shortDays: ['Ig', 'Al', 'Ar', 'Az', 'Og', 'Or', 'Lr'],
+        months: ['Urtarrila', 'Otsaila', 'Martxoa', 'Apirila', 'Maiatza', 'Ekaina', 'Uztaila', 'Abuztua', 'Iraila', 'Urria', 'Azaroa', 'Abendua'],
+        shortMonths: ['Urt', 'Ots', 'Mar', 'Api', 'Mai', 'Eka', 'Uzt', 'Abu', 'Ira', 'Urr', 'Aza', 'Abe'],
+        date: '%Y/%m/%d'
+    }
+});
+
+console.log('[RMN] Plotly locales loaded (es, en, eu) - CLEANED');

@@ -81,13 +81,12 @@
     "disconnected": "Deskonektatuta"
   },
   "chart": {
-    "title": "RMN Eskpektroa",
-    "intensity": "Intentsitatea",
-    "spectrum": "RMN Eskpektroa",
-    "ppm": "δ (ppm)", 
-    "export": "Exportatu Grafikoa",
-    "fullscreen": "Pantaila Osoa"
-  },
+    "title": "EMN Espektroa",
+    "xaxis": "Desplazamendua (ppm)",
+    "yaxis": "Intentsitatea",
+    "traceName": "EMN Espektroa",
+    "hover": "ppm: %{x:.2f}<br>Intentsitatea: %{y:.2f}<extra></extra>"
+},
   "languages": {
     "es": "Español",
     "en": "English",

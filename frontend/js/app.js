@@ -6,6 +6,15 @@ class RMNAnalyzerApp {
         this.isConnected = false;
         
         this.initializeApp();
+
+        // --- CAMBIO AQUÍ ---
+        // Movimos el 'resize' listener de chartManager.js aquí
+        // para que solo se active después de que la app esté lista.
+        window.addEventListener('resize', () => {
+            if (ChartManager.chart) {
+                ChartManager.resizeChart();
+            }
+        });
     }
     
     async initializeApp() {
@@ -295,7 +304,7 @@ class RMNAnalyzerApp {
         this.updateDynamicTexts();
         
         // Actualizar traducciones del gráfico
-        ChartManager.refreshTranslations();
+        ChartManager.refreshTranslations(lang);
         
         if (this.analysisResults) {
             this.updateResultsDisplay(this.analysisResults);
@@ -461,7 +470,7 @@ class RMNAnalyzerApp {
         if (!this.analysisResults) return;
         
         try {
-            await APIClient.exportReport(this.analysisResults, 'pdf');
+            await APIClient.exportReport(this.analysisResults, 'csv');
             this.showNotification('notifications.exportSuccess', 'success');
         } catch (error) {
             this.showNotification('notifications.exportError', 'error', {
@@ -481,7 +490,17 @@ class RMNAnalyzerApp {
     }
 }
 
+// --- CAMBIO AQUÍ ---
 // Initialize app when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    window.rmnApp = new RMNAnalyzerApp();
+document.addEventListener('DOMContentLoaded', async () => { // 1. Añadimos 'async'
+    try {
+        // 2. Esperamos a que ChartManager esté 100% listo
+        await ChartManager.init();
+        
+        // 3. Solo ENTONCES creamos la aplicación
+        window.rmnApp = new RMNAnalyzerApp();
+        
+    } catch (error) {
+        console.error("Error grave al inicializar la aplicación", error);
+    }
 });

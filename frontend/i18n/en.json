@@ -82,12 +82,11 @@
   },
   "chart": {
     "title": "NMR Spectrum",
-    "intensity": "Intensity",
-    "spectrum": "NMR Spectrum",
-    "ppm": "δ (ppm)",
-    "export": "Export Chart",
-    "fullscreen": "Fullscreen"
-  },
+    "xaxis": "Displacement (ppm)",
+    "yaxis": "Intensity",
+    "traceName": "NMR Spectrum",
+    "hover": "ppm: %{x:.2f}<br>Intensity: %{y:.2f}<extra></extra>"
+},
   "languages": {
     "es": "Spanish",
     "en": "English",
