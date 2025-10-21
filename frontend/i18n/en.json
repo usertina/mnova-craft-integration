@@ -83,7 +83,10 @@
   "chart": {
     "title": "NMR Spectrum",
     "intensity": "Intensity",
-    "spectrum": "NMR Spectrum"
+    "spectrum": "NMR Spectrum",
+    "ppm": "δ (ppm)",
+    "export": "Export Chart",
+    "fullscreen": "Fullscreen"
   },
   "languages": {
     "es": "Spanish",

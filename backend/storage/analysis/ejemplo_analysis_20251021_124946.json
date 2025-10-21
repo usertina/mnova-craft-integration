@@ -1,14 +1,14 @@
 {
   "filename": "ejemplo.csv",
-  "timestamp": 1761035524.5033247,
+  "timestamp": 1761043786.9354367,
   "parameters": {
     "fluor_range": {
       "min": -150,
       "max": -50
     },
     "pifas_range": {
-      "min": 0,
-      "max": 10
+      "min": -130,
+      "max": -60
     },
     "concentration": 1
   },
@@ -123,12 +123,12 @@
   },
   "analysis": {
     "fluor_percentage": 100.0,
-    "pifas_percentage": 0.0,
-    "pifas_concentration": 0.0,
+    "pifas_percentage": 95.18,
+    "pifas_concentration": 0.9518,
     "concentration": 1,
     "total_area": 30679.0,
     "fluor_area": 30679.0,
-    "pifas_area": 0.0
+    "pifas_area": 29200.499999999996
   },
   "peaks": [
     {

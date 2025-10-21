@@ -83,7 +83,10 @@
   "chart": {
     "title": "Espectro de RMN",
     "intensity": "Intensidad",
-    "spectrum": "Espectro RMN"
+    "spectrum": "Espectro RMN",
+    "ppm": "δ (ppm)",
+    "export": "Exportar Gráfico",
+    "fullscreen": "Pantalla Completa"
   },
   "languages": {
     "es": "Español",

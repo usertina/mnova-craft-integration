@@ -83,7 +83,10 @@
   "chart": {
     "title": "RMN Eskpektroa",
     "intensity": "Intentsitatea",
-    "spectrum": "RMN Eskpektroa"
+    "spectrum": "RMN Eskpektroa",
+    "ppm": "δ (ppm)", 
+    "export": "Exportatu Grafikoa",
+    "fullscreen": "Pantaila Osoa"
   },
   "languages": {
     "es": "Español",
