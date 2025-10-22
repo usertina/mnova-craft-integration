@@ -1,7 +1,14 @@
+// ============================================================================
+// CHART MANAGER - CraftRMN Pro - VERSIÓN MEJORADA
+// Gestión de gráficos con Plotly + Mostrar picos detectados
+// ✅ Actualizado para analyzer_improved.py
+// ============================================================================
+
 class ChartManager {
     static chart = null;
     static layout = null;
     static config = null;
+    static currentPeaks = []; // 🆕 Almacenar picos actuales
 
     // --- Definimos las traducciones AQUÍ ---
     static locales = {
@@ -40,7 +47,9 @@ class ChartManager {
             plot_bgcolor: 'white', paper_bgcolor: 'white',
             font: { family: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif', color: '#2c3e50' },
             margin: { t: 60, r: 40, b: 60, l: 60 },
-            showlegend: false, hovermode: 'closest'
+            showlegend: true, // 🆕 Mostrar leyenda para picos
+            legend: { x: 1, y: 1, xanchor: 'right', yanchor: 'top' },
+            hovermode: 'closest'
         };
         
         this.config = {
@@ -51,8 +60,6 @@ class ChartManager {
             scrollZoom: true
         };
         
-        // --- CAMBIO ---
-        // Esperamos a que el gráfico se cree antes de continuar
         await this.createEmptyChart();
         
         window.APP_LOGGER.info('Chart manager initialized');
@@ -69,22 +76,91 @@ class ChartManager {
             hovertemplate: 'ppm: %{x:.2f}<br>Intensidad: %{y:.2f}<extra></extra>'
         };
         
-        // --- CAMBIO ---
-        // newPlot devuelve una Promesa. La esperamos y asignamos el resultado
-        // (el elemento del gráfico) a 'this.chart'.
         this.chart = await Plotly.newPlot('spectrumChart', [trace], this.layout, this.config);
     }
     
-    static updateSpectrumChart(spectrumData) {
+    // 🆕 NUEVA FUNCIÓN: Actualizar espectro con picos detectados
+    static updateSpectrumChart(spectrumData, peaksData = null) {
         if (!spectrumData || !spectrumData.ppm || !spectrumData.intensity) {
             window.APP_LOGGER.error('Invalid spectrum data for chart update');
             return;
         }
 
-        this.chart.data[0].x = spectrumData.ppm;
-        this.chart.data[0].y = spectrumData.intensity;
+        // Trace principal del espectro
+        const spectrumTrace = {
+            x: spectrumData.ppm,
+            y: spectrumData.intensity,
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: '#3498db', width: 1.5 },
+            name: 'Espectro de RMN',
+            hovertemplate: 'ppm: %{x:.2f}<br>Intensidad: %{y:.2f}<extra></extra>'
+        };
+
+        const traces = [spectrumTrace];
+
+        // 🆕 Si hay picos detectados, añadirlos
+        if (peaksData && Array.isArray(peaksData) && peaksData.length > 0) {
+            window.APP_LOGGER.debug(`Adding ${peaksData.length} peaks to chart`);
+            
+            this.currentPeaks = peaksData;
+
+            // Trace para los picos
+            const peaksTrace = {
+                x: peaksData.map(p => p.ppm),
+                y: peaksData.map(p => p.intensity),
+                type: 'scatter',
+                mode: 'markers+text',
+                marker: {
+                    color: '#e74c3c',
+                    size: 10,
+                    symbol: 'circle',
+                    line: { color: 'white', width: 2 }
+                },
+                text: peaksData.map(p => `${p.ppm.toFixed(2)}`),
+                textposition: 'top center',
+                textfont: { size: 10, color: '#e74c3c' },
+                name: 'Picos Detectados',
+                hovertemplate: '<b>Pico</b><br>' +
+                               'ppm: %{x:.3f}<br>' +
+                               'Intensidad: %{y:.1f}<br>' +
+                               '<extra></extra>',
+                customdata: peaksData.map(p => p.region),
+                showlegend: true
+            };
+
+            traces.push(peaksTrace);
+
+            // 🆕 Añadir anotaciones para los picos principales (top 3)
+            const topPeaks = [...peaksData]
+                .sort((a, b) => b.intensity - a.intensity)
+                .slice(0, 3);
+
+            const annotations = topPeaks.map(peak => ({
+                x: peak.ppm,
+                y: peak.intensity,
+                text: `<b>${peak.region}</b><br>${peak.ppm.toFixed(3)} ppm`,
+                showarrow: true,
+                arrowhead: 2,
+                arrowsize: 1,
+                arrowwidth: 2,
+                arrowcolor: '#e74c3c',
+                ax: 0,
+                ay: -40,
+                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                bordercolor: '#e74c3c',
+                borderwidth: 2,
+                borderpad: 4,
+                font: { size: 11, color: '#2c3e50' }
+            }));
+
+            this.layout.annotations = annotations;
+        } else {
+            this.currentPeaks = [];
+            this.layout.annotations = [];
+        }
         
-        Plotly.react('spectrumChart', this.chart.data, this.chart.layout, this.config)
+        Plotly.react('spectrumChart', traces, this.layout, this.config)
             .then(() => {
                 window.APP_LOGGER.debug('Spectrum chart updated successfully');
             })
@@ -93,8 +169,24 @@ class ChartManager {
             });
     }
 
+    // 🆕 NUEVA FUNCIÓN: Obtener picos actuales
+    static getCurrentPeaks() {
+        return this.currentPeaks;
+    }
+
+    // 🆕 NUEVA FUNCIÓN: Limpiar picos
+    static clearPeaks() {
+        this.currentPeaks = [];
+        this.layout.annotations = [];
+        
+        if (this.chart && this.chart.data && this.chart.data[0]) {
+            // Mantener solo el trace del espectro
+            const spectrumTrace = this.chart.data[0];
+            Plotly.react('spectrumChart', [spectrumTrace], this.layout, this.config);
+        }
+    }
+
     static refreshTranslations(lang, log = true) {
-        // Esta comprobación ahora FUNCIONARÁ
         if (!this.chart || !window.LanguageManager || !this.chart.data) {
             if (log) window.APP_LOGGER.warn('Chart or LanguageManager not ready for translation');
             return;
@@ -121,7 +213,7 @@ class ChartManager {
             // Usamos newPlot para forzar la traducción de los iconos
             Plotly.newPlot('spectrumChart', this.chart.data, this.chart.layout, this.config)
                 .then(() => {
-                     this.chart = document.getElementById('spectrumChart'); // Re-asignamos
+                     this.chart = document.getElementById('spectrumChart');
                      if (log) window.APP_LOGGER.debug(`Chart translations and locale REBUILT to: ${lang}`);
                 })
                 .catch(error => {
@@ -136,8 +228,6 @@ class ChartManager {
             window.APP_LOGGER.error('Error refreshing chart translations:', error);
         }
     }
-    
-    // ... (El resto de funciones: addIntegrationRegion, etc. no cambian) ...
     
     static addIntegrationRegion(regionData) {
         if (!regionData || !Array.isArray(regionData)) {
@@ -242,7 +332,3 @@ class ChartManager {
             });
     }
 }
-
-// --- CAMBIO ---
-// HEMOS BORRADO EL 'DOMContentLoaded' LISTENER DE AQUÍ
-// Y EL 'resize' LISTENER

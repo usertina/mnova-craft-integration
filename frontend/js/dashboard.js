@@ -1,6 +1,7 @@
 // ============================================================================
-// DASHBOARD MANAGER - CraftRMN Pro
+// DASHBOARD MANAGER - CraftRMN Pro - VERSIÓN MEJORADA
 // Gestión completa de estadísticas y comparación de muestras
+// ✅ Actualizado para analyzer_improved.py
 // ============================================================================
 
 class DashboardManager {
@@ -122,7 +123,10 @@ class DashboardManager {
                 outOfLimits: 0,
                 lastWeek: 0,
                 lastMonth: 0,
-                avgQuality: 0
+                avgQuality: 0,
+                // 🆕 NUEVAS MÉTRICAS
+                avgSNR: 0,
+                highQualitySamples: 0
             };
             return;
         }
@@ -136,9 +140,12 @@ class DashboardManager {
         let totalPfas = 0;
         let totalFluor = 0;
         let totalQuality = 0;
+        let totalSNR = 0; // 🆕
+        let snrCount = 0; // 🆕
         let outOfLimits = 0;
         let lastWeek = 0;
         let lastMonth = 0;
+        let highQualitySamples = 0; // 🆕 calidad >= 8
 
         this.allAnalyses.forEach(analysis => {
             const concentration = analysis.concentration || 0;
@@ -151,6 +158,17 @@ class DashboardManager {
             totalPfas += pfas;
             totalFluor += fluor;
             totalQuality += quality;
+
+            // 🆕 SNR promedio (si existe en los datos)
+            if (analysis.snr) {
+                totalSNR += analysis.snr;
+                snrCount++;
+            }
+
+            // 🆕 Contar muestras de alta calidad
+            if (quality >= 8) {
+                highQualitySamples++;
+            }
 
             // Contadores temporales
             if (created >= oneWeekAgo) lastWeek++;
@@ -170,7 +188,10 @@ class DashboardManager {
             outOfLimits: outOfLimits,
             lastWeek: lastWeek,
             lastMonth: lastMonth,
-            avgQuality: (totalQuality / count).toFixed(1)
+            avgQuality: (totalQuality / count).toFixed(1),
+            // 🆕 NUEVAS MÉTRICAS
+            avgSNR: snrCount > 0 ? (totalSNR / snrCount).toFixed(2) : 'N/A',
+            highQualitySamples: highQualitySamples
         };
 
         window.APP_LOGGER.debug('Stats calculated:', this.statsCache);
@@ -213,6 +234,14 @@ class DashboardManager {
         // PFAS promedio
         const pfasEl = document.getElementById('dashAvgPfas');
         if (pfasEl) pfasEl.textContent = `${stats.avgPfas}%`;
+
+        // 🆕 SNR promedio (si existe el elemento)
+        const snrEl = document.getElementById('dashAvgSNR');
+        if (snrEl) snrEl.textContent = stats.avgSNR;
+
+        // 🆕 Muestras de alta calidad (si existe el elemento)
+        const highQualityEl = document.getElementById('dashHighQuality');
+        if (highQualityEl) highQualityEl.textContent = stats.highQualitySamples;
     }
 
     renderTrendChart() {
@@ -227,50 +256,66 @@ class DashboardManager {
         });
 
         const dates = sortedAnalyses.map(a => {
-            const date = new Date(a.created);
-            return date.toLocaleDateString(LanguageManager.currentLang, {
-                day: '2-digit',
-                month: 'short'
-            });
+            return new Date(a.created).toLocaleDateString(LanguageManager.currentLang);
         });
 
         const concentrations = sortedAnalyses.map(a => a.concentration || 0);
+        const pfasValues = sortedAnalyses.map(a => a.pfas || 0);
+        const qualityValues = sortedAnalyses.map(a => a.quality || 0);
 
-        const trace = {
+        const trace1 = {
             x: dates,
             y: concentrations,
             type: 'scatter',
             mode: 'lines+markers',
-            line: {
-                color: '#3498db',
-                width: 2
-            },
-            marker: {
-                size: 6,
-                color: '#3498db'
-            },
-            name: LanguageManager.t('dashboard.concentration'),
-            hovertemplate: LanguageManager.t('dashboard.trendHover')
+            name: LanguageManager.t('results.concentration'),
+            line: { color: '#3498db', width: 2 },
+            marker: { size: 6 }
+        };
+
+        const trace2 = {
+            x: dates,
+            y: pfasValues,
+            type: 'scatter',
+            mode: 'lines+markers',
+            name: LanguageManager.t('results.pifas'),
+            line: { color: '#e74c3c', width: 2 },
+            marker: { size: 6 },
+            yaxis: 'y2'
+        };
+
+        const trace3 = {
+            x: dates,
+            y: qualityValues,
+            type: 'scatter',
+            mode: 'lines+markers',
+            name: LanguageManager.t('results.quality'),
+            line: { color: '#2ecc71', width: 2 },
+            marker: { size: 6 },
+            yaxis: 'y3'
         };
 
         const layout = {
-            title: {
-                text: LanguageManager.t('dashboard.trendTitle'),
-                font: { size: 16, color: '#2c3e50' }
-            },
-            xaxis: {
-                title: LanguageManager.t('dashboard.date'),
-                gridcolor: '#f0f0f0'
-            },
+            title: LanguageManager.t('dashboard.trendTitle') || 'Tendencias Temporales',
+            xaxis: { title: LanguageManager.t('dashboard.date') || 'Fecha' },
             yaxis: {
-                title: LanguageManager.t('dashboard.concentration') + ' (mM)',
-                gridcolor: '#f0f0f0'
+                title: LanguageManager.t('results.concentration') + ' (mM)',
+                side: 'left'
             },
-            plot_bgcolor: 'white',
-            paper_bgcolor: 'white',
-            margin: { t: 60, r: 40, b: 60, l: 60 },
-            showlegend: false,
-            hovermode: 'closest'
+            yaxis2: {
+                title: 'PFAS (%)',
+                overlaying: 'y',
+                side: 'right'
+            },
+            yaxis3: {
+                title: LanguageManager.t('results.quality'),
+                overlaying: 'y',
+                side: 'right',
+                position: 0.95
+            },
+            hovermode: 'x unified',
+            showlegend: true,
+            legend: { orientation: 'h', y: -0.2 }
         };
 
         const config = {
@@ -280,14 +325,17 @@ class DashboardManager {
             locale: LanguageManager.currentLang
         };
 
-        Plotly.newPlot('trendChart', [trace], layout, config)
-            .then(() => {
-                this.charts.trend = document.getElementById('trendChart');
-                window.APP_LOGGER.debug('Trend chart rendered');
-            })
-            .catch(error => {
-                window.APP_LOGGER.error('Error rendering trend chart:', error);
-            });
+        const chartDiv = document.getElementById('trendChart');
+        if (chartDiv) {
+            Plotly.newPlot('trendChart', [trace1, trace2, trace3], layout, config)
+                .then(() => {
+                    this.charts.trend = chartDiv;
+                    window.APP_LOGGER.debug('Trend chart rendered');
+                })
+                .catch(error => {
+                    window.APP_LOGGER.error('Error rendering trend chart:', error);
+                });
+        }
     }
 
     renderDistributionChart() {
@@ -296,49 +344,37 @@ class DashboardManager {
             return;
         }
 
-        // Agrupar por rangos de calidad
-        const qualityRanges = {
+        // Distribución de calidad
+        const qualityDistribution = {
             'Excelente (8-10)': 0,
             'Buena (6-8)': 0,
             'Regular (4-6)': 0,
-            'Baja (0-4)': 0
+            'Baja (<4)': 0
         };
 
-        this.allAnalyses.forEach(analysis => {
-            const quality = analysis.quality || 0;
-            if (quality >= 8) qualityRanges['Excelente (8-10)']++;
-            else if (quality >= 6) qualityRanges['Buena (6-8)']++;
-            else if (quality >= 4) qualityRanges['Regular (4-6)']++;
-            else qualityRanges['Baja (0-4)']++;
+        this.allAnalyses.forEach(a => {
+            const quality = a.quality || 0;
+            if (quality >= 8) qualityDistribution['Excelente (8-10)']++;
+            else if (quality >= 6) qualityDistribution['Buena (6-8)']++;
+            else if (quality >= 4) qualityDistribution['Regular (4-6)']++;
+            else qualityDistribution['Baja (<4)']++;
         });
 
-        const labels = Object.keys(qualityRanges);
-        const values = Object.values(qualityRanges);
-        const colors = ['#27ae60', '#3498db', '#f39c12', '#e74c3c'];
-
         const trace = {
-            labels: labels,
-            values: values,
+            labels: Object.keys(qualityDistribution),
+            values: Object.values(qualityDistribution),
             type: 'pie',
             marker: {
-                colors: colors
+                colors: ['#2ecc71', '#3498db', '#f39c12', '#e74c3c']
             },
-            hovertemplate: '%{label}: %{value}<br>%{percent}<extra></extra>'
+            textinfo: 'label+percent',
+            hoverinfo: 'label+value+percent'
         };
 
         const layout = {
-            title: {
-                text: LanguageManager.t('dashboard.distributionTitle'),
-                font: { size: 16, color: '#2c3e50' }
-            },
-            plot_bgcolor: 'white',
-            paper_bgcolor: 'white',
-            margin: { t: 60, r: 40, b: 40, l: 40 },
+            title: LanguageManager.t('dashboard.qualityDistribution') || 'Distribución de Calidad',
             showlegend: true,
-            legend: {
-                orientation: 'h',
-                y: -0.2
-            }
+            height: 400
         };
 
         const config = {
@@ -347,14 +383,17 @@ class DashboardManager {
             locale: LanguageManager.currentLang
         };
 
-        Plotly.newPlot('distributionChart', [trace], layout, config)
-            .then(() => {
-                this.charts.distribution = document.getElementById('distributionChart');
-                window.APP_LOGGER.debug('Distribution chart rendered');
-            })
-            .catch(error => {
-                window.APP_LOGGER.error('Error rendering distribution chart:', error);
-            });
+        const chartDiv = document.getElementById('distributionChart');
+        if (chartDiv) {
+            Plotly.newPlot('distributionChart', [trace], layout, config)
+                .then(() => {
+                    this.charts.distribution = chartDiv;
+                    window.APP_LOGGER.debug('Distribution chart rendered');
+                })
+                .catch(error => {
+                    window.APP_LOGGER.error('Error rendering distribution chart:', error);
+                });
+        }
     }
 
     renderRecentAnalysesTable() {
@@ -363,64 +402,53 @@ class DashboardManager {
 
         tbody.innerHTML = '';
 
-        if (this.allAnalyses.length === 0) {
+        // Ordenar por fecha (más reciente primero) y tomar los últimos 10
+        const recentAnalyses = [...this.allAnalyses]
+            .sort((a, b) => new Date(b.created) - new Date(a.created))
+            .slice(0, 10);
+
+        if (recentAnalyses.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                        <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
-                        <p>${LanguageManager.t('dashboard.noData')}</p>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                        ${LanguageManager.t('dashboard.noData') || 'No hay datos disponibles'}
                     </td>
                 </tr>
             `;
             return;
         }
 
-        // Mostrar últimos 10 análisis
-        const recent = [...this.allAnalyses]
-            .sort((a, b) => new Date(b.created) - new Date(a.created))
-            .slice(0, 10);
-
-        recent.forEach(analysis => {
+        recentAnalyses.forEach((analysis, index) => {
             const row = document.createElement('tr');
             
-            const displayName = analysis.filename || analysis.name;
-            const date = new Date(analysis.created).toLocaleDateString(
-                LanguageManager.currentLang
-            );
-            const fluor = analysis.fluor != null ? analysis.fluor.toFixed(2) : '--';
-            const pfas = analysis.pfas != null ? analysis.pfas.toFixed(2) : '--';
+            const date = new Date(analysis.created).toLocaleString(LanguageManager.currentLang);
+            const fluor = analysis.fluor != null ? analysis.fluor.toFixed(2) + '%' : '--';
+            const pfas = analysis.pfas != null ? analysis.pfas.toFixed(2) + '%' : '--';
+            const concentration = analysis.concentration != null ? analysis.concentration.toFixed(4) + ' mM' : '--';
             const quality = analysis.quality != null ? analysis.quality.toFixed(1) : '--';
-
-            // Badge de calidad
+            
             let qualityClass = 'quality-low';
             if (analysis.quality >= 8) qualityClass = 'quality-excellent';
             else if (analysis.quality >= 6) qualityClass = 'quality-good';
             else if (analysis.quality >= 4) qualityClass = 'quality-regular';
 
             row.innerHTML = `
-                <td>
-                    <i class="fas fa-file"></i> ${displayName}
-                </td>
+                <td>${index + 1}</td>
+                <td><strong>${analysis.filename || analysis.name}</strong></td>
                 <td>${date}</td>
-                <td>${fluor}%</td>
-                <td>${pfas}%</td>
-                <td>
-                    <span class="quality-badge ${qualityClass}">${quality}/10</span>
-                </td>
+                <td>${fluor}</td>
+                <td>${pfas}</td>
+                <td>${concentration}</td>
+                <td><span class="quality-badge ${qualityClass}">${quality}/10</span></td>
             `;
-
-            row.style.cursor = 'pointer';
-            row.addEventListener('click', () => {
-                window.rmnApp.loadAnalysisFromHistory(analysis.name);
-            });
 
             tbody.appendChild(row);
         });
     }
 
     clearChart(chartId) {
-        const chartElement = document.getElementById(chartId);
-        if (chartElement) {
+        const chartDiv = document.getElementById(chartId);
+        if (chartDiv) {
             Plotly.purge(chartId);
         }
     }
@@ -429,112 +457,39 @@ class DashboardManager {
     // COMPARACIÓN DE MUESTRAS
     // ========================================================================
 
-    initComparison() {
-        this.renderSampleSelector();
-    }
-
-    renderSampleSelector() {
-        const container = document.getElementById('sampleSelectorContainer');
-        if (!container) return;
-
-        container.innerHTML = '';
-
-        if (this.allAnalyses.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-inbox"></i>
-                    <p>${LanguageManager.t('comparison.noSamples')}</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Crear botones de selección
-        this.allAnalyses.forEach(analysis => {
-            const button = document.createElement('button');
-            button.className = 'sample-select-btn';
-            button.dataset.analysisId = analysis.name;
-            
-            const displayName = analysis.filename || analysis.name;
-            const date = new Date(analysis.created).toLocaleDateString(
-                LanguageManager.currentLang,
-                { month: 'short', day: '2-digit' }
-            );
-
-            button.innerHTML = `
-                <div class="sample-btn-content">
-                    <div class="sample-btn-name">${displayName}</div>
-                    <div class="sample-btn-date">${date}</div>
-                </div>
-                <i class="fas fa-check sample-btn-check"></i>
-            `;
-
-            if (this.selectedSamples.has(analysis.name)) {
-                button.classList.add('selected');
-            }
-
-            button.addEventListener('click', () => this.toggleSampleSelection(analysis.name));
-
-            container.appendChild(button);
-        });
-    }
-
-    toggleSampleSelection(analysisId) {
-        if (this.selectedSamples.has(analysisId)) {
-            this.selectedSamples.delete(analysisId);
+    toggleSampleSelection(analysisName) {
+        if (this.selectedSamples.has(analysisName)) {
+            this.selectedSamples.delete(analysisName);
         } else {
             if (this.selectedSamples.size >= this.maxSelectedSamples) {
                 UIManager.showNotification(
-                    LanguageManager.t('comparison.maxSamples', { max: this.maxSelectedSamples }),
+                    LanguageManager.t('comparison.maxSamplesReached') || `Máximo ${this.maxSelectedSamples} muestras`,
                     'warning'
                 );
                 return;
             }
-            this.selectedSamples.add(analysisId);
+            this.selectedSamples.add(analysisName);
         }
 
-        this.updateSampleSelector();
-        this.updateComparison();
+        this.updateComparisonView();
     }
 
-    updateSampleSelector() {
-        const buttons = document.querySelectorAll('.sample-select-btn');
-        buttons.forEach(btn => {
-            const id = btn.dataset.analysisId;
-            if (this.selectedSamples.has(id)) {
-                btn.classList.add('selected');
-            } else {
-                btn.classList.remove('selected');
-            }
-        });
-    }
+    updateComparisonView() {
+        const selectedAnalyses = this.allAnalyses.filter(a => 
+            this.selectedSamples.has(a.name)
+        );
 
-    async updateComparison() {
-        if (this.selectedSamples.size === 0) {
+        if (selectedAnalyses.length < 2) {
             this.clearComparison();
             return;
         }
 
-        try {
-            const selectedAnalyses = this.allAnalyses.filter(a => 
-                this.selectedSamples.has(a.name)
-            );
+        this.renderComparisonChart(selectedAnalyses);
+        this.renderComparisonTable(selectedAnalyses);
 
-            this.renderComparisonChart(selectedAnalyses);
-            this.renderComparisonTable(selectedAnalyses);
-
-            // Mostrar botón de exportar
-            const exportBtn = document.getElementById('exportComparisonBtn');
-            if (exportBtn) {
-                exportBtn.disabled = false;
-            }
-
-        } catch (error) {
-            window.APP_LOGGER.error('Error updating comparison:', error);
-            UIManager.showNotification(
-                LanguageManager.t('comparison.error'),
-                'error'
-            );
+        const exportBtn = document.getElementById('exportComparisonBtn');
+        if (exportBtn) {
+            exportBtn.disabled = false;
         }
     }
 
@@ -542,51 +497,40 @@ class DashboardManager {
         const chartDiv = document.getElementById('comparisonChart');
         if (!chartDiv) return;
 
-        // Preparar datos para gráfico de barras
-        const names = analyses.map(a => a.filename || a.name);
-        const concentrations = analyses.map(a => a.concentration || 0);
-        const pfasValues = analyses.map(a => a.pfas || 0);
-
+        // Trace para concentraciones
         const trace1 = {
-            x: names,
-            y: concentrations,
-            name: LanguageManager.t('results.concentration'),
+            x: analyses.map(a => a.filename || a.name),
+            y: analyses.map(a => a.concentration || 0),
             type: 'bar',
-            marker: { color: '#3498db' }
+            name: LanguageManager.t('results.concentration'),
+            marker: { color: '#3498db' },
+            yaxis: 'y'
         };
 
+        // Trace para PFAS
         const trace2 = {
-            x: names,
-            y: pfasValues,
-            name: LanguageManager.t('results.pifas'),
+            x: analyses.map(a => a.filename || a.name),
+            y: analyses.map(a => a.pfas || 0),
             type: 'bar',
-            marker: { color: '#27ae60' },
+            name: LanguageManager.t('results.pifas'),
+            marker: { color: '#e74c3c' },
             yaxis: 'y2'
         };
 
         const layout = {
-            title: {
-                text: LanguageManager.t('comparison.chartTitle'),
-                font: { size: 16, color: '#2c3e50' }
-            },
-            xaxis: {
-                title: LanguageManager.t('comparison.samples')
-            },
+            title: LanguageManager.t('comparison.chartTitle') || 'Comparación de Muestras',
+            barmode: 'group',
             yaxis: {
                 title: LanguageManager.t('results.concentration') + ' (mM)',
                 side: 'left'
             },
             yaxis2: {
-                title: LanguageManager.t('results.pifas') + ' (%)',
-                side: 'right',
-                overlaying: 'y'
+                title: 'PFAS (%)',
+                overlaying: 'y',
+                side: 'right'
             },
-            plot_bgcolor: 'white',
-            paper_bgcolor: 'white',
-            margin: { t: 60, r: 60, b: 100, l: 60 },
-            showlegend: true,
-            legend: { orientation: 'h', y: -0.2 },
-            barmode: 'group'
+            hovermode: 'x unified',
+            showlegend: true
         };
 
         const config = {

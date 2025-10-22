@@ -1,0 +1,132 @@
+{
+  "filename": "ejemplo.csv",
+  "timestamp": 1761142210.3099365,
+  "parameters": {
+    "fluor_range": {
+      "min": -150,
+      "max": -50
+    },
+    "pifas_range": {
+      "min": -130,
+      "max": -60
+    },
+    "concentration": 1,
+    "baseline_correction": true
+  },
+  "spectrum": {
+    "ppm_min": -150.0,
+    "ppm_max": -50.0,
+    "data_points": 51,
+    "intensity_min": 12.5,
+    "intensity_max": 1260.5,
+    "intensity_corrected_min": 0.0,
+    "intensity_corrected_max": 1240.9
+  },
+  "analysis": {
+    "fluor_percentage": 100.0,
+    "pifas_percentage": 95.98,
+    "pifas_concentration": 0.9598,
+    "concentration": 1,
+    "total_area": 59415.7,
+    "fluor_area": 59415.7,
+    "pifas_area": 57029.0,
+    "fluor_atoms_estimate": 47.9
+  },
+  "peaks": [
+    {
+      "ppm": -86.0,
+      "intensity": 1240.9,
+      "relative_intensity": 100.0,
+      "fwhm": 52.0,
+      "region": "CF3 terminal",
+      "prominence": 1142.2
+    }
+  ],
+  "regions": {
+    "CF3_terminal": {
+      "name": "CF\u2083 Terminal",
+      "range_ppm": "-90 to -70",
+      "area": 23969.2,
+      "percentage": 40.34,
+      "max_intensity": 1240.9,
+      "points": 11
+    },
+    "CF2_internal": {
+      "name": "CF\u2082 Interno",
+      "range_ppm": "-115 to -90",
+      "area": 20936.0,
+      "percentage": 35.24,
+      "max_intensity": 1226.2,
+      "points": 13
+    },
+    "CF2_alpha": {
+      "name": "CF\u2082 \u03b1-carbonilo",
+      "range_ppm": "-130 to -115",
+      "area": 1727.3,
+      "percentage": 2.91,
+      "max_intensity": 149.3,
+      "points": 8
+    },
+    "CF2_chain": {
+      "name": "CF\u2082 Cadena Larga",
+      "range_ppm": "-150 to -130",
+      "area": 262.2,
+      "percentage": 0.44,
+      "max_intensity": 34.6,
+      "points": 11
+    }
+  },
+  "quality_metrics": {
+    "snr": 441.34,
+    "dynamic_range": 1240.9,
+    "baseline_stability": 2.812,
+    "data_density": 0.5,
+    "spectral_resolution": 2.0,
+    "total_points": 51
+  },
+  "detailed_stats": {
+    "ppm_range": {
+      "parameter": "Rango PPM",
+      "value": "-150.00 to -50.00",
+      "unit": "ppm",
+      "limits": "-150 to -50"
+    },
+    "intensity_range_original": {
+      "parameter": "Rango Intensidad (original)",
+      "value": "12.50 to 1260.50",
+      "unit": "a.u.",
+      "limits": "\u2014"
+    },
+    "intensity_range_corrected": {
+      "parameter": "Rango Intensidad (corregido)",
+      "value": "0.00 to 1240.90",
+      "unit": "a.u.",
+      "limits": "\u2014"
+    },
+    "mean_intensity": {
+      "parameter": "Intensidad Media",
+      "value": 583.4745,
+      "unit": "a.u.",
+      "limits": "\u2014"
+    },
+    "std_intensity": {
+      "parameter": "Desviaci\u00f3n Est\u00e1ndar",
+      "value": 518.1119,
+      "unit": "a.u.",
+      "limits": "\u2014"
+    },
+    "signal_to_noise": {
+      "parameter": "Relaci\u00f3n Se\u00f1al/Ruido",
+      "value": 2.395,
+      "unit": "ratio",
+      "limits": "> 10"
+    },
+    "max_signal": {
+      "parameter": "Se\u00f1al M\u00e1xima",
+      "value": 1240.9,
+      "unit": "a.u.",
+      "limits": "\u2014"
+    }
+  },
+  "quality_score": 8.0
+}
