@@ -9,7 +9,9 @@
     "batch": "Batch Processing",
     "history": "History",
     "methods": "Methods",
-    "user": "User"
+    "user": "User",
+    "dashboard": "Dashboard",
+    "comparison": "Comparison"
   },
   "analyzer": {
     "title": "Spectrum Analyzer",

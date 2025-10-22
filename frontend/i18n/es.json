@@ -9,7 +9,9 @@
     "batch": "Procesamiento por Lotes",
     "history": "Historial",
     "methods": "Métodos",
-    "user": "Usuario"
+    "user": "Usuario",
+    "dashboard": "Panel de Control",
+    "comparison": "Comparación"
   },
   "analyzer": {
     "title": "Analizador de Espectros",

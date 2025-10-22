@@ -9,7 +9,9 @@
     "batch": "Sailka Prozesatzea",
     "history": "Historiala",
     "methods": "Metodoak",
-    "user": "Erabiltzailea"
+    "user": "Erabiltzailea",
+    "dashboard": "Aginte-panela",
+    "comparison": "Konparaketa"
   },
   "analyzer": {
     "title": "Eskpektro Analizatzailea",

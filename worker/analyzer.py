@@ -70,42 +70,53 @@ class SpectrumAnalyzer:
         return results
     
     def _read_spectrum(self, file_path: Path):
-        """Lee archivo CSV con datos del espectro"""
+        """Lee archivo CSV con datos del espectro, detectando automáticamente el delimitador."""
         self.ppm_data = []
         self.intensity_data = []
         
-        with open(file_path, 'r') as f:
-            # Detectar si tiene encabezado
-            first_line = f.readline().strip()
-            f.seek(0)
-            
-            has_header = not self._is_numeric_line(first_line)
-            
-            reader = csv.reader(f)
-            
-            if has_header:
-                next(reader)  # Saltar encabezado
-            
-            for row in reader:
-                if len(row) >= 2:
-                    try:
-                        ppm = float(row[0].strip())
-                        intensity = float(row[1].strip())
-                        self.ppm_data.append(ppm)
-                        self.intensity_data.append(intensity)
-                    except ValueError:
-                        continue
-        
-        print(f"   ✓ Leídos {len(self.ppm_data)} puntos de datos")
-    
-    def _is_numeric_line(self, line: str) -> bool:
-        """Verifica si una línea contiene datos numéricos"""
         try:
-            values = line.split(',')
-            float(values[0])
-            return True
-        except:
-            return False
+            with open(file_path, 'r') as f:
+                # Usar Sniffer para detectar el dialecto (delimitador, etc.) y si hay header
+                # Leer una muestra suficientemente grande (ej. 2KB)
+                sample = f.read(2048)
+                f.seek(0) # Volver al inicio del archivo
+                
+                # Detectar el dialecto (le decimos que busque comas o tabs)
+                dialect = csv.Sniffer().sniff(sample, delimiters=',\t')
+                
+                # Detectar si hay encabezado
+                has_header = csv.Sniffer().has_header(sample)
+                
+                # Crear el lector con el dialecto detectado
+                reader = csv.reader(f, dialect)
+                
+                if has_header:
+                    print("   i Detectado encabezado, saltando primera línea.")
+                    next(reader)  # Saltar encabezado
+                else:
+                    print("   i No se detectó encabezado.")
+                
+                for row in reader:
+                    if len(row) >= 2:
+                        try:
+                            # Quitar espacios en blanco que puedan rodear los números
+                            ppm = float(row[0].strip())
+                            intensity = float(row[1].strip())
+                            self.ppm_data.append(ppm)
+                            self.intensity_data.append(intensity)
+                        except ValueError:
+                            # Ignorar filas que no se puedan convertir a float
+                            continue
+            
+            print(f"   ✓ Leídos {len(self.ppm_data)} puntos de datos (Delimitador detectado: '{dialect.delimiter}')")
+
+        except csv.Error as e:
+            # Fallback por si el Sniffer falla
+            print(f"   ✗ Error: csv.Sniffer no pudo determinar el formato del archivo: {e}")
+            print("   Asegúrese de que el archivo CSV esté separado por comas (,) o tabulaciones (\\t).")
+        except Exception as e:
+            print(f"   ✗ Error inesperado al leer el archivo: {e}")
+
     
     def _calculate_analysis(self, fluor_range: Dict, pifas_range: Dict, 
                            concentration: float) -> Dict:
