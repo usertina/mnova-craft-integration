@@ -34,6 +34,9 @@
                     <button class="nav-btn" data-tab="batch" data-i18n="header.batch">Procesamiento por Lotes</button>
                     <button class="nav-btn" data-tab="history" data-i18n="header.history">Historial</button>
                     <button class="nav-btn" data-tab="methods" data-i18n="header.methods">Métodos</button>
+                    <button class="nav-btn" data-tab="dashboard" data-i18n="header.dashboard">Dashboard</button>
+                    <button class="nav-btn" data-tab="comparison" data-i18n="header.comparison">Comparación</button>
+
                 </nav>
             </div>
             <div class="header-right">
@@ -200,7 +203,7 @@
                 </div>
             </div>
 
-            <!-- Batch Processing Tab -->
+             <!-- Batch Processing Tab -->
             <div id="batch-tab" class="tab-content">
                 <div class="batch-container">
                     <h2 data-i18n="batch.title">Procesamiento por Lotes</h2>
@@ -224,7 +227,7 @@
                     </div>
                     <div class="batch-results" id="batchResults"></div>
                 </div>
-            </div>
+            </div> 
 
             <!-- History Tab -->
             <div id="history-tab" class="tab-content">
@@ -397,6 +400,233 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- ============================================================================
+     DASHBOARD TAB
+     ============================================================================ -->
+        <div id="dashboard-tab" class="tab-content">
+            <div class="dashboard-container">
+                <!-- Header -->
+                <div class="dashboard-header">
+                    <h2>
+                        <i class="fas fa-chart-line"></i>
+                        <span data-i18n="dashboard.title">Dashboard de Estadísticas</span>
+                    </h2>
+                    <div class="dashboard-actions">
+                        <select id="dashboardDateFilter" class="filter-select">
+                            <option value="all" data-i18n="dashboard.allTime">Todo el tiempo</option>
+                            <option value="today" data-i18n="dashboard.today">Hoy</option>
+                            <option value="week" data-i18n="dashboard.thisWeek">Esta semana</option>
+                            <option value="month" data-i18n="dashboard.thisMonth">Este mes</option>
+                        </select>
+                        <button class="btn btn-outline" id="refreshDashboardBtn">
+                            <i class="fas fa-sync-alt"></i>
+                            <span data-i18n="dashboard.refresh">Actualizar</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <!-- Total Análisis -->
+                    <div class="stat-card primary">
+                        <div class="stat-card-header">
+                            <div class="stat-icon">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <div>
+                                <div class="stat-label" data-i18n="dashboard.totalAnalyses">Total Análisis</div>
+                                <div class="stat-value" id="dashTotalAnalyses">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Concentración Promedio -->
+                    <div class="stat-card success">
+                        <div class="stat-card-header">
+                            <div class="stat-icon">
+                                <i class="fas fa-flask"></i>
+                            </div>
+                            <div>
+                                <div class="stat-label" data-i18n="dashboard.avgConcentration">Concentración Promedio</div>
+                                <div class="stat-value" id="dashAvgConcentration">0 mM</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fuera de Límites -->
+                    <div class="stat-card danger">
+                        <div class="stat-card-header">
+                            <div class="stat-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div>
+                                <div class="stat-label" data-i18n="dashboard.outOfLimits">Fuera de Límites</div>
+                                <div class="stat-value" id="dashOutOfLimits">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Esta Semana -->
+                    <div class="stat-card warning">
+                        <div class="stat-card-header">
+                            <div class="stat-icon">
+                                <i class="fas fa-calendar-week"></i>
+                            </div>
+                            <div>
+                                <div class="stat-label" data-i18n="dashboard.lastWeek">Esta Semana</div>
+                                <div class="stat-value" id="dashLastWeek">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calidad Promedio -->
+                    <div class="stat-card info">
+                        <div class="stat-card-header">
+                            <div class="stat-icon">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <div>
+                                <div class="stat-label" data-i18n="dashboard.avgQuality">Calidad Promedio</div>
+                                <div class="stat-value" id="dashAvgQuality">0/10</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PFAS Promedio -->
+                    <div class="stat-card primary">
+                        <div class="stat-card-header">
+                            <div class="stat-icon">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <div>
+                                <div class="stat-label" data-i18n="dashboard.avgPfas">PFAS Promedio</div>
+                                <div class="stat-value" id="dashAvgPfas">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <!-- Trend Chart -->
+                    <div class="chart-card">
+                        <h3>
+                            <i class="fas fa-chart-line"></i>
+                            <span data-i18n="dashboard.trendTitle">Tendencia de Concentración</span>
+                        </h3>
+                        <div class="chart-container-dash" id="trendChart"></div>
+                    </div>
+
+                    <!-- Distribution Chart -->
+                    <div class="chart-card">
+                        <h3>
+                            <i class="fas fa-chart-pie"></i>
+                            <span data-i18n="dashboard.distributionTitle">Distribución de Calidad</span>
+                        </h3>
+                        <div class="chart-container-dash" id="distributionChart"></div>
+                    </div>
+                </div>
+
+                <!-- Recent Analyses Table -->
+                <div class="recent-analyses-section">
+                    <h3>
+                        <i class="fas fa-history"></i>
+                        <span data-i18n="dashboard.recentAnalyses">Análisis Recientes</span>
+                    </h3>
+                    <div class="table-container">
+                        <table id="recentAnalysesTable">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="comparison.sample">Muestra</th>
+                                    <th data-i18n="comparison.date">Fecha</th>
+                                    <th data-i18n="results.fluor">Flúor (%)</th>
+                                    <th data-i18n="results.pifas">PFAS (%)</th>
+                                    <th data-i18n="results.quality">Calidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Filled by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================================
+            COMPARISON TAB
+            ============================================================================ -->
+        <div id="comparison-tab" class="tab-content">
+            <div class="comparison-container">
+                <!-- Header -->
+                <div class="comparison-header">
+                    <h2>
+                        <i class="fas fa-exchange-alt"></i>
+                        <span data-i18n="comparison.title">Comparación de Muestras</span>
+                    </h2>
+                    <div>
+                        <button class="btn btn-success" id="exportComparisonBtn" disabled>
+                            <i class="fas fa-download"></i>
+                            <span data-i18n="comparison.exportComparison">Exportar Comparación</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sample Selector -->
+                <div class="sample-selector-section">
+                    <h3>
+                        <i class="fas fa-mouse-pointer"></i>
+                        <span data-i18n="comparison.selectSamples">Selecciona muestras para comparar</span>
+                    </h3>
+                    <p data-i18n="comparison.instructions" data-i18n-param-max="5">
+                        Selecciona hasta 5 muestras para comparar sus resultados
+                    </p>
+                    <div class="sample-selector-grid" id="sampleSelectorContainer">
+                        <!-- Filled by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Comparison Results -->
+                <div class="comparison-results">
+                    <!-- Comparison Chart -->
+                    <div class="comparison-chart-section">
+                        <h3>
+                            <i class="fas fa-chart-bar"></i>
+                            <span data-i18n="comparison.chartTitle">Comparación de Muestras</span>
+                        </h3>
+                        <div class="chart-container-dash" id="comparisonChart"></div>
+                    </div>
+
+                    <!-- Comparison Table -->
+                    <div class="comparison-table-section">
+                        <h3>
+                            <i class="fas fa-table"></i>
+                            <span data-i18n="comparison.comparisonTable">Tabla Comparativa</span>
+                        </h3>
+                        <div class="table-container">
+                            <table id="comparisonTable">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="results.parameter">Parámetro</th>
+                                        <!-- Columns filled by JavaScript -->
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; padding: 3rem;">
+                                            <i class="fas fa-mouse-pointer" style="font-size: 2rem; margin-bottom: 0.5rem; color: #7f8c8d;"></i>
+                                            <p data-i18n="comparison.selectSamples">Selecciona muestras para comparar</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         </main>
 
         <!-- Notifications System -->

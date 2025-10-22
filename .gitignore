@@ -1,0 +1,27 @@
+# Carpetas y archivos de Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Entornos virtuales
+.env/
+.venv/
+venv/
+env/
+
+# Archivos temporales
+*.log
+*.tmp
+*.bak
+
+# Archivos de configuración locales
+*.env
+.DS_Store
+.idea/
+.vscode/
+
+# Archivos de compilación
+build/
+dist/
+*.egg-info/

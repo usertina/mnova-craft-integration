@@ -104,6 +104,23 @@ class RMNAnalyzerApp {
                 if (tab === 'methods') {
                     loadSavedMethods();
                 }
+                // Cargar dashboard al abrir la tab
+                if (tab === 'dashboard') {
+                    if (window.dashboardManager) {
+                        window.dashboardManager.init();
+                    } else {
+                        console.error('Dashboard Manager not initialized');
+                    }
+                }
+                
+                // Cargar comparación al abrir la tab
+                if (tab === 'comparison') {
+                    if (window.dashboardManager) {
+                        window.dashboardManager.initComparison();
+                    } else {
+                        console.error('Dashboard Manager not initialized');
+                    }
+                }
             });
         });
 
@@ -111,6 +128,8 @@ class RMNAnalyzerApp {
         document.getElementById('fullscreenBtn').addEventListener('click', () => {
             this.toggleFullscreen();
         });
+
+
         // ====================================================================
         
         // --- NUEVOS LISTENERS AÑADIDOS ---
