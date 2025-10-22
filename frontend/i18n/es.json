@@ -73,7 +73,8 @@
     "analysisFailed": "Análisis falló",
     "exportFailed": "Exportación falló",
     "invalidFile": "Archivo inválido",
-    "initialization": "Error inicializando la aplicación"
+    "initialization": "Error inicializando la aplicación",
+    "historyLoad": "Error al cargar el historial"
   },
   "connection": {
     "connecting": "Conectando...",
@@ -97,9 +98,11 @@
     "month": "Este mes",
     "empty": "No hay análisis guardados",
     "emptySubtitle": "Los análisis aparecerán aquí automáticamente",
-    "confirmDelete": "¿Estás seguro de que quieres eliminar el análisis \"{name}\"?\n\nEsta acción no se puede deshacer.",
-    "deleteSuccess": "Análisis \"{name}\" eliminado correctamente",
-    "deleteError": "Error al eliminar: {error}"
+    "confirmClearAll": "⚠️ ADVERTENCIA\n\nEsta acción eliminará TODOS los análisis guardados.\n\n¿Estás seguro de que deseas continuar?",
+    "confirmClearAll2": "Para confirmar, escribe \"ELIMINAR\" (en mayúsculas):",
+    "clearCancelled": "Limpieza cancelada",
+    "clearSuccess": "Historial eliminado: {count} análisis",
+    "clearError": "Error al limpiar el historial: {error}"
   },
   "methods": {
     "title": "Métodos de Análisis",

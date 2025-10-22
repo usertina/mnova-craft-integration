@@ -403,6 +403,54 @@ def get_analysis(filename):
     
     return jsonify(data)
 
+@app.route("/api/analysis/clear-all", methods=["DELETE"])
+def clear_all_analysis():
+    """Eliminar TODOS los análisis del sistema"""
+    try:
+        deleted_count = 0
+        errors = []
+        
+        # Obtener todos los archivos JSON en ANALYSIS_DIR
+        analysis_files = list(ANALYSIS_DIR.glob("*.json"))
+        
+        if not analysis_files:
+            return jsonify({
+                "message": "No hay análisis para eliminar",
+                "deleted_count": 0
+            }), 200
+        
+        # Eliminar cada archivo
+        for file_path in analysis_files:
+            try:
+                file_path.unlink()
+                deleted_count += 1
+                print(f"🗑️  Eliminado: {file_path.name}")
+            except Exception as e:
+                errors.append(f"{file_path.name}: {str(e)}")
+                print(f"❌ Error eliminando {file_path.name}: {str(e)}")
+        
+        # Preparar respuesta
+        response = {
+            "message": f"Eliminados {deleted_count} análisis",
+            "deleted_count": deleted_count,
+            "total_files": len(analysis_files)
+        }
+        
+        if errors:
+            response["errors"] = errors
+            response["warning"] = f"Se encontraron {len(errors)} errores durante la eliminación"
+        
+        print(f"✅ Limpieza completada: {deleted_count}/{len(analysis_files)} archivos eliminados")
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        print(f"❌ Error en limpieza masiva: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            "error": f"Failed to clear all analyses: {str(e)}"
+        }), 500
+
 # ============================================================================
 # Ejecutar servidor
 # ============================================================================

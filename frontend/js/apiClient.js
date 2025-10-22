@@ -139,4 +139,83 @@ class APIClient {
             throw new Error(`No se pudo cargar el análisis: ${error.message}`);
         }
     }
+/**
+ * Eliminar un análisis específico
+ */
+    static async deleteAnalysis(filename) {
+        try {
+            const response = await fetch(`${this.baseURL}/analysis/${encodeURIComponent(filename)}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || `Error ${response.status}`);
+            }
+            
+            window.APP_LOGGER.debug('Analysis deleted:', filename);
+            return result;
+            
+        } catch (error) {
+            window.APP_LOGGER.error('Failed to delete analysis:', error);
+            throw new Error(`No se pudo eliminar el análisis: ${error.message}`);
+        }
+    }
+
+    /**
+     * Eliminar TODOS los análisis
+     */
+    static async clearAllHistory() {
+        try {
+            const response = await fetch(`${this.baseURL}/analysis/clear-all`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || `Error ${response.status}`);
+            }
+            
+            window.APP_LOGGER.info(`All history cleared: ${result.deleted_count} files deleted`);
+            return result;
+            
+        } catch (error) {
+            window.APP_LOGGER.error('Failed to clear all history:', error);
+            throw new Error(`No se pudo limpiar el historial: ${error.message}`);
+        }
+    }
+
+    /**
+     * Obtener lista de análisis disponibles
+     */
+    static async getAnalysisList() {
+        try {
+            const response = await fetch(`${this.baseURL}/analysis`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            window.APP_LOGGER.debug(`Analysis list loaded: ${data.total} items`);
+            return data;
+            
+        } catch (error) {
+            window.APP_LOGGER.error('Failed to load analysis list:', error);
+            throw new Error(`No se pudo cargar el historial: ${error.message}`);
+        }
+    }
 }

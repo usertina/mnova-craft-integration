@@ -73,7 +73,8 @@
     "analysisFailed": "Analisiak huts egin du",
     "exportFailed": "Exportazioak huts egin du",
     "invalidFile": "Fitxategi baliogabea",
-    "initialization": "Errorea aplikazioa abiaraztean"
+    "initialization": "Errorea aplikazioa abiaraztean",
+    "historyLoad": "Errorea historia kargatzerakoan"
   },
   "connection": {
     "connecting": "Konektatzen...",
@@ -97,9 +98,11 @@
     "month": "Hilabete honetan",
     "empty": "Ez dago gordetako analisirik",
     "emptySubtitle": "Analisiak hemen agertuko dira automatikoki",
-    "confirmDelete": "Ziur zaude \"{name}\" analisia ezabatu nahi duzula?\n\nEkintza hau ezin da desegin.",
-    "deleteSuccess": "\"{name}\" analisia ondo ezabatu da",
-    "deleteError": "Errorea ezabatzean: {error}"
+    "confirmClearAll": "⚠️ ABISUA\n\nEkintza honek gordetako analisi GUZTIAK ezabatuko ditu.\n\n¿Ziur zaude jarraitu nahi duzula?",
+    "confirmClearAll2": "Berresteko, idatzi \"EZABATU\" (maiuskulaz):",
+    "clearCancelled": "Garbiketa bertan behera utzi da",
+    "clearSuccess": "Historia ezabatu da: {count} analisi",
+    "clearError": "Errorea historia garbitzerakoan: {error}"
   },
   "methods": {
     "title": "Analisi Metodoak",

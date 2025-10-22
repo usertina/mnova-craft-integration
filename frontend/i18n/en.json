@@ -73,7 +73,8 @@
     "analysisFailed": "Analysis failed",
     "exportFailed": "Export failed",
     "invalidFile": "Invalid file",
-    "initialization": "Error initializing application"
+    "initialization": "Error initializing application",
+    "historyLoad": "Error loading history"
   },
   "connection": {
     "connecting": "Connecting...",
@@ -97,9 +98,11 @@
     "month": "This month",
     "empty": "No saved analyses",
     "emptySubtitle": "Analyses will appear here automatically",
-    "confirmDelete": "Are you sure you want to delete the analysis \"{name}\"?\n\nThis action cannot be undone.",
-    "deleteSuccess": "Analysis \"{name}\" deleted successfully",
-    "deleteError": "Error deleting: {error}"
+    "confirmClearAll": "⚠️ WARNING\n\nThis action will delete ALL saved analyses.\n\nAre you sure you want to continue?",
+    "confirmClearAll2": "To confirm, type \"DELETE\" (in capitals):",
+    "clearCancelled": "Clear cancelled",
+    "clearSuccess": "History cleared: {count} analyses",
+    "clearError": "Error clearing history: {error}"
   },
   "methods": {
     "title": "Analysis Methods",

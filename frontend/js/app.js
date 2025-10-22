@@ -681,43 +681,6 @@ class RMNAnalyzerApp {
         this.displayHistory(filtered);
     }
     
-    // Esta es la versión correcta de loadHistory (la que usa filtros)
-    loadHistory() {
-        // Cargar historial de análisis desde el servidor
-        fetch(`${window.APP_CONFIG.apiBaseURL}/analysis`)
-            .then(response => response.json())
-            .then(data => {
-                this.allAnalyses = data.analyses || []; // Almacena la lista completa
-                this.filterHistory(); // Muestra la lista aplicando filtros
-            })
-            .catch(error => {
-                console.error('Error loading history:', error);
-                this.displayHistory([]);
-            });
-    }
-    
-    clearHistory() {
-        // Usamos la traducción para el confirm
-        if (confirm(LanguageManager.t('history.confirmClear'))) {
-            // Aquí se implementaría la llamada a APIClient.clearHistory()
-            // Ejemplo:
-            // APIClient.clearHistory()
-            //     .then(() => {
-            //         this.showNotification('history.cleared', 'success');
-            //         this.allAnalyses = [];
-            //         this.displayHistory([]);
-            //     })
-            //     .catch(err => {
-            //         this.showNotification('errors.historyClear', 'error');
-            //     });
-            
-            // Por ahora solo mostramos notificación y limpiamos visualmente
-            this.showNotification('Función de limpiar historial no implementada aún', 'info');
-            // this.allAnalyses = [];
-            // this.displayHistory([]);
-        }
-    }
-
     // ============================================================================
     // FUNCIONES PARA VER Y ELIMINAR ANÁLISIS
     // ============================================================================
@@ -748,6 +711,91 @@ class RMNAnalyzerApp {
         }
     }
     
+/**
+ * Cargar historial de análisis desde el servidor
+ */
+    async loadHistory() {
+        try {
+            const data = await APIClient.getAnalysisList();
+            this.allAnalyses = data.analyses || [];
+            this.filterHistory(); // Aplica filtros y muestra
+            
+            window.APP_LOGGER.debug(`History loaded: ${this.allAnalyses.length} analyses`);
+        } catch (error) {
+            console.error('Error loading history:', error);
+            this.showNotification('errors.historyLoad', 'error');
+            this.displayHistory([]);
+        }
+    }
+
+    /**
+     * Limpiar TODO el historial (con doble confirmación)
+     */
+    async clearHistory() {
+        // Primera confirmación
+        const confirmMessage = LanguageManager.t('history.confirmClearAll') || 
+            '⚠️ ADVERTENCIA\n\n' +
+            'Esta acción eliminará TODOS los análisis guardados.\n\n' +
+            '¿Estás seguro de que deseas continuar?';
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        // Segunda confirmación - pedir escribir texto
+        const secondConfirm = prompt(
+            LanguageManager.t('history.confirmClearAll2') || 
+            'Para confirmar, escribe "ELIMINAR" (en mayúsculas):'
+        );
+        
+        if (secondConfirm !== 'ELIMINAR') {
+            this.showNotification('history.clearCancelled', 'info');
+            return;
+        }
+        
+        try {
+            // Mostrar loading
+            const clearBtn = document.getElementById('clearHistoryBtn');
+            if (clearBtn) {
+                UIManager.updateButtonState(clearBtn, 'loading');
+            }
+            
+            // Llamar al backend
+            const result = await APIClient.clearAllHistory();
+            
+            // Limpiar UI
+            this.allAnalyses = [];
+            this.displayHistory([]);
+            
+            // Si el análisis actual estaba en el historial, limpiarlo
+            if (this.analysisResults) {
+                this.clearAnalysisResults();
+            }
+            
+            // Mostrar resultado
+            this.showNotification('history.clearSuccess', 'success', {
+                count: result.deleted_count
+            });
+            
+            window.APP_LOGGER.info(`History cleared: ${result.deleted_count} analyses deleted`);
+            
+        } catch (error) {
+            console.error('Error clearing history:', error);
+            this.showNotification('history.clearError', 'error', {
+                error: error.message
+            });
+        } finally {
+            // Restaurar botón
+            const clearBtn = document.getElementById('clearHistoryBtn');
+            if (clearBtn) {
+                UIManager.updateButtonState(clearBtn, 'default');
+            }
+        }
+    }
+
+    /**
+     * Eliminar un análisis específico
+     */
     async deleteAnalysis(filename, displayName) {
         // Obtener mensaje traducido para la confirmación
         const confirmMessage = LanguageManager.t('history.confirmDelete', { 
@@ -759,31 +807,23 @@ class RMNAnalyzerApp {
         }
         
         try {
-            const response = await fetch(`${window.APP_CONFIG.apiBaseURL}/analysis/${filename}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            // Llamar al backend
+            await APIClient.deleteAnalysis(filename);
             
-            const result = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(result.error || 'Error eliminando el análisis');
-            }
-            
-            // Notificar éxito con clave de traducción
+            // Notificar éxito
             this.showNotification('history.deleteSuccess', 'success', {
                 name: displayName
             });
             
             // Recargar el historial
-            this.loadHistory();
+            await this.loadHistory();
             
             // Si el análisis eliminado era el que estaba siendo mostrado, limpiar la vista
             if (this.analysisResults && this.analysisResults.filename === displayName) {
                 this.clearAnalysisResults();
             }
+            
+            window.APP_LOGGER.info(`Analysis deleted: ${filename}`);
             
         } catch (error) {
             console.error('Error deleting analysis:', error);
@@ -792,24 +832,43 @@ class RMNAnalyzerApp {
             });
         }
     }
-    
+
+    /**
+     * Limpiar los resultados mostrados en el analizador
+     */
     clearAnalysisResults() {
-        // Limpiar resultados mostrados en el analizador
+        // Limpiar valores de las tarjetas
         document.getElementById('fluorResult').textContent = '--';
         document.getElementById('pifasResult').textContent = '--';
         document.getElementById('concentrationResult').textContent = '--';
         document.getElementById('qualityResult').textContent = '--';
         
+        // Limpiar tabla detallada
         const tbody = document.querySelector('#resultsTable tbody');
         if (tbody) {
             tbody.innerHTML = '';
         }
         
+        // Resetear gráfico
+        if (ChartManager && ChartManager.chart) {
+            ChartManager.chart.data[0].x = [];
+            ChartManager.chart.data[0].y = [];
+            Plotly.react('spectrumChart', ChartManager.chart.data, ChartManager.chart.layout, ChartManager.config);
+        }
+        
+        // Actualizar título
         document.getElementById('sampleName').setAttribute('data-i18n', 'analyzer.waitingData');
         LanguageManager.applyTranslations();
         
+        // Deshabilitar botón de exportar
+        document.getElementById('exportBtn').disabled = true;
+        
+        // Limpiar referencia interna
         this.analysisResults = null;
-    }
+        this.currentFile = null;
+        
+        window.APP_LOGGER.debug('Analysis results cleared');
+    }  
     
     loadAnalysisFromHistory(filename) {
         // Asumiendo que APIClient tiene un método para esto
