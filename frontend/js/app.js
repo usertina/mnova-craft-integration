@@ -280,7 +280,7 @@ class RMNAnalyzerApp {
     updateResultsDisplay(results) {
         // Update chart
         if (results.spectrum) {
-            ChartManager.updateSpectrumChart(results.spectrum);
+            ChartManager.updateSpectrumChart(results.spectrum, results.peaks || []);
         }
         
         // Update result cards
@@ -290,7 +290,7 @@ class RMNAnalyzerApp {
             document.getElementById('pifasResult').textContent = 
                 results.analysis.pifas_percentage?.toFixed(2) || '--';
             document.getElementById('concentrationResult').textContent = 
-                results.analysis.concentration?.toFixed(2) || '--';
+                results.analysis.concentration?.toFixed(4) || '--';
             document.getElementById('qualityResult').textContent = 
                 results.quality_score?.toFixed(1) || '--';
         }

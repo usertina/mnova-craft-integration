@@ -25,7 +25,7 @@ class SpectrumAnalyzer:
     def __init__(self):
         self.ppm_data = []
         self.intensity_data = []
-        self.intensity_corrected = []  # Datos con baseline corregido
+        self.intensity_corrected = []
         self.analysis_results = {}
     
     def analyze_file(self, file_path: Path, 
@@ -68,6 +68,10 @@ class SpectrumAnalyzer:
         else:
             self.intensity_corrected = self.intensity_data.copy()
         
+        # ✅ Convertir arrays numpy a listas para JSON
+        ppm_list = [float(x) for x in self.ppm_data]
+        intensity_corrected_list = [float(x) for x in self.intensity_corrected]
+        
         # Realizar análisis completo
         results = {
             "filename": file_path.name,
@@ -78,7 +82,10 @@ class SpectrumAnalyzer:
                 "concentration": concentration,
                 "baseline_correction": baseline_correction
             },
+            # ✅ CORRECCIÓN: Agregar arrays completos para el gráfico
             "spectrum": {
+                "ppm": ppm_list,
+                "intensity": intensity_corrected_list,
                 "ppm_min": float(np.min(self.ppm_data)),
                 "ppm_max": float(np.max(self.ppm_data)),
                 "data_points": len(self.ppm_data),
@@ -91,7 +98,7 @@ class SpectrumAnalyzer:
             "peaks": self._detect_peaks_advanced(),
             "regions": self._analyze_regions(),
             "quality_metrics": self._calculate_quality_metrics(),
-            "detailed_stats": self._detailed_statistics(fluor_range, pifas_range)
+            "detailed_analysis": self._detailed_statistics(fluor_range, pifas_range)
         }
         
         # Calcular quality score final
@@ -152,7 +159,6 @@ class SpectrumAnalyzer:
         baseline = np.percentile(intensity, 5)
         
         # Método 2 alternativo: Usar la mediana de los valores más bajos
-        # (útil si hay mucho ruido)
         low_values = intensity[intensity < np.percentile(intensity, 10)]
         baseline_median = np.median(low_values) if len(low_values) > 0 else baseline
         
@@ -176,35 +182,31 @@ class SpectrumAnalyzer:
         print("\n   📈 Calculando composición química...")
         
         ppm = np.array(self.ppm_data)
-        intensity = np.array(self.intensity_corrected)  # Usar datos corregidos!
+        intensity = np.array(self.intensity_corrected)
         
         # 1. ÁREA TOTAL DEL ESPECTRO
         total_area = np.trapz(intensity, ppm)
         
-        # 2. FLÚOR TOTAL - Integrar en el rango completo de flúor
+        # 2. FLÚOR TOTAL
         fluor_mask = (ppm >= fluor_range["min"]) & (ppm <= fluor_range["max"])
         fluor_intensity = intensity[fluor_mask]
         fluor_ppm = ppm[fluor_mask]
         fluor_area = np.trapz(fluor_intensity, fluor_ppm) if len(fluor_intensity) > 1 else 0
         
-        # 3. PFAS - Integrar en el rango específico de PFAS
+        # 3. PFAS
         pifas_mask = (ppm >= pifas_range["min"]) & (ppm <= pifas_range["max"])
         pifas_intensity = intensity[pifas_mask]
         pifas_ppm = ppm[pifas_mask]
         pifas_area = np.trapz(pifas_intensity, pifas_ppm) if len(pifas_intensity) > 1 else 0
         
         # 4. CALCULAR PORCENTAJES
-        # Porcentaje de flúor respecto al espectro total
         fluor_percentage = abs((fluor_area / total_area * 100)) if abs(total_area) > 1e-10 else 0
-        
-        # Porcentaje de PFAS respecto al flúor total
         pifas_percentage = abs((pifas_area / fluor_area * 100)) if abs(fluor_area) > 1e-10 else 0
         
         # 5. CONCENTRACIÓN DE PFAS
         pifas_concentration = concentration * (pifas_percentage / 100)
         
         # 6. CALCULAR NÚMERO DE ÁTOMOS DE FLÚOR (estimación)
-        # Basado en la integral relativa
         fluor_atoms_estimate = fluor_area / (np.max(intensity) + 1e-10)
         
         print(f"   ✅ Área total:         {total_area:.2f}")
@@ -224,9 +226,7 @@ class SpectrumAnalyzer:
         }
     
     def _detect_peaks_advanced(self) -> List[Dict]:
-        """
-        Detecta picos usando scipy.signal.find_peaks con criterios avanzados
-        """
+        """Detecta picos usando scipy.signal.find_peaks"""
         print("\n   🔍 Detectando picos significativos...")
         
         if len(self.intensity_corrected) < 5:
@@ -236,9 +236,9 @@ class SpectrumAnalyzer:
         ppm = np.array(self.ppm_data)
         
         # Parámetros para find_peaks
-        prominence = np.std(intensity) * 2  # Picos deben ser 2 σ sobre baseline
+        prominence = np.std(intensity) * 2
         height = np.mean(intensity) + np.std(intensity)
-        distance = len(intensity) // 100  # Mínimo 1% del espectro entre picos
+        distance = len(intensity) // 100
         
         # Encontrar picos
         peak_indices, properties = signal.find_peaks(
@@ -255,7 +255,7 @@ class SpectrumAnalyzer:
             peak_ppm = float(ppm[idx])
             peak_intensity = float(intensity[idx])
             
-            # Estimar el ancho del pico (FWHM - Full Width Half Maximum)
+            # Estimar FWHM
             half_height = peak_intensity / 2
             left_idx = idx
             right_idx = idx
@@ -267,7 +267,6 @@ class SpectrumAnalyzer:
             
             fwhm = abs(float(ppm[right_idx] - ppm[left_idx]))
             
-            # Clasificar región química
             region = self._classify_chemical_region(peak_ppm)
             
             peaks.append({
@@ -279,7 +278,6 @@ class SpectrumAnalyzer:
                 "prominence": round(float(properties["prominences"][len(peaks)]), 2)
             })
         
-        # Ordenar por intensidad descendente
         peaks.sort(key=lambda x: x["intensity"], reverse=True)
         
         print(f"   ✅ Detectados {len(peaks)} picos significativos")
@@ -289,7 +287,7 @@ class SpectrumAnalyzer:
         return peaks
     
     def _classify_chemical_region(self, ppm: float) -> str:
-        """Clasifica la región química basada en el desplazamiento químico"""
+        """Clasifica la región química"""
         if -90 <= ppm <= -70:
             return "CF3 terminal"
         elif -115 <= ppm <= -90:
@@ -343,24 +341,22 @@ class SpectrumAnalyzer:
         intensity_orig = np.array(self.intensity_data)
         intensity = np.array(self.intensity_corrected)
         
-        # 1. Signal-to-Noise Ratio (SNR)
+        # SNR
         signal = np.max(intensity)
-        
-        # Estimar ruido en región sin señal (percentil 10% inferior)
         noise_region = intensity[intensity < np.percentile(intensity, 10)]
         noise = np.std(noise_region) if len(noise_region) > 0 else 1e-10
         snr = signal / noise if noise > 0 else 100
         
-        # 2. Dynamic Range
+        # Dynamic Range
         dynamic_range = (np.max(intensity) - np.min(intensity))
         
-        # 3. Baseline Stability (menor es mejor)
+        # Baseline Stability
         baseline_std = np.std(noise_region) if len(noise_region) > 0 else 0
         
-        # 4. Data completeness
+        # Data completeness
         data_density = len(self.ppm_data) / (abs(max(self.ppm_data) - min(self.ppm_data)))
         
-        # 5. Resolución espectral estimada
+        # Resolución espectral
         ppm_spacing = abs(self.ppm_data[1] - self.ppm_data[0]) if len(self.ppm_data) > 1 else 0
         
         return {
@@ -373,11 +369,11 @@ class SpectrumAnalyzer:
         }
     
     def _calculate_quality_score_v2(self, results: Dict) -> float:
-        """Calcula score de calidad mejorado (0-10)"""
+        """Calcula score de calidad (0-10)"""
         score = 10.0
         metrics = results["quality_metrics"]
         
-        # 1. SNR (peso: 3 puntos)
+        # SNR
         snr = metrics["snr"]
         if snr < 5:
             score -= 3.0
@@ -386,25 +382,25 @@ class SpectrumAnalyzer:
         elif snr < 20:
             score -= 1.0
         
-        # 2. Número de puntos de datos (peso: 2 puntos)
+        # Puntos de datos
         if metrics["total_points"] < 1000:
             score -= 2.0
         elif metrics["total_points"] < 10000:
             score -= 1.0
         
-        # 3. Dynamic Range (peso: 2 puntos)
+        # Dynamic Range
         if metrics["dynamic_range"] < 50:
             score -= 2.0
         elif metrics["dynamic_range"] < 100:
             score -= 1.0
         
-        # 4. Baseline Stability (peso: 2 puntos)
+        # Baseline Stability
         if metrics["baseline_stability"] > 10:
             score -= 2.0
         elif metrics["baseline_stability"] > 5:
             score -= 1.0
         
-        # 5. Picos detectados (peso: 1 punto)
+        # Picos detectados
         if len(results["peaks"]) < 1:
             score -= 1.0
         
@@ -462,7 +458,7 @@ class SpectrumAnalyzer:
         }
     
     def _print_summary(self, results: Dict):
-        """Imprime un resumen bonito de los resultados"""
+        """Imprime resumen de resultados"""
         print(f"\n{'='*70}")
         print("📊 RESUMEN DEL ANÁLISIS")
         print(f"{'='*70}")
@@ -491,7 +487,7 @@ class SpectrumAnalyzer:
 
 
 # ============================================================================
-# Modo standalone - Procesar archivos individualmente
+# Modo standalone
 # ============================================================================
 
 if __name__ == "__main__":
@@ -501,10 +497,10 @@ if __name__ == "__main__":
         print("\n" + "="*70)
         print("🔬 ANALIZADOR DE ESPECTROS RMN - DETECCIÓN DE PFAS")
         print("="*70)
-        print("\nUso: python analyzer_improved.py <archivo.csv> [opciones]")
+        print("\nUso: python analyzer.py <archivo.csv> [opciones]")
         print("\nEjemplo:")
-        print("  python analyzer_improved.py spectrum_001.csv")
-        print("  python analyzer_improved.py data.csv --concentration 2.5")
+        print("  python analyzer.py spectrum_001.csv")
+        print("  python analyzer.py data.csv --concentration 2.5")
         print("\nOpciones:")
         print("  --concentration <value>  : Concentración en mM (default: 1.0)")
         print("  --no-baseline           : Desactivar corrección de baseline")
@@ -535,14 +531,14 @@ if __name__ == "__main__":
         baseline_correction=baseline_correction
     )
     
-    # Guardar resultados en JSON
+    # Guardar resultados
     output_file = file_path.parent / f"{file_path.stem}_analysis.json"
     with open(output_file, "w", encoding='utf-8') as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
     
     print(f"💾 Resultados guardados en: {output_file}")
     
-    # También guardar un resumen CSV simple
+    # Guardar resumen CSV
     csv_output = file_path.parent / f"{file_path.stem}_summary.csv"
     with open(csv_output, "w", newline='') as f:
         writer = csv.writer(f)

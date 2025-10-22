@@ -446,6 +446,156 @@ class DashboardManager {
         });
     }
 
+    // ========================================================================
+// INICIALIZACIÓN DE COMPARACIÓN
+// ========================================================================
+
+    async initComparison() {
+        try {
+            window.APP_LOGGER.info('Initializing Comparison tab...');
+            
+            // Limpiar selección previa
+            this.selectedSamples.clear();
+            
+            // Cargar análisis disponibles
+            await this.loadComparisonData();
+            
+            // Renderizar selector de muestras
+            this.renderSampleSelector();
+            
+            // Limpiar comparación
+            this.clearComparison();
+            
+            window.APP_LOGGER.info('Comparison tab initialized');
+        } catch (error) {
+            window.APP_LOGGER.error('Failed to initialize Comparison:', error);
+            UIManager.showNotification('Error al cargar la comparación', 'error');
+        }
+    }
+
+    async loadComparisonData() {
+        try {
+            // Cargar todos los análisis desde el backend
+            const data = await APIClient.getAnalysisList();
+            this.allAnalyses = data.analyses || [];
+            
+            window.APP_LOGGER.debug(`Comparison data loaded: ${this.allAnalyses.length} analyses`);
+        } catch (error) {
+            window.APP_LOGGER.error('Failed to load comparison data:', error);
+            throw error;
+        }
+    }
+
+    renderSampleSelector() {
+        const container = document.getElementById('sampleSelectorContainer');
+        if (!container) {
+            window.APP_LOGGER.warn('Sample selector container not found');
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        if (this.allAnalyses.length === 0) {
+            container.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-light);">
+                    <i class="fas fa-folder-open" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                    <p data-i18n="comparison.noSamples">No hay muestras disponibles</p>
+                    <p style="font-size: 0.9rem; margin-top: 0.5rem;">
+                        Analiza algunas muestras primero para poder compararlas
+                    </p>
+                </div>
+            `;
+            LanguageManager.applyTranslations();
+            return;
+        }
+        
+        // Crear botones de selección para cada muestra
+        this.allAnalyses.forEach(analysis => {
+            const button = document.createElement('button');
+            button.className = 'sample-select-btn';
+            button.dataset.analysisName = analysis.name;
+            
+            const displayName = analysis.filename || analysis.name;
+            const date = new Date(analysis.created).toLocaleDateString(LanguageManager.currentLang);
+            
+            button.innerHTML = `
+                <div class="sample-btn-content">
+                    <div class="sample-btn-name">${this.escapeHtml(displayName)}</div>
+                    <div class="sample-btn-date">${date}</div>
+                </div>
+                <i class="fas fa-check-circle sample-btn-check"></i>
+            `;
+            
+            // Event listener para selección
+            button.addEventListener('click', () => {
+                this.toggleSampleSelection(analysis.name);
+                this.updateSampleButton(button, this.selectedSamples.has(analysis.name));
+            });
+            
+            container.appendChild(button);
+        });
+        
+        window.APP_LOGGER.debug(`Rendered ${this.allAnalyses.length} sample buttons`);
+    }
+
+    updateSampleButton(button, isSelected) {
+        if (isSelected) {
+            button.classList.add('selected');
+        } else {
+            button.classList.remove('selected');
+        }
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    toggleSampleSelection(analysisName) {
+        if (this.selectedSamples.has(analysisName)) {
+            this.selectedSamples.delete(analysisName);
+        } else {
+            if (this.selectedSamples.size >= this.maxSelectedSamples) {
+                UIManager.showNotification(
+                    LanguageManager.t('comparison.maxSamples', { max: this.maxSelectedSamples }) || 
+                    `Máximo ${this.maxSelectedSamples} muestras`,
+                    'warning'
+                );
+                return;
+            }
+            this.selectedSamples.add(analysisName);
+        }
+        
+        window.APP_LOGGER.debug(`Selected samples: ${Array.from(this.selectedSamples).join(', ')}`);
+        
+        // Actualizar vista de comparación
+        this.updateComparisonView();
+    }
+
+    // ========================================================================
+    // COMPARACIÓN DE MUESTRAS
+    // ========================================================================
+
+    updateComparisonView() {
+        const selectedAnalyses = this.allAnalyses.filter(a => 
+            this.selectedSamples.has(a.name)
+        );
+
+        if (selectedAnalyses.length < 2) {
+            this.clearComparison();
+            return;
+        }
+
+        this.renderComparisonChart(selectedAnalyses);
+        this.renderComparisonTable(selectedAnalyses);
+
+        const exportBtn = document.getElementById('exportComparisonBtn');
+        if (exportBtn) {
+            exportBtn.disabled = false;
+        }
+    }
+
     clearChart(chartId) {
         const chartDiv = document.getElementById(chartId);
         if (chartDiv) {

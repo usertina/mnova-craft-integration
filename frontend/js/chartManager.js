@@ -49,15 +49,17 @@ class ChartManager {
             margin: { t: 60, r: 40, b: 60, l: 60 },
             showlegend: true, // 🆕 Mostrar leyenda para picos
             legend: { x: 1, y: 1, xanchor: 'right', yanchor: 'top' },
-            hovermode: 'closest'
+            hovermode: 'closest',
+            dragmode: 'zoom' // Opcional: define el modo inicial, pero la barra permite cambiar
         };
         
         this.config = {
             responsive: true, displayModeBar: true, displaylogo: false,
             locale: 'es', locales: this.locales,
-            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+            // --- CAMBIO AQUÍ: Eliminado 'pan2d' de la lista ---
+            modeBarButtonsToRemove: ['lasso2d', 'select2d'], 
             toImageButtonOptions: { format: 'png', filename: 'rmn_spectrum', height: 500, width: 800, scale: 2 },
-            scrollZoom: true
+            scrollZoom: true // Asegura que el zoom con rueda está activo
         };
         
         await this.createEmptyChart();
@@ -179,47 +181,80 @@ class ChartManager {
         this.currentPeaks = [];
         this.layout.annotations = [];
         
-        if (this.chart && this.chart.data && this.chart.data[0]) {
+        // Use document.getElementById to ensure we have the latest reference
+        const chartDiv = document.getElementById('spectrumChart'); 
+        if (chartDiv && chartDiv.data && chartDiv.data[0]) {
             // Mantener solo el trace del espectro
-            const spectrumTrace = this.chart.data[0];
+            const spectrumTrace = chartDiv.data[0];
             Plotly.react('spectrumChart', [spectrumTrace], this.layout, this.config);
+        } else if (this.chart && this.chart.data && this.chart.data[0]){
+             // Fallback to the stored chart object if needed
+             const spectrumTrace = this.chart.data[0];
+             Plotly.react('spectrumChart', [spectrumTrace], this.layout, this.config);
         }
     }
 
     static refreshTranslations(lang, log = true) {
-        if (!this.chart || !window.LanguageManager || !this.chart.data) {
-            if (log) window.APP_LOGGER.warn('Chart or LanguageManager not ready for translation');
-            return;
+        // Use document.getElementById to ensure we have the latest reference
+        const chartDiv = document.getElementById('spectrumChart'); 
+        if (!chartDiv || !window.LanguageManager || !chartDiv.layout || !chartDiv.data) {
+             if (log) window.APP_LOGGER.warn('Chart or LanguageManager not ready for translation');
+             return;
         }
 
-        try {
-            const newTitle = LanguageManager.t('chart.title') || this.chart.layout.title.text;
-            const newXAxis = LanguageManager.t('chart.xaxis') || this.chart.layout.xaxis.title.text;
-            const newYAxis = LanguageManager.t('chart.yaxis') || this.chart.layout.yaxis.title.text;
-            const newTraceName = LanguageManager.t('chart.traceName') || this.chart.data[0].name;
-            const newHover = LanguageManager.t('chart.hover') || this.chart.data[0].hovertemplate;
 
-            this.chart.layout.title.text = newTitle;
-            this.chart.layout.xaxis.title.text = newXAxis;
-            this.chart.layout.yaxis.title.text = newYAxis;
+        try {
+            // Get current titles/labels directly from the live chart object
+            const currentLayout = chartDiv.layout;
+            const currentData = chartDiv.data;
+
+            const newTitle = LanguageManager.t('chart.title') || currentLayout.title.text;
+            const newXAxis = LanguageManager.t('chart.xaxis') || currentLayout.xaxis.title.text;
+            const newYAxis = LanguageManager.t('chart.yaxis') || currentLayout.yaxis.title.text;
+            const newTraceName = LanguageManager.t('chart.traceName') || (currentData[0] ? currentData[0].name : 'Espectro');
+            const newHover = LanguageManager.t('chart.hover') || (currentData[0] ? currentData[0].hovertemplate : '');
             
+            // Update the layout object we will pass to Plotly
+            const updateLayout = {
+                 'title.text': newTitle,
+                 'xaxis.title.text': newXAxis,
+                 'yaxis.title.text': newYAxis
+            };
+
+            // Update the data object we will pass to Plotly
+            const updateData = {};
+            if (currentData[0]) {
+                 updateData['name'] = newTraceName; // Update trace 0 name
+                 updateData['hovertemplate'] = newHover; // Update trace 0 hovertemplate
+            }
+             // Update peak trace name if it exists
+             if (currentData[1]) {
+                  const newPeakTraceName = LanguageManager.t('chart.peakTraceName') || currentData[1].name;
+                  updateData['name'] = [newTraceName, newPeakTraceName]; // Update both trace names
+             }
+
+
+             // Update config locale
             if (this.config.locale !== lang) {
-                this.config.locale = lang; 
+                 this.config.locale = lang; 
             }
 
-            this.chart.data[0].name = newTraceName;
-            this.chart.data[0].hovertemplate = newHover;
-            
-            // Usamos newPlot para forzar la traducción de los iconos
-            Plotly.newPlot('spectrumChart', this.chart.data, this.chart.layout, this.config)
-                .then(() => {
-                     this.chart = document.getElementById('spectrumChart');
-                     if (log) window.APP_LOGGER.debug(`Chart translations and locale REBUILT to: ${lang}`);
-                })
-                .catch(error => {
-                     window.APP_LOGGER.error('Error applying chart translations:', error);
-                });
-
+            // Apply layout and data updates using Plotly.update
+            Plotly.update('spectrumChart', updateData, updateLayout)
+                 .then(() => {
+                     // Force re-render with new locale config using Plotly.react
+                     // This is often needed to update the modebar button tooltips
+                     return Plotly.react('spectrumChart', chartDiv.data, chartDiv.layout, this.config);
+                 })
+                 .then(() => {
+                     this.chart = document.getElementById('spectrumChart'); // Update internal reference
+                     if (log) window.APP_LOGGER.debug(`Chart translations updated to: ${lang}`);
+                 })
+                 .catch(error => {
+                      window.APP_LOGGER.error('Error applying chart translations:', error);
+                 });
+                 
+             // Also update our stored layout object for consistency
             this.layout.title.text = newTitle;
             this.layout.xaxis.title.text = newXAxis;
             this.layout.yaxis.title.text = newYAxis;
@@ -230,6 +265,11 @@ class ChartManager {
     }
     
     static addIntegrationRegion(regionData) {
+         const chartDiv = document.getElementById('spectrumChart');
+         if (!chartDiv || !chartDiv.layout) {
+              window.APP_LOGGER.warn('Chart not ready for adding integration regions');
+              return;
+         }
         if (!regionData || !Array.isArray(regionData)) {
             window.APP_LOGGER.warn('Invalid region data for integration regions');
             return;
@@ -250,9 +290,10 @@ class ChartManager {
             opacity: 0.3
         }));
         
+        // Add to existing shapes if any
+        const existingShapes = chartDiv.layout.shapes || [];
         const updatedLayout = {
-            ...this.chart.layout,
-            shapes: shapes
+             shapes: [...existingShapes, ...shapes] // Merge existing and new shapes
         };
         
         Plotly.relayout('spectrumChart', updatedLayout)
@@ -265,9 +306,13 @@ class ChartManager {
     }
     
     static clearIntegrationRegions() {
+        const chartDiv = document.getElementById('spectrumChart');
+         if (!chartDiv || !chartDiv.layout) {
+              window.APP_LOGGER.warn('Chart not ready for clearing integration regions');
+              return;
+         }
         const updatedLayout = {
-            ...this.chart.layout,
-            shapes: []
+             shapes: [] // Set shapes to an empty array
         };
         
         Plotly.relayout('spectrumChart', updatedLayout)
@@ -280,17 +325,19 @@ class ChartManager {
     }
     
     static updateChartTitle(title) {
-        const updatedLayout = {
-            ...this.chart.layout,
-            title: {
-                ...this.chart.layout.title,
-                text: title
-            }
-        };
+        const chartDiv = document.getElementById('spectrumChart');
+         if (!chartDiv || !chartDiv.layout) {
+              window.APP_LOGGER.warn('Chart not ready for title update');
+              return;
+         }
         
-        Plotly.relayout('spectrumChart', { title: updatedLayout.title })
+        Plotly.relayout('spectrumChart', { 'title.text': title }) // More direct way to update title
             .then(() => {
                 window.APP_LOGGER.debug('Chart title updated');
+                // Update our stored layout too
+                if (this.layout && this.layout.title) {
+                     this.layout.title.text = title;
+                }
             })
             .catch(error => {
                 window.APP_LOGGER.error('Error updating chart title:', error);
@@ -298,6 +345,11 @@ class ChartManager {
     }
     
     static exportChart(format = 'png') {
+        const chartDiv = document.getElementById('spectrumChart');
+         if (!chartDiv) {
+              window.APP_LOGGER.error('Cannot export chart: Chart element not found.');
+              return Promise.reject('Chart element not found.'); // Return a rejected promise
+         }
         return Plotly.downloadImage('spectrumChart', {
             format: format,
             filename: `rmn_spectrum_${new Date().toISOString().split('T')[0]}`,
@@ -308,27 +360,41 @@ class ChartManager {
     }
     
     static getChartData() {
-        return new Promise((resolve, reject) => {
-            Plotly.downloadImage('spectrumChart', {
-                format: 'json',
-                height: 600,
-                width: 800
-            })
-            .then(data => resolve(data))
-            .catch(error => {
-                window.APP_LOGGER.error('Error getting chart data:', error);
-                reject(error);
-            });
+        // This Plotly method downloads a JSON file, it doesn't return the data directly
+        // If you need the data in JS, access chartDiv.data and chartDiv.layout
+        const chartDiv = document.getElementById('spectrumChart');
+         if (!chartDiv) {
+              window.APP_LOGGER.error('Cannot get chart data: Chart element not found.');
+              return Promise.reject('Chart element not found.');
+         }
+        window.APP_LOGGER.warn('getChartData() triggers a JSON download, it does not return data to JS.');
+        return Plotly.downloadImage('spectrumChart', {
+            format: 'json', // This format actually downloads a JSON file
+            filename: 'plotly_chart_data', 
+            height: 600,
+            width: 800
         });
+        
+        // If you actually want the data in JS:
+        // return Promise.resolve({ data: chartDiv.data, layout: chartDiv.layout });
     }
     
     static resizeChart() {
-        Plotly.Plots.resize('spectrumChart')
+         const chartDiv = document.getElementById('spectrumChart');
+         if (!chartDiv) {
+              // No need to log error here, might happen during initial load
+              return; 
+         }
+        Plotly.Plots.resize(chartDiv) // Pass the element reference
             .then(() => {
                 window.APP_LOGGER.debug('Chart resized');
             })
             .catch(error => {
-                window.APP_LOGGER.error('Error resizing chart:', error);
+                // Avoid logging errors if chart wasn't fully rendered yet
+                if (error.message && !error.message.includes('Resize must be passed a plot node')) {
+                     window.APP_LOGGER.error('Error resizing chart:', error);
+                }
             });
     }
 }
+

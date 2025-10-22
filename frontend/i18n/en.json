@@ -52,8 +52,10 @@
     "millimolar": "mM",
     "qualityScore": "/10",
     "ppm_range": "PPM Range",
-    "intensity_range": "Intensity Range",
+    "intensity_range_corrected": "Intensity Range",
+    "intensity_range_original": "Intensity Range (Original)",
     "mean_intensity": "Mean Intensity",
+    "max_signal": "Max Signal",
     "std_intensity": "Standard Deviation",
     "signal_to_noise": "Signal-to-Noise Ratio"
   },

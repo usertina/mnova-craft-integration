@@ -52,8 +52,10 @@
     "millimolar": "mM",
     "qualityScore": "/10",
     "ppm_range": "PPM Tartea",
-    "intensity_range": "Intentsitate Tartea",
+    "intensity_range_corrected": "Intentsitate Tartea",
     "mean_intensity": "Batez Besteko Intentsitatea",
+    "intensity_range_original": "Intentsitate Tartea (Jatorrizkoa)",
+    "max_signal": "Seinale Maximoa",
     "std_intensity": "Desbiderapen Estandarra",
     "signal_to_noise": "Seinale/Zarata Ratioa"
   },
