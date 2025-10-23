@@ -620,21 +620,65 @@ class RMNAnalyzerApp {
 
     async exportReport() {
         if (!this.analysisResults) return;
+        
+        // Mostrar modal de selección de formato
+        const format = await this.showFormatSelectionModal();
+        if (!format) return; // Usuario canceló
+        
         const exportBtn = document.getElementById('exportBtn');
         UIManager.updateButtonState(exportBtn, 'loading');
 
         try {
-            // Pass the entire results object
-            await APIClient.exportReport(this.analysisResults, 'csv');
+            await APIClient.exportReport(this.analysisResults, format);
             this.showNotification('notifications.exportSuccess', 'success');
-             UIManager.updateButtonState(exportBtn, 'success');
+            UIManager.updateButtonState(exportBtn, 'success');
         } catch (error) {
             this.showNotification('notifications.exportError', 'error', {
                 error: error.message
             });
-             UIManager.updateButtonState(exportBtn, 'error');
+            UIManager.updateButtonState(exportBtn, 'error');
         }
-        // No finally needed, success/error states handle timeout
+    }
+
+    showFormatSelectionModal() {
+        return new Promise((resolve) => {
+            const modalHTML = `
+                <div class="format-selection">
+                    <h4>Selecciona el formato de exportación:</h4>
+                    <div class="format-options">
+                        <button class="btn btn-primary format-btn" data-format="pdf">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </button>
+                        <button class="btn btn-primary format-btn" data-format="docx">
+                            <i class="fas fa-file-word"></i> DOCX
+                        </button>
+                        <button class="btn btn-outline format-btn" data-format="csv">
+                            <i class="fas fa-file-csv"></i> CSV
+                        </button>
+                        <button class="btn btn-outline format-btn" data-format="json">
+                            <i class="fas fa-file-code"></i> JSON
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            UIManager.showModal('Exportar Reporte', modalHTML, [
+                {
+                    text: 'Cancelar',
+                    type: 'outline',
+                    action: 'close'
+                }
+            ]);
+            
+            // Agregar listeners a los botones de formato
+            document.querySelectorAll('.format-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const format = btn.dataset.format;
+                    UIManager.hideModal();
+                    resolve(format);
+                });
+            });
+        });
     }
 
     toggleFullscreen() {

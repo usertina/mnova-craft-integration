@@ -8,6 +8,8 @@ import sys
 from datetime import datetime
 from io import BytesIO, StringIO
 import traceback
+from export_utils import ReportExporter
+
 
 # Importar el analizador
 sys.path.append(str(Path(__file__).parent.parent / "worker"))
@@ -71,23 +73,23 @@ def analyze_spectrum():
         # Verificar que se recibió un archivo
         if "file" not in request.files:
             return jsonify({"error": "No file provided"}), 400
-        
+
         file = request.files["file"]
-        
+
         if file.filename == "":
             return jsonify({"error": "Empty filename"}), 400
-        
+
         # Obtener parámetros de análisis
         parameters = {}
         if "parameters" in request.form:
             parameters = json.loads(request.form["parameters"])
-        
+
         # Guardar archivo temporalmente
         file_path = OUTPUT_DIR / file.filename
         file.save(file_path)
-        
+
         print(f"📊 Analizando: {file.filename}")
-        
+
         # Realizar análisis
         analyzer = SpectrumAnalyzer()
         results = analyzer.analyze_file(
@@ -96,19 +98,19 @@ def analyze_spectrum():
             pifas_range=parameters.get("pifas_range", {"min": -60, "max": -130}),
             concentration=parameters.get("concentration", 1.0)
         )
-        
+
         # Guardar resultados
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         result_filename = f"{Path(file.filename).stem}_analysis_{timestamp}.json"
         result_path = ANALYSIS_DIR / result_filename
-        
+
         with open(result_path, "w") as f:
             json.dump(results, f, indent=2)
-        
+
         print(f"✅ Análisis completado: {result_filename}")
-        
+
         return jsonify(results)
-        
+
     except Exception as e:
         print(f"❌ Error en análisis: {str(e)}")
         traceback.print_exc()
@@ -126,26 +128,26 @@ def batch_analyze():
     """Analizar múltiples espectros"""
     try:
         files = request.files.getlist("files")
-        
+
         if not files:
             return jsonify({"error": "No files provided"}), 400
-        
+
         # Obtener parámetros
         parameters = {}
         if "parameters" in request.form:
             parameters = json.loads(request.form["parameters"])
-        
+
         print(f"📦 Procesamiento por lotes: {len(files)} archivos")
-        
+
         results = []
         analyzer = SpectrumAnalyzer()
-        
+
         for file in files:
             try:
                 # Guardar archivo
                 file_path = OUTPUT_DIR / file.filename
                 file.save(file_path)
-                
+
                 # Analizar
                 result = analyzer.analyze_file(
                     file_path,
@@ -153,13 +155,13 @@ def batch_analyze():
                     pifas_range=parameters.get("pifas_range", {"min": -60, "max": -130}),
                     concentration=parameters.get("concentration", 1.0)
                 )
-                
+
                 result["filename"] = file.filename
                 result["status"] = "success"
                 results.append(result)
-                
+
                 print(f"  ✅ {file.filename}")
-                
+
             except Exception as e:
                 print(f"  ❌ {file.filename}: {str(e)}")
                 results.append({
@@ -167,11 +169,11 @@ def batch_analyze():
                     "status": "error",
                     "error": str(e)
                 })
-        
+
         # Guardar resultados del lote
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         batch_result_path = ANALYSIS_DIR / f"batch_analysis_{timestamp}.json"
-        
+
         batch_summary = {
             "total_files": len(files),
             "successful": sum(1 for r in results if r.get("status") == "success"),
@@ -179,14 +181,14 @@ def batch_analyze():
             "timestamp": datetime.now().isoformat(),
             "results": results
         }
-        
+
         with open(batch_result_path, "w") as f:
             json.dump(batch_summary, f, indent=2)
-        
+
         print(f"✅ Lote completado: {batch_summary['successful']}/{len(files)} exitosos")
-        
+
         return jsonify(batch_summary)
-        
+
     except Exception as e:
         print(f"❌ Error en procesamiento por lotes: {str(e)}")
         traceback.print_exc()
@@ -199,68 +201,55 @@ def batch_analyze():
 # ============================================================================
 @app.route("/api/export", methods=["POST"])
 def export_report():
-    """Exportar reporte en PDF o CSV"""
+    """Exportar reporte en PDF, DOCX, CSV o JSON"""
     try:
         data = request.get_json()
         results = data.get("results", {})
-        format_type = data.get("format", "pdf")
-        
-        if format_type == "json":
-            # Exportar como JSON
-            output = BytesIO()
-            output.write(json.dumps(results, indent=2).encode())
-            output.seek(0)
-            
-            return send_file(
-                output,
-                mimetype="application/json",
-                as_attachment=True,
-                download_name=f"rmn_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            )
-        
-        elif format_type == "csv":
-            # --- INICIO DE LA CORRECCIÓN ---
-            
-            # 1. Usamos StringIO (un buffer de TEXTO) para el CSV
-            output = StringIO(newline='')
-            
-            # 2. El csv.writer escribe texto en el buffer de texto
-            writer = csv.writer(output)
-            writer.writerow(["Parameter", "Value", "Units"])
-            
-            if "analysis" in results:
-                analysis = results["analysis"]
-                writer.writerow(["Fluorine %", analysis.get("fluor_percentage", "N/A"), "%"])
-                writer.writerow(["PIFAS %", analysis.get("pifas_percentage", "N/A"), "%"])
-                writer.writerow(["Concentration", analysis.get("concentration", "N/A"), "mM"])
-            
-            # 3. Creamos un buffer de BYTES para send_file
-            byte_buffer = BytesIO()
-            
-            # 4. Convertimos el texto del CSV a bytes (utf-8) y lo escribimos en el buffer de bytes
-            byte_buffer.write(output.getvalue().encode('utf-8'))
-            byte_buffer.seek(0)
-            
-            # 5. Cerramos el buffer de texto (opcional pero buena práctica)
-            output.close()
+        format_type = data.get("format", "pdf").lower()
 
-            # 6. Enviamos el buffer de BYTES
-            return send_file(
-                byte_buffer,
-                mimetype="text/csv",
-                as_attachment=True,
-                download_name=f"rmn_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            )
-            # --- FIN DE LA CORRECCIÓN ---
-        
-        else:
-            return jsonify({"error": f"Format '{format_type}' not supported. Use 'json' or 'csv'"}), 400
-            
+        print(f"📤 Exportando reporte en formato: {format_type}")
+
+        # Determinar tipo MIME y nombre de archivo
+        mime_types = {
+            "json": "application/json",
+            "csv": "text/csv",
+            "pdf": "application/pdf",
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        }
+
+        extensions = {
+            "json": "json",
+            "csv": "csv",
+            "pdf": "pdf",
+            "docx": "docx"
+        }
+
+        if format_type not in mime_types:
+            return jsonify({"error": f"Formato '{format_type}' no soportado. Usa: json, csv, pdf, docx"}), 400
+
+        # Exportar según formato
+        if format_type == "json":
+            output = ReportExporter.export_json(results)
+        elif format_type == "csv":
+            output = ReportExporter.export_csv(results)
+        elif format_type == "pdf":
+            output = ReportExporter.export_pdf(results)
+        elif format_type == "docx":
+            output = ReportExporter.export_docx(results)
+
+        filename = f"rmn_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{extensions[format_type]}"
+
+        return send_file(
+            output,
+            mimetype=mime_types[format_type],
+            as_attachment=True,
+            download_name=filename
+        )
+
     except Exception as e:
         print(f"❌ Error exportando: {str(e)}")
-        traceback.print_exc() # <-- Añade esto para ver más detalles del error en tu terminal de python
+        traceback.print_exc()
         return jsonify({"error": f"Export failed: {str(e)}"}), 500
-
 # ============================================================================
 # API - Gestión de Archivos (endpoints originales)
 # ============================================================================
@@ -286,13 +275,13 @@ def list_files():
 def list_analysis():
     """Listar análisis disponibles con resumen de datos"""
     analyses = []
-    
+
     for f in ANALYSIS_DIR.glob("*.json"):
         try:
             # Leer el contenido del archivo JSON
             with open(f, 'r') as file:
                 data = json.load(file)
-            
+
             # Extraer datos clave para el historial
             analysis_summary = {
                 "name": f.name,
@@ -306,9 +295,9 @@ def list_analysis():
                 "quality": data.get("quality_score"),
                 "filename": data.get("filename", f.name)
             }
-            
+
             analyses.append(analysis_summary)
-            
+
         except Exception as e:
             # Si hay error leyendo el archivo, incluirlo con datos limitados
             print(f"⚠️  Error leyendo {f.name}: {str(e)}")
@@ -319,10 +308,10 @@ def list_analysis():
                 "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
                 "error": str(e)
             })
-    
+
     # Ordenar por fecha de creación (más reciente primero)
     analyses.sort(key=lambda x: x.get("created", ""), reverse=True)
-    
+
     return jsonify({"analyses": analyses, "total": len(analyses)})
 
 # ============================================================================
@@ -334,30 +323,30 @@ def delete_analysis(filename):
     """Eliminar un análisis específico"""
     try:
         file_path = ANALYSIS_DIR / filename
-        
+
         # Verificar que el archivo existe
         if not file_path.exists():
             return jsonify({
                 "error": "Analysis not found",
                 "filename": filename
             }), 404
-        
+
         # Verificar que está dentro del directorio permitido (seguridad)
         if not str(file_path.resolve()).startswith(str(ANALYSIS_DIR.resolve())):
             return jsonify({
                 "error": "Invalid file path"
             }), 403
-        
+
         # Eliminar el archivo
         file_path.unlink()
-        
+
         print(f"🗑️  Análisis eliminado: {filename}")
-        
+
         return jsonify({
             "message": "Analysis deleted successfully",
             "filename": filename
         }), 200
-        
+
     except Exception as e:
         print(f"❌ Error eliminando análisis: {str(e)}")
         traceback.print_exc()
@@ -370,15 +359,15 @@ def upload_file():
     """Subir archivo manualmente"""
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
-    
+
     file = request.files["file"]
-    
+
     if file.filename == "":
         return jsonify({"error": "No file selected"}), 400
-    
+
     file_path = OUTPUT_DIR / file.filename
     file.save(file_path)
-    
+
     return jsonify({
         "message": "File uploaded successfully",
         "filename": file.filename,
@@ -394,13 +383,13 @@ def download_file(filename):
 def get_analysis(filename):
     """Obtener resultado de análisis específico"""
     file_path = ANALYSIS_DIR / filename
-    
+
     if not file_path.exists():
         return jsonify({"error": "Analysis not found"}), 404
-    
+
     with open(file_path, "r") as f:
         data = json.load(f)
-    
+
     return jsonify(data)
 
 @app.route("/api/analysis/clear-all", methods=["DELETE"])
@@ -409,16 +398,16 @@ def clear_all_analysis():
     try:
         deleted_count = 0
         errors = []
-        
+
         # Obtener todos los archivos JSON en ANALYSIS_DIR
         analysis_files = list(ANALYSIS_DIR.glob("*.json"))
-        
+
         if not analysis_files:
             return jsonify({
                 "message": "No hay análisis para eliminar",
                 "deleted_count": 0
             }), 200
-        
+
         # Eliminar cada archivo
         for file_path in analysis_files:
             try:
@@ -428,22 +417,22 @@ def clear_all_analysis():
             except Exception as e:
                 errors.append(f"{file_path.name}: {str(e)}")
                 print(f"❌ Error eliminando {file_path.name}: {str(e)}")
-        
+
         # Preparar respuesta
         response = {
             "message": f"Eliminados {deleted_count} análisis",
             "deleted_count": deleted_count,
             "total_files": len(analysis_files)
         }
-        
+
         if errors:
             response["errors"] = errors
             response["warning"] = f"Se encontraron {len(errors)} errores durante la eliminación"
-        
+
         print(f"✅ Limpieza completada: {deleted_count}/{len(analysis_files)} archivos eliminados")
-        
+
         return jsonify(response), 200
-        
+
     except Exception as e:
         print(f"❌ Error en limpieza masiva: {str(e)}")
         traceback.print_exc()
@@ -463,5 +452,5 @@ if __name__ == "__main__":
     print(f"🌐 Running on: http://localhost:5000")
     print(f"📁 Storage: {OUTPUT_DIR}")
     print("=" * 60)
-    
+
     app.run(host="0.0.0.0", port=5000, debug=True)

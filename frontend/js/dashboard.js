@@ -698,46 +698,93 @@ class DashboardManager {
 
     async exportComparison() {
         if (this.selectedSamples.size === 0) {
-             if (typeof UIManager !== 'undefined') {
-                 UIManager.showNotification(
-                      LanguageManager.t('comparison.noSamplesSelected'), 'warning'
-                 );
-             }
+            if (typeof UIManager !== 'undefined') {
+                UIManager.showNotification(
+                    LanguageManager.t('comparison.noSamplesSelected'), 'warning'
+                );
+            }
             return;
         }
 
-        const exportBtn = document.getElementById('exportComparisonBtn');
-         if(exportBtn && typeof UIManager !== 'undefined') UIManager.updateButtonState(exportBtn, 'loading');
+        // Mostrar selector de formato
+        const format = await this.showFormatSelector();
+        if (!format) return;
 
+        const exportBtn = document.getElementById('exportComparisonBtn');
+        if(exportBtn && typeof UIManager !== 'undefined') 
+            UIManager.updateButtonState(exportBtn, 'loading');
 
         try {
             const selectedAnalyses = this.allAnalyses.filter(a => this.selectedSamples.has(a.name));
-            const csvContent = this.generateComparisonCSV(selectedAnalyses);
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', `comparison_${new Date().toISOString().split('T')[0]}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url); // Clean up blob URL
-
-             if (typeof UIManager !== 'undefined') {
-                 UIManager.showNotification(LanguageManager.t('comparison.exportSuccess'), 'success');
-                 if(exportBtn) UIManager.updateButtonState(exportBtn, 'success');
-             }
+            
+            if (format === 'csv') {
+                // Exportar CSV (método existente)
+                const csvContent = this.generateComparisonCSV(selectedAnalyses);
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `comparison_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } else {
+                // Exportar en otros formatos usando el backend
+                await APIClient.exportReport({
+                    type: 'comparison',
+                    samples: selectedAnalyses,
+                    count: selectedAnalyses.length
+                }, format);
+            }
+            
+            if (typeof UIManager !== 'undefined') {
+                UIManager.showNotification(LanguageManager.t('comparison.exportSuccess'), 'success');
+                if(exportBtn) UIManager.updateButtonState(exportBtn, 'success');
+            }
         } catch (error) {
             window.APP_LOGGER.error('Export comparison failed:', error);
-             if (typeof UIManager !== 'undefined') {
-                 UIManager.showNotification(LanguageManager.t('comparison.exportError'), 'error');
-                 if(exportBtn) UIManager.updateButtonState(exportBtn, 'error');
-             }
+            if (typeof UIManager !== 'undefined') {
+                UIManager.showNotification(LanguageManager.t('comparison.exportError'), 'error');
+                if(exportBtn) UIManager.updateButtonState(exportBtn, 'error');
+            }
         }
-        // No finally needed for button state if success/error states have timeouts
     }
 
+    showFormatSelector() {
+        return new Promise((resolve) => {
+            const formats = [
+                { value: 'pdf', icon: 'file-pdf', label: 'PDF' },
+                { value: 'docx', icon: 'file-word', label: 'Word' },
+                { value: 'csv', icon: 'file-csv', label: 'CSV' }
+            ];
+            
+            const buttonsHTML = formats.map(f => 
+                `<button class="btn btn-primary format-selector-btn" data-format="${f.value}">
+                    <i class="fas fa-${f.icon}"></i> ${f.label}
+                </button>`
+            ).join('');
+            
+            const content = `
+                <div class="format-selector">
+                    <p>Selecciona el formato de exportación:</p>
+                    <div class="format-buttons">${buttonsHTML}</div>
+                </div>
+            `;
+            
+            UIManager.showModal('Exportar Comparación', content, [
+                { text: 'Cancelar', type: 'outline', action: 'close' }
+            ]);
+            
+            document.querySelectorAll('.format-selector-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    UIManager.hideModal();
+                    resolve(btn.dataset.format);
+                });
+            });
+        });
+    }
     generateComparisonCSV(analyses) {
         // Use translated headers if possible
         const headers = [

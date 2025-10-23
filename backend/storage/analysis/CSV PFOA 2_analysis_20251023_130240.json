@@ -1,6 +1,6 @@
 {
   "filename": "CSV PFOA 2.csv",
-  "timestamp": 1761212047.9911938,
+  "timestamp": 1761217360.1171577,
   "parameters": {
     "fluor_range": {
       "min": -150,
@@ -262183,91 +262183,51 @@
   },
   "peaks": [
     {
-      "ppm": -129.889,
-      "intensity": 53.37,
-      "relative_intensity": 3.6,
-      "width_ppm": 0.005,
-      "region": "CF2 (Otros o cadena larga)",
-      "prominence": 15.51
-    },
-    {
       "ppm": -129.556,
       "intensity": 55.01,
       "relative_intensity": 3.7,
       "width_ppm": 0.006,
-      "region": "CF2 (Otros o cadena larga)",
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
       "prominence": 25.28
+    },
+    {
+      "ppm": -129.259,
+      "intensity": 54.99,
+      "relative_intensity": 3.7,
+      "width_ppm": 0.008,
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
+      "prominence": 25.09
     },
     {
       "ppm": -128.984,
       "intensity": 56.24,
       "relative_intensity": 3.8,
       "width_ppm": 0.005,
-      "region": "CF2 (Otros o cadena larga)",
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
       "prominence": 29.01
     },
     {
-      "ppm": -128.681,
-      "intensity": 52.33,
-      "relative_intensity": 3.5,
-      "width_ppm": 0.007,
-      "region": "CF2 (Otros o cadena larga)",
-      "prominence": 24.81
-    },
-    {
-      "ppm": -128.374,
-      "intensity": 54.89,
+      "ppm": -128.782,
+      "intensity": 55.19,
       "relative_intensity": 3.7,
-      "width_ppm": 0.011,
-      "region": "CF2 (Otros o cadena larga)",
-      "prominence": 29.25
-    },
-    {
-      "ppm": -128.06,
-      "intensity": 54.64,
-      "relative_intensity": 3.7,
-      "width_ppm": 0.005,
-      "region": "CF2 (Otros o cadena larga)",
-      "prominence": 33.38
+      "width_ppm": 0.021,
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
+      "prominence": 27.59
     },
     {
       "ppm": -127.523,
       "intensity": 57.03,
       "relative_intensity": 3.9,
       "width_ppm": 0.01,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
       "prominence": 37.06
-    },
-    {
-      "ppm": -127.206,
-      "intensity": 46.76,
-      "relative_intensity": 3.2,
-      "width_ppm": 0.007,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 21.86
-    },
-    {
-      "ppm": -126.88,
-      "intensity": 48.24,
-      "relative_intensity": 3.3,
-      "width_ppm": 0.008,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 27.84
-    },
-    {
-      "ppm": -126.534,
-      "intensity": 54.53,
-      "relative_intensity": 3.7,
-      "width_ppm": 0.005,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 32.23
     },
     {
       "ppm": -126.078,
       "intensity": 638.58,
       "relative_intensity": 43.1,
       "width_ppm": 0.105,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
       "prominence": 621.34
     },
     {
@@ -262275,1152 +262235,112 @@
       "intensity": 59.37,
       "relative_intensity": 4.0,
       "width_ppm": 0.003,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
       "prominence": 21.95
     },
     {
-      "ppm": -125.449,
-      "intensity": 50.04,
-      "relative_intensity": 3.4,
-      "width_ppm": 0.007,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 23.78
-    },
-    {
-      "ppm": -125.009,
-      "intensity": 49.11,
-      "relative_intensity": 3.3,
-      "width_ppm": 0.003,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 25.2
-    },
-    {
-      "ppm": -124.504,
-      "intensity": 47.78,
-      "relative_intensity": 3.2,
-      "width_ppm": 0.003,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 30.48
-    },
-    {
-      "ppm": -124.015,
-      "intensity": 48.57,
-      "relative_intensity": 3.3,
-      "width_ppm": 0.007,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 30.39
-    },
-    {
-      "ppm": -123.577,
-      "intensity": 46.7,
-      "relative_intensity": 3.2,
-      "width_ppm": 0.007,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 25.73
-    },
-    {
-      "ppm": -123.192,
-      "intensity": 53.04,
-      "relative_intensity": 3.6,
-      "width_ppm": 0.004,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 31.52
+      "ppm": -125.642,
+      "intensity": 58.72,
+      "relative_intensity": 4.0,
+      "width_ppm": 0.006,
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
+      "prominence": 25.88
     },
     {
       "ppm": -122.672,
       "intensity": 456.08,
       "relative_intensity": 30.8,
       "width_ppm": 0.14,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
       "prominence": 399.39
     },
     {
-      "ppm": -122.274,
-      "intensity": 107.92,
-      "relative_intensity": 7.3,
-      "width_ppm": 0.006,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 17.74
+      "ppm": -122.395,
+      "intensity": 82.98,
+      "relative_intensity": 5.6,
+      "width_ppm": 0.003,
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
+      "prominence": 21.07
     },
     {
       "ppm": -121.959,
       "intensity": 490.99,
       "relative_intensity": 33.2,
       "width_ppm": 0.231,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
       "prominence": 473.8
     },
     {
-      "ppm": -121.634,
-      "intensity": 81.21,
-      "relative_intensity": 5.5,
-      "width_ppm": 0.002,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 19.88
+      "ppm": -121.611,
+      "intensity": 91.69,
+      "relative_intensity": 6.2,
+      "width_ppm": 0.004,
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
+      "prominence": 27.96
     },
     {
       "ppm": -121.313,
       "intensity": 306.87,
       "relative_intensity": 20.7,
       "width_ppm": 0.182,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
       "prominence": 245.61
+    },
+    {
+      "ppm": -121.192,
+      "intensity": 138.68,
+      "relative_intensity": 9.4,
+      "width_ppm": 0.002,
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
+      "prominence": 17.98
+    },
+    {
+      "ppm": -121.066,
+      "intensity": 72.53,
+      "relative_intensity": 4.9,
+      "width_ppm": 0.003,
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
+      "prominence": 18.1
     },
     {
       "ppm": -120.903,
       "intensity": 61.04,
       "relative_intensity": 4.1,
       "width_ppm": 0.006,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
       "prominence": 26.54
-    },
-    {
-      "ppm": -120.507,
-      "intensity": 50.74,
-      "relative_intensity": 3.4,
-      "width_ppm": 0.003,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 27.67
-    },
-    {
-      "ppm": -120.117,
-      "intensity": 50.12,
-      "relative_intensity": 3.4,
-      "width_ppm": 0.006,
-      "region": "CF2 (Pr\u00f3ximo a grupo polar, ej. PFOA)",
-      "prominence": 29.86
-    },
-    {
-      "ppm": -119.617,
-      "intensity": 45.94,
-      "relative_intensity": 3.1,
-      "width_ppm": 0.005,
-      "region": "CF2 (Interno)",
-      "prominence": 28.03
-    },
-    {
-      "ppm": -119.123,
-      "intensity": 45.97,
-      "relative_intensity": 3.1,
-      "width_ppm": 0.002,
-      "region": "CF2 (Interno)",
-      "prominence": 25.52
-    },
-    {
-      "ppm": -118.76,
-      "intensity": 50.69,
-      "relative_intensity": 3.4,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno)",
-      "prominence": 27.56
-    },
-    {
-      "ppm": -118.449,
-      "intensity": 59.26,
-      "relative_intensity": 4.0,
-      "width_ppm": 0.002,
-      "region": "CF2 (Interno)",
-      "prominence": 20.5
     },
     {
       "ppm": -118.128,
       "intensity": 222.39,
       "relative_intensity": 15.0,
       "width_ppm": 0.221,
-      "region": "CF2 (Interno)",
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
       "prominence": 204.54
     },
     {
-      "ppm": -117.819,
-      "intensity": 68.16,
-      "relative_intensity": 4.6,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno)",
-      "prominence": 19.08
-    },
-    {
-      "ppm": -117.511,
-      "intensity": 43.52,
-      "relative_intensity": 2.9,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno)",
-      "prominence": 25.75
-    },
-    {
-      "ppm": -117.203,
-      "intensity": 38.8,
-      "relative_intensity": 2.6,
-      "width_ppm": 0.007,
-      "region": "CF2 (Interno)",
-      "prominence": 22.03
-    },
-    {
-      "ppm": -116.904,
-      "intensity": 44.78,
-      "relative_intensity": 3.0,
-      "width_ppm": 0.006,
-      "region": "CF2 (Interno)",
-      "prominence": 31.89
-    },
-    {
-      "ppm": -116.515,
-      "intensity": 37.78,
-      "relative_intensity": 2.6,
-      "width_ppm": 0.005,
-      "region": "CF2 (Interno)",
-      "prominence": 23.95
-    },
-    {
-      "ppm": -116.184,
-      "intensity": 45.51,
-      "relative_intensity": 3.1,
-      "width_ppm": 0.007,
-      "region": "CF2 (Interno)",
-      "prominence": 34.34
-    },
-    {
-      "ppm": -115.628,
-      "intensity": 37.1,
-      "relative_intensity": 2.5,
-      "width_ppm": 0.011,
-      "region": "CF2 (Interno)",
-      "prominence": 26.11
-    },
-    {
-      "ppm": -115.319,
-      "intensity": 33.79,
-      "relative_intensity": 2.3,
-      "width_ppm": 0.003,
-      "region": "CF2 (Interno)",
-      "prominence": 23.63
-    },
-    {
-      "ppm": -114.973,
-      "intensity": 38.35,
-      "relative_intensity": 2.6,
-      "width_ppm": 0.005,
-      "region": "CF2 (Interno)",
-      "prominence": 28.85
-    },
-    {
-      "ppm": -114.54,
-      "intensity": 35.71,
-      "relative_intensity": 2.4,
-      "width_ppm": 0.009,
-      "region": "CF2 (Interno)",
-      "prominence": 28.82
-    },
-    {
-      "ppm": -114.236,
-      "intensity": 37.4,
-      "relative_intensity": 2.5,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno)",
-      "prominence": 29.71
-    },
-    {
-      "ppm": -113.842,
-      "intensity": 32.22,
-      "relative_intensity": 2.2,
-      "width_ppm": 0.007,
-      "region": "CF2 (Interno)",
-      "prominence": 22.58
-    },
-    {
-      "ppm": -113.48,
-      "intensity": 38.13,
-      "relative_intensity": 2.6,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno)",
-      "prominence": 31.85
-    },
-    {
-      "ppm": -112.98,
-      "intensity": 40.12,
-      "relative_intensity": 2.7,
-      "width_ppm": 0.005,
-      "region": "CF2 (Interno)",
-      "prominence": 37.88
-    },
-    {
-      "ppm": -112.591,
-      "intensity": 34.67,
-      "relative_intensity": 2.3,
-      "width_ppm": 0.011,
-      "region": "CF2 (Interno)",
-      "prominence": 30.31
-    },
-    {
-      "ppm": -112.165,
-      "intensity": 33.94,
-      "relative_intensity": 2.3,
-      "width_ppm": 0.006,
-      "region": "CF2 (Interno)",
-      "prominence": 28.67
-    },
-    {
-      "ppm": -111.776,
-      "intensity": 36.81,
-      "relative_intensity": 2.5,
-      "width_ppm": 0.008,
-      "region": "CF2 (Interno)",
-      "prominence": 31.63
-    },
-    {
-      "ppm": -111.288,
-      "intensity": 37.78,
-      "relative_intensity": 2.6,
-      "width_ppm": 0.012,
-      "region": "CF2 (Interno)",
-      "prominence": 36.91
-    },
-    {
-      "ppm": -110.753,
-      "intensity": 31.44,
-      "relative_intensity": 2.1,
-      "width_ppm": 0.007,
-      "region": "CF2 (Interno)",
-      "prominence": 27.91
-    },
-    {
-      "ppm": -110.439,
-      "intensity": 33.39,
-      "relative_intensity": 2.3,
-      "width_ppm": 0.011,
-      "region": "CF2 (Interno)",
-      "prominence": 30.62
-    },
-    {
-      "ppm": -109.972,
-      "intensity": 35.27,
-      "relative_intensity": 2.4,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 34.29
-    },
-    {
-      "ppm": -109.465,
-      "intensity": 34.95,
-      "relative_intensity": 2.4,
-      "width_ppm": 0.003,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 32.78
-    },
-    {
-      "ppm": -109.087,
-      "intensity": 36.7,
-      "relative_intensity": 2.5,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 37.87
-    },
-    {
-      "ppm": -108.611,
-      "intensity": 27.19,
-      "relative_intensity": 1.8,
-      "width_ppm": 0.023,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 27.77
-    },
-    {
-      "ppm": -108.223,
-      "intensity": 30.18,
-      "relative_intensity": 2.0,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 31.21
-    },
-    {
-      "ppm": -107.85,
-      "intensity": 27.83,
-      "relative_intensity": 1.9,
-      "width_ppm": 0.003,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 26.22
-    },
-    {
-      "ppm": -107.518,
-      "intensity": 28.65,
-      "relative_intensity": 1.9,
-      "width_ppm": 0.008,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 28.95
-    },
-    {
-      "ppm": -107.204,
-      "intensity": 26.6,
-      "relative_intensity": 1.8,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 25.5
-    },
-    {
-      "ppm": -106.843,
-      "intensity": 29.39,
-      "relative_intensity": 2.0,
-      "width_ppm": 0.006,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 30.61
-    },
-    {
-      "ppm": -106.528,
-      "intensity": 26.76,
-      "relative_intensity": 1.8,
-      "width_ppm": 0.012,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 26.31
-    },
-    {
-      "ppm": -106.033,
-      "intensity": 26.74,
-      "relative_intensity": 1.8,
-      "width_ppm": 0.003,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 25.21
+      "ppm": -118.002,
+      "intensity": 137.71,
+      "relative_intensity": 9.3,
+      "width_ppm": 0.002,
+      "region": "CF\u2082 Pr\u00f3ximo a grupo polar (ej. -CF\u2082-COO\u207b)",
+      "prominence": 19.49
     },
     {
       "ppm": -105.642,
       "intensity": 1018.41,
       "relative_intensity": 68.8,
       "width_ppm": 0.065,
-      "region": "CF2 (Interno, Lejano)",
+      "region": "CF\u2082 Interno (Central)",
       "prominence": 1020.55
-    },
-    {
-      "ppm": -105.258,
-      "intensity": 27.4,
-      "relative_intensity": 1.9,
-      "width_ppm": 0.013,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 33.73
-    },
-    {
-      "ppm": -104.826,
-      "intensity": 27.33,
-      "relative_intensity": 1.8,
-      "width_ppm": 0.003,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 30.83
-    },
-    {
-      "ppm": -104.477,
-      "intensity": 25.21,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.003,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 30.97
-    },
-    {
-      "ppm": -104.092,
-      "intensity": 22.87,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.005,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 26.43
-    },
-    {
-      "ppm": -103.757,
-      "intensity": 24.74,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.006,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 32.43
-    },
-    {
-      "ppm": -103.365,
-      "intensity": 24.44,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 29.3
-    },
-    {
-      "ppm": -102.935,
-      "intensity": 25.61,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 34.81
-    },
-    {
-      "ppm": -102.457,
-      "intensity": 24.19,
-      "relative_intensity": 1.6,
-      "width_ppm": 0.016,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 32.02
-    },
-    {
-      "ppm": -102.07,
-      "intensity": 19.37,
-      "relative_intensity": 1.3,
-      "width_ppm": 0.005,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 24.5
-    },
-    {
-      "ppm": -101.747,
-      "intensity": 16.06,
-      "relative_intensity": 1.1,
-      "width_ppm": 0.003,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 21.32
-    },
-    {
-      "ppm": -101.435,
-      "intensity": 23.05,
-      "relative_intensity": 1.6,
-      "width_ppm": 0.012,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 29.96
-    },
-    {
-      "ppm": -100.843,
-      "intensity": 25.9,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.007,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 36.9
-    },
-    {
-      "ppm": -100.455,
-      "intensity": 23.69,
-      "relative_intensity": 1.6,
-      "width_ppm": 0.004,
-      "region": "CF2 (Interno, Lejano)",
-      "prominence": 30.19
-    },
-    {
-      "ppm": -99.911,
-      "intensity": 22.0,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.006,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 29.53
-    },
-    {
-      "ppm": -99.489,
-      "intensity": 19.41,
-      "relative_intensity": 1.3,
-      "width_ppm": 0.007,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 26.01
-    },
-    {
-      "ppm": -99.176,
-      "intensity": 20.0,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.011,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 28.56
-    },
-    {
-      "ppm": -98.872,
-      "intensity": 19.67,
-      "relative_intensity": 1.3,
-      "width_ppm": 0.005,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 22.27
-    },
-    {
-      "ppm": -98.572,
-      "intensity": 20.04,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.009,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 28.31
-    },
-    {
-      "ppm": -98.26,
-      "intensity": 21.69,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.004,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 28.8
-    },
-    {
-      "ppm": -97.949,
-      "intensity": 24.03,
-      "relative_intensity": 1.6,
-      "width_ppm": 0.022,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 35.88
-    },
-    {
-      "ppm": -97.425,
-      "intensity": 22.1,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.006,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 31.71
-    },
-    {
-      "ppm": -97.105,
-      "intensity": 17.18,
-      "relative_intensity": 1.2,
-      "width_ppm": 0.006,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 23.99
-    },
-    {
-      "ppm": -96.777,
-      "intensity": 22.22,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.003,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 32.94
-    },
-    {
-      "ppm": -96.36,
-      "intensity": 19.1,
-      "relative_intensity": 1.3,
-      "width_ppm": 0.006,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 29.07
-    },
-    {
-      "ppm": -95.841,
-      "intensity": 21.58,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.012,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 34.24
-    },
-    {
-      "ppm": -95.491,
-      "intensity": 17.96,
-      "relative_intensity": 1.2,
-      "width_ppm": 0.011,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 25.15
-    },
-    {
-      "ppm": -95.076,
-      "intensity": 16.29,
-      "relative_intensity": 1.1,
-      "width_ppm": 0.007,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 24.57
-    },
-    {
-      "ppm": -94.708,
-      "intensity": 20.48,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.006,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 30.34
-    },
-    {
-      "ppm": -94.344,
-      "intensity": 13.77,
-      "relative_intensity": 0.9,
-      "width_ppm": 0.004,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 22.24
-    },
-    {
-      "ppm": -94.033,
-      "intensity": 22.49,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.007,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 35.36
-    },
-    {
-      "ppm": -93.614,
-      "intensity": 21.01,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.003,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 30.25
-    },
-    {
-      "ppm": -93.115,
-      "intensity": 22.05,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.005,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 32.54
-    },
-    {
-      "ppm": -92.608,
-      "intensity": 17.49,
-      "relative_intensity": 1.2,
-      "width_ppm": 0.014,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 26.91
-    },
-    {
-      "ppm": -92.294,
-      "intensity": 19.76,
-      "relative_intensity": 1.3,
-      "width_ppm": 0.002,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 29.53
-    },
-    {
-      "ppm": -91.919,
-      "intensity": 20.49,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.007,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 31.56
-    },
-    {
-      "ppm": -91.594,
-      "intensity": 24.06,
-      "relative_intensity": 1.6,
-      "width_ppm": 0.006,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 37.03
-    },
-    {
-      "ppm": -91.182,
-      "intensity": 15.29,
-      "relative_intensity": 1.0,
-      "width_ppm": 0.004,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 21.09
-    },
-    {
-      "ppm": -90.836,
-      "intensity": 16.98,
-      "relative_intensity": 1.1,
-      "width_ppm": 0.013,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 28.57
-    },
-    {
-      "ppm": -90.523,
-      "intensity": 17.8,
-      "relative_intensity": 1.2,
-      "width_ppm": 0.005,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 28.79
-    },
-    {
-      "ppm": -89.941,
-      "intensity": 18.84,
-      "relative_intensity": 1.3,
-      "width_ppm": 0.011,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 29.06
-    },
-    {
-      "ppm": -89.641,
-      "intensity": 12.13,
-      "relative_intensity": 0.8,
-      "width_ppm": 0.007,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 15.1
-    },
-    {
-      "ppm": -89.336,
-      "intensity": 19.72,
-      "relative_intensity": 1.3,
-      "width_ppm": 0.016,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 29.82
-    },
-    {
-      "ppm": -88.848,
-      "intensity": 20.44,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.005,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 30.23
-    },
-    {
-      "ppm": -88.419,
-      "intensity": 20.03,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.004,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 29.44
-    },
-    {
-      "ppm": -88.019,
-      "intensity": 18.41,
-      "relative_intensity": 1.2,
-      "width_ppm": 0.013,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 25.06
-    },
-    {
-      "ppm": -87.621,
-      "intensity": 20.37,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.007,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 28.89
-    },
-    {
-      "ppm": -87.286,
-      "intensity": 20.58,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.008,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 35.62
-    },
-    {
-      "ppm": -86.842,
-      "intensity": 21.07,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.005,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 26.62
-    },
-    {
-      "ppm": -86.447,
-      "intensity": 25.78,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.008,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 35.53
-    },
-    {
-      "ppm": -86.037,
-      "intensity": 18.76,
-      "relative_intensity": 1.3,
-      "width_ppm": 0.005,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 24.08
-    },
-    {
-      "ppm": -85.612,
-      "intensity": 22.73,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.013,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 32.29
-    },
-    {
-      "ppm": -85.189,
-      "intensity": 23.5,
-      "relative_intensity": 1.6,
-      "width_ppm": 0.008,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 31.72
-    },
-    {
-      "ppm": -84.865,
-      "intensity": 21.39,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.004,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 28.05
-    },
-    {
-      "ppm": -84.565,
-      "intensity": 19.3,
-      "relative_intensity": 1.3,
-      "width_ppm": 0.004,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 23.67
-    },
-    {
-      "ppm": -84.19,
-      "intensity": 21.69,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.004,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 24.57
-    },
-    {
-      "ppm": -83.737,
-      "intensity": 22.12,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.009,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 25.2
-    },
-    {
-      "ppm": -83.326,
-      "intensity": 23.28,
-      "relative_intensity": 1.6,
-      "width_ppm": 0.009,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 29.69
-    },
-    {
-      "ppm": -82.901,
-      "intensity": 22.37,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.004,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 26.16
-    },
-    {
-      "ppm": -82.519,
-      "intensity": 25.29,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.007,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 32.69
-    },
-    {
-      "ppm": -82.057,
-      "intensity": 25.55,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.005,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 28.96
-    },
-    {
-      "ppm": -81.756,
-      "intensity": 21.94,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.002,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 21.53
-    },
-    {
-      "ppm": -81.346,
-      "intensity": 33.46,
-      "relative_intensity": 2.3,
-      "width_ppm": 0.003,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 36.11
-    },
-    {
-      "ppm": -81.043,
-      "intensity": 32.92,
-      "relative_intensity": 2.2,
-      "width_ppm": 0.006,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 30.45
     },
     {
       "ppm": -80.733,
       "intensity": 1480.03,
       "relative_intensity": 100.0,
       "width_ppm": 0.065,
-      "region": "CF3 (Extremo, ej. PFOA)",
+      "region": "CF\u2083 Terminal (ej. PFOA, PFOS)",
       "prominence": 1489.68
-    },
-    {
-      "ppm": -80.337,
-      "intensity": 24.62,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.04,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 31.14
-    },
-    {
-      "ppm": -79.984,
-      "intensity": 24.35,
-      "relative_intensity": 1.6,
-      "width_ppm": 0.004,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 30.89
-    },
-    {
-      "ppm": -79.578,
-      "intensity": 21.4,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.003,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 26.4
-    },
-    {
-      "ppm": -79.23,
-      "intensity": 21.67,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.006,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 24.68
-    },
-    {
-      "ppm": -78.899,
-      "intensity": 23.08,
-      "relative_intensity": 1.6,
-      "width_ppm": 0.005,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 27.58
-    },
-    {
-      "ppm": -78.306,
-      "intensity": 26.06,
-      "relative_intensity": 1.8,
-      "width_ppm": 0.009,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 34.53
-    },
-    {
-      "ppm": -77.71,
-      "intensity": 25.4,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.006,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 32.83
-    },
-    {
-      "ppm": -77.397,
-      "intensity": 20.27,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.012,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 23.61
-    },
-    {
-      "ppm": -77.079,
-      "intensity": 24.1,
-      "relative_intensity": 1.6,
-      "width_ppm": 0.011,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 28.03
-    },
-    {
-      "ppm": -76.762,
-      "intensity": 25.32,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.005,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 31.07
-    },
-    {
-      "ppm": -76.402,
-      "intensity": 24.99,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.005,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 28.06
-    },
-    {
-      "ppm": -76.067,
-      "intensity": 25.19,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.003,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 33.36
-    },
-    {
-      "ppm": -75.715,
-      "intensity": 23.35,
-      "relative_intensity": 1.6,
-      "width_ppm": 0.01,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 29.45
-    },
-    {
-      "ppm": -75.205,
-      "intensity": 25.37,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.002,
-      "region": "CF3 (Extremo, ej. PFOA)",
-      "prominence": 29.16
-    },
-    {
-      "ppm": -74.757,
-      "intensity": 26.19,
-      "relative_intensity": 1.8,
-      "width_ppm": 0.01,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 33.59
-    },
-    {
-      "ppm": -74.425,
-      "intensity": 22.49,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.01,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 27.53
-    },
-    {
-      "ppm": -74.017,
-      "intensity": 29.72,
-      "relative_intensity": 2.0,
-      "width_ppm": 0.004,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 36.26
-    },
-    {
-      "ppm": -73.668,
-      "intensity": 22.41,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.002,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 23.17
-    },
-    {
-      "ppm": -73.23,
-      "intensity": 24.84,
-      "relative_intensity": 1.7,
-      "width_ppm": 0.003,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 29.22
-    },
-    {
-      "ppm": -72.914,
-      "intensity": 26.57,
-      "relative_intensity": 1.8,
-      "width_ppm": 0.007,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 31.11
-    },
-    {
-      "ppm": -72.603,
-      "intensity": 22.54,
-      "relative_intensity": 1.5,
-      "width_ppm": 0.015,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 20.76
-    },
-    {
-      "ppm": -72.201,
-      "intensity": 28.31,
-      "relative_intensity": 1.9,
-      "width_ppm": 0.007,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 33.56
-    },
-    {
-      "ppm": -71.834,
-      "intensity": 26.47,
-      "relative_intensity": 1.8,
-      "width_ppm": 0.012,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 30.61
-    },
-    {
-      "ppm": -71.421,
-      "intensity": 28.99,
-      "relative_intensity": 2.0,
-      "width_ppm": 0.005,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 34.4
-    },
-    {
-      "ppm": -71.119,
-      "intensity": 19.83,
-      "relative_intensity": 1.3,
-      "width_ppm": 0.003,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 14.14
-    },
-    {
-      "ppm": -70.809,
-      "intensity": 28.71,
-      "relative_intensity": 1.9,
-      "width_ppm": 0.004,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 26.9
-    },
-    {
-      "ppm": -70.478,
-      "intensity": 26.58,
-      "relative_intensity": 1.8,
-      "width_ppm": 0.003,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 21.75
-    },
-    {
-      "ppm": -70.111,
-      "intensity": 21.05,
-      "relative_intensity": 1.4,
-      "width_ppm": 0.002,
-      "region": "Fuera de rango PFAS t\u00edpico",
-      "prominence": 11.56
     }
   ],
   "regions": {
