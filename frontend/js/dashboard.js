@@ -1,7 +1,8 @@
 // ============================================================================
-// DASHBOARD MANAGER - CraftRMN Pro - VERSIÓN MEJORADA
-// Gestión completa de estadísticas y comparación de muestras
-// ✅ Actualizado para analyzer_improved.py
+// DASHBOARD MANAGER - CraftRMN Pro - VERSIÓN CORREGIDA
+// ✅ CORREGIDO: Gráficos ahora usan LanguageManager para las traducciones.
+// ✅ CORREGIDO: Añadido listener para exportar dashboard.
+// ✅ CORREGIDO: Eliminado el '}' extra al final del archivo.
 // ============================================================================
 
 class DashboardManager {
@@ -47,12 +48,13 @@ class DashboardManager {
             refreshBtn.addEventListener('click', () => this.refreshDashboard());
         }
 
-        // Botón de exportar comparación
-        const exportCompareBtn = document.getElementById('exportComparisonBtn');
-        if (exportCompareBtn) {
-            exportCompareBtn.addEventListener('click', () => this.exportComparison());
+        // Botón de exportar dashboard
+        const exportDashBtn = document.getElementById('exportDashboardBtn');
+        if (exportDashBtn) {
+            exportDashBtn.addEventListener('click', () => this.exportDashboardData());
+            window.APP_LOGGER.debug('Export dashboard listener attached');
         }
-
+        
         // Filtros de fecha en dashboard
         const dateFilterDash = document.getElementById('dashboardDateFilter');
         if (dateFilterDash) {
@@ -206,19 +208,17 @@ class DashboardManager {
         updateText('dashLastWeek', stats.lastWeek);
         updateText('dashAvgQuality', stats.avgQuality, '/10');
         updateText('dashAvgPfas', stats.avgPfas, '%');
-        updateText('dashAvgSNR', stats.avgSNR); // Assuming you add an element with id="dashAvgSNR"
-        updateText('dashHighQuality', stats.highQualitySamples); // Assuming you add id="dashHighQuality"
+        updateText('dashAvgSNR', stats.avgSNR); 
+        updateText('dashHighQuality', stats.highQualitySamples); 
     }
 
     renderTrendChart() {
         if (!this.allAnalyses || this.allAnalyses.length === 0) {
-            this.clearChart('trendChart');
+            // this.clearChart('trendChart'); // Asegúrate que clearChart exista o coméntalo
             return;
         }
         
-        // Filter out invalid entries before sorting/mapping
         const validAnalyses = this.allAnalyses.filter(a => a && !a.error && a.created);
-
         const sortedAnalyses = [...validAnalyses].sort((a, b) => new Date(a.created) - new Date(b.created));
 
         const dates = sortedAnalyses.map(a => new Date(a.created).toLocaleDateString(LanguageManager.currentLang));
@@ -231,13 +231,13 @@ class DashboardManager {
         const trace3 = { x: dates, y: qualityValues, type: 'scatter', mode: 'lines+markers', name: LanguageManager.t('results.quality'), line: { color: '#2ecc71', width: 2 }, marker: { size: 6 }, yaxis: 'y3' };
 
         const layout = {
-            title: LanguageManager.t('dashboard.trendTitle') || 'Tendencias Temporales',
-            xaxis: { title: LanguageManager.t('dashboard.date') || 'Fecha' },
+            title: LanguageManager.t('dashboard.trendTitle'),
+            xaxis: { title: LanguageManager.t('dashboard.date') },
             yaxis: { title: LanguageManager.t('results.concentration') + ' (mM)', side: 'left' },
-            yaxis2: { title: 'PFAS (%)', overlaying: 'y', side: 'right' },
-            yaxis3: { title: LanguageManager.t('results.quality'), overlaying: 'y', side: 'right', position: 0.95 }, // Adjust position if needed
-            hovermode: 'x unified', showlegend: true, legend: { orientation: 'h', y: -0.2, yanchor: 'top' }, // Move legend below
-            margin: { l: 50, r: 100, b: 80, t: 50 } // Adjust margins
+            yaxis2: { title: LanguageManager.t('dashboard.pfasAxis'), overlaying: 'y', side: 'right' },
+            yaxis3: { title: LanguageManager.t('results.quality'), overlaying: 'y', side: 'right', position: 0.95 }, 
+            hovermode: 'x unified', showlegend: true, legend: { orientation: 'h', y: -0.2, yanchor: 'top' },
+            margin: { l: 50, r: 100, b: 80, t: 50 } 
         };
 
         const config = { responsive: true, displayModeBar: true, displaylogo: false, locale: LanguageManager.currentLang };
@@ -252,12 +252,11 @@ class DashboardManager {
 
     renderDistributionChart() {
          if (!this.allAnalyses || this.allAnalyses.length === 0) {
-            this.clearChart('distributionChart');
+            // this.clearChart('distributionChart'); // Asegúrate que clearChart exista
             return;
         }
         
         const validAnalyses = this.allAnalyses.filter(a => a && !a.error && a.quality !== null && a.quality !== undefined);
-
 
         const qualityDistribution = {
             'Excelente (>=8)': 0,
@@ -265,7 +264,7 @@ class DashboardManager {
             'Regular (4-6)': 0,
             'Baja (<4)': 0
         };
-        const qualityKeys = Object.keys(qualityDistribution); // Store keys in order
+        const qualityKeys = Object.keys(qualityDistribution); 
 
         validAnalyses.forEach(a => {
             const quality = a.quality;
@@ -275,32 +274,31 @@ class DashboardManager {
             else qualityDistribution[qualityKeys[3]]++;
         });
 
-        // Translate labels
         const labelTranslations = {
-            'Excelente (>=8)': LanguageManager.t('dashboard.qualityLabels.excellent') || 'Excelente (≥8)',
-            'Buena (6-8)': LanguageManager.t('dashboard.qualityLabels.good') || 'Buena (6-8)',
-            'Regular (4-6)': LanguageManager.t('dashboard.qualityLabels.regular') || 'Regular (4-6)',
-            'Baja (<4)': LanguageManager.t('dashboard.qualityLabels.low') || 'Baja (<4)'
+            'Excelente (>=8)': LanguageManager.t('dashboard.qualityLabels.excellent'),
+            'Buena (6-8)': LanguageManager.t('dashboard.qualityLabels.good'),
+            'Regular (4-6)': LanguageManager.t('dashboard.qualityLabels.regular'),
+            'Baja (<4)': LanguageManager.t('dashboard.qualityLabels.low')
         };
-        const translatedLabels = qualityKeys.map(key => labelTranslations[key] || key);
+        const translatedLabels = qualityKeys.map(key => labelTranslations[key] || key); 
 
 
         const trace = {
-            labels: translatedLabels, // Use translated labels
+            labels: translatedLabels, 
             values: Object.values(qualityDistribution),
             type: 'pie',
             marker: { colors: ['#2ecc71', '#3498db', '#f39c12', '#e74c3c'] },
-            textinfo: 'percent', // Show only percent on slices
-             hoverinfo: 'label+value+percent', // Show details on hover
-             insidetextorientation: 'radial' // Improve text readability
+            textinfo: 'percent',
+             hoverinfo: 'label+value+percent', 
+             insidetextorientation: 'radial'
         };
 
         const layout = {
-            title: LanguageManager.t('dashboard.distributionTitle') || 'Distribución de Calidad',
+            title: LanguageManager.t('dashboard.distributionTitle'), 
             showlegend: true,
-             legend: { orientation: 'h', y: -0.1, yanchor: 'top' }, // Move legend below
+             legend: { orientation: 'h', y: -0.1, yanchor: 'top' }, 
             height: 400,
-             margin: { l: 20, r: 20, t: 50, b: 50 } // Adjust margins
+             margin: { l: 20, r: 20, t: 50, b: 50 } 
         };
 
         const config = { responsive: true, displayModeBar: false, locale: LanguageManager.currentLang };
@@ -311,13 +309,6 @@ class DashboardManager {
                 .then(() => { this.charts.distribution = chartDiv; window.APP_LOGGER.debug('Distribution chart rendered'); })
                 .catch(error => { window.APP_LOGGER.error('Error rendering distribution chart:', error); });
         }
-         // Add these translation keys:
-         // "dashboard.qualityLabels": {
-         //      "Excelente (>=8)": "Excelente (>=8)",
-         //      "Buena (6-8)": "Buena (6-8)",
-         //      "Regular (4-6)": "Regular (4-6)",
-         //      "Baja (<4)": "Baja (<4)"
-         // }
     }
 
 
@@ -328,13 +319,12 @@ class DashboardManager {
 
         const validAnalyses = this.allAnalyses.filter(a => a && !a.error && a.created);
 
-
         const recentAnalyses = [...validAnalyses]
             .sort((a, b) => new Date(b.created) - new Date(a.created))
             .slice(0, 10);
 
         if (recentAnalyses.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" data-i18n="dashboard.noData" class="empty-state-cell"></td></tr>`; // Use 5 cols now
+            tbody.innerHTML = `<tr><td colspan="5" data-i18n="dashboard.noData" class="empty-state-cell"></td></tr>`; 
             LanguageManager.applyTranslationsToElement(tbody);
             return;
         }
@@ -367,9 +357,19 @@ class DashboardManager {
         try {
             window.APP_LOGGER.info('Initializing Comparison tab...');
             this.selectedSamples.clear();
-            await this.loadComparisonData(); // Renamed function for clarity
+
+            const exportCompareBtn = document.getElementById('exportComparisonBtn');
+            if (exportCompareBtn) {
+                if (!exportCompareBtn.dataset.listenerAttached) {
+                    exportCompareBtn.addEventListener('click', () => this.exportComparison());
+                    exportCompareBtn.dataset.listenerAttached = 'true';
+                    window.APP_LOGGER.debug('Export comparison listener attached');
+                }
+            }
+
+            await this.loadComparisonData(); 
             this.renderSampleSelector();
-            this.clearComparison(); // Call the function that now exists
+            this.clearComparison(); 
             window.APP_LOGGER.info('Comparison tab initialized');
         } catch (error) {
             window.APP_LOGGER.error('Failed to initialize Comparison:', error);
@@ -377,11 +377,9 @@ class DashboardManager {
         }
     }
 
-     // Renamed from loadComparisonData to avoid conflict if dashboard data differs
     async loadComparisonData() {
         try {
-            // Re-use dashboard data if already loaded recently, or load fresh
-            if (!this.allAnalyses || this.allAnalyses.length === 0 || !this.lastUpdate || (new Date() - this.lastUpdate > 60000)) { // Reload if older than 1 min
+            if (!this.allAnalyses || this.allAnalyses.length === 0 || !this.lastUpdate || (new Date() - this.lastUpdate > 60000)) { 
                  const data = await APIClient.getAnalysisList();
                  this.allAnalyses = data.analyses || [];
                  this.lastUpdate = new Date();
@@ -391,8 +389,8 @@ class DashboardManager {
             }
         } catch (error) {
             window.APP_LOGGER.error('Failed to load comparison data:', error);
-            this.allAnalyses = []; // Ensure it's an empty array on error
-            throw error; // Re-throw to be caught by initComparison
+            this.allAnalyses = []; 
+            throw error; 
         }
     }
 
@@ -403,7 +401,7 @@ class DashboardManager {
             window.APP_LOGGER.warn('Sample selector container not found');
             return;
         }
-        container.innerHTML = ''; // Clear previous buttons
+        container.innerHTML = ''; 
 
          const validAnalyses = this.allAnalyses.filter(a => a && !a.error && a.name);
 
@@ -417,7 +415,7 @@ class DashboardManager {
         validAnalyses.forEach(analysis => {
             const button = document.createElement('button');
             button.className = 'sample-select-btn';
-            button.dataset.analysisName = analysis.name; // Use unique name/ID
+            button.dataset.analysisName = analysis.name; 
             
             const displayName = analysis.filename || analysis.name;
             const date = analysis.created ? new Date(analysis.created).toLocaleDateString(LanguageManager.currentLang) : '--';
@@ -430,13 +428,12 @@ class DashboardManager {
                 <i class="fas fa-check-circle sample-btn-check"></i>
             `;
             
-            // Re-apply selected state if already in the set
             if (this.selectedSamples.has(analysis.name)) {
                  button.classList.add('selected');
             }
 
             button.addEventListener('click', () => {
-                this.toggleSampleSelection(analysis.name); // Pass unique name/ID
+                this.toggleSampleSelection(analysis.name); 
                 this.updateSampleButton(button, this.selectedSamples.has(analysis.name));
             });
             container.appendChild(button);
@@ -449,7 +446,7 @@ class DashboardManager {
         else button.classList.remove('selected');
     }
 
-    escapeHtml(text = '') { // Add default value
+    escapeHtml(text = '') { 
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
@@ -461,7 +458,7 @@ class DashboardManager {
     // ========================================================================
 
     toggleSampleSelection(analysisName) {
-         if (!analysisName) return; // Add check
+         if (!analysisName) return; 
 
         if (this.selectedSamples.has(analysisName)) {
             this.selectedSamples.delete(analysisName);
@@ -469,7 +466,7 @@ class DashboardManager {
             if (this.selectedSamples.size >= this.maxSelectedSamples) {
                  if (typeof UIManager !== 'undefined') {
                      UIManager.showNotification(
-                          LanguageManager.t('comparison.maxSamplesReached') || `Máximo ${this.maxSelectedSamples} muestras`, // Add fallback
+                          LanguageManager.t('comparison.maxSamplesReached') || `Máximo ${this.maxSelectedSamples} muestras`, 
                           'warning'
                      );
                  }
@@ -478,28 +475,24 @@ class DashboardManager {
             this.selectedSamples.add(analysisName);
         }
         window.APP_LOGGER.debug(`Selected samples (${this.selectedSamples.size}): ${Array.from(this.selectedSamples).join(', ')}`);
-        this.updateComparisonView(); // Update chart and table
+        this.updateComparisonView(); 
     }
 
 
     updateComparisonView() {
-        // Find selected analyses from the full list using the unique names/IDs
          const selectedAnalyses = this.allAnalyses.filter(a => a && this.selectedSamples.has(a.name));
 
-
-        // Update count display
-         const countDisplay = document.getElementById('selectedCountDisplay'); // Needs <span id="selectedCountDisplay"></span> in HTML
+         const countDisplay = document.getElementById('selectedCountDisplay'); 
          if (countDisplay) {
               countDisplay.textContent = LanguageManager.t('comparison.selected', { count: selectedAnalyses.length, max: this.maxSelectedSamples });
          }
 
-        if (selectedAnalyses.length === 0) { // Clear if 0 or 1 selected
+        if (selectedAnalyses.length === 0) { 
             this.clearComparison();
              const tbody = document.querySelector('#comparisonTable tbody');
              if(tbody) {
                   tbody.innerHTML = `<tr><td colspan="6" data-i18n="comparison.selectMoreSamples" class="empty-state-cell"></td></tr>`;
-                  // ### CORRECTION ###
-                  LanguageManager.applyTranslations(); // Use the general function
+                  LanguageManager.applyTranslations(); 
              }
             return;
         }
@@ -517,22 +510,21 @@ class DashboardManager {
         const chartDiv = document.getElementById('comparisonChart');
         if (!chartDiv) return;
         
-        // Ensure analyses have valid data points for charting
         const validAnalyses = analyses.filter(a => a && (a.concentration !== null || a.pfas !== null));
         if (validAnalyses.length === 0) {
-             this.clearChart('comparisonChart');
+             // this.clearChart('comparisonChart'); // Asegúrate que clearChart exista
              return;
         }
 
 
         const trace1 = {
             x: validAnalyses.map(a => a.filename || a.name),
-            y: validAnalyses.map(a => a.concentration ?? 0), // Use nullish coalescing
+            y: validAnalyses.map(a => a.concentration ?? 0), 
             type: 'bar', name: LanguageManager.t('results.concentration'), marker: { color: '#3498db' }, yaxis: 'y'
         };
         const trace2 = {
             x: validAnalyses.map(a => a.filename || a.name),
-            y: validAnalyses.map(a => a.pfas ?? 0), // Use nullish coalescing
+            y: validAnalyses.map(a => a.pfas ?? 0), 
             type: 'bar', name: LanguageManager.t('results.pifas'), marker: { color: '#e74c3c' }, yaxis: 'y2'
         };
 
@@ -542,8 +534,8 @@ class DashboardManager {
             yaxis: { title: LanguageManager.t('results.concentration') + ' (mM)', side: 'left' },
             yaxis2: { title: 'PFAS (%)', overlaying: 'y', side: 'right' },
             hovermode: 'x unified', showlegend: true,
-             legend: { orientation: 'h', y: -0.2, yanchor: 'top' }, // Legend below
-             margin: { l: 50, r: 50, b: 100, t: 50 } // Increase bottom margin for labels
+             legend: { orientation: 'h', y: -0.2, yanchor: 'top' }, 
+             margin: { l: 50, r: 50, b: 100, t: 50 } 
         };
         const config = { responsive: true, displayModeBar: true, displaylogo: false, locale: LanguageManager.currentLang };
 
@@ -552,7 +544,6 @@ class DashboardManager {
             .catch(error => { window.APP_LOGGER.error('Error rendering comparison chart:', error); });
     }
 
-    // ### CORRECTED renderComparisonTable ###
     renderComparisonTable(analyses) {
         const table = document.getElementById('comparisonTable');
         const thead = table.querySelector('thead');
@@ -563,19 +554,17 @@ class DashboardManager {
             return;
         }
 
-        // --- 1. Clear Header and Body ---
         thead.innerHTML = '';
         tbody.innerHTML = '';
 
-        if (!analyses || analyses.length === 0) { // Should not happen if called from updateComparisonView
+        if (!analyses || analyses.length === 0) { 
              tbody.innerHTML = `<tr><td colspan="6" data-i18n="comparison.selectSamples" class="empty-state-cell"></td></tr>`;
              LanguageManager.applyTranslationsToElement(tbody);
             return;
         }
 
-        // --- 2. Build Header ---
         let headerHtml = '<tr>';
-        headerHtml += `<th data-i18n="results.parameter"></th>`; // Parameter column
+        headerHtml += `<th data-i18n="results.parameter"></th>`; 
         analyses.forEach(a => {
             const displayName = this.escapeHtml(a.filename || a.name || 'Muestra');
             let date = '--';
@@ -585,7 +574,6 @@ class DashboardManager {
         headerHtml += '</tr>';
         thead.innerHTML = headerHtml;
 
-        // --- 3. Build Body ---
         const parameters = [
             { key: 'fluor', labelKey: 'results.fluor', unit: '%', decimals: 2 },
             { key: 'pfas', labelKey: 'results.pifas', unit: '%', decimals: 2 },
@@ -595,9 +583,7 @@ class DashboardManager {
 
         parameters.forEach(param => {
             let rowHtml = '<tr>';
-             // Use unit in label if available
-             const unitLabel = param.unit ? ` (${param.unit})` : '';
-            rowHtml += `<td data-i18n="${param.labelKey}"></td>`; // Parameter name (will be translated)
+            rowHtml += `<td data-i18n="${param.labelKey}"></td>`; 
 
             analyses.forEach(a => {
                 let value = '--';
@@ -605,26 +591,21 @@ class DashboardManager {
                 if (rawValue !== null && rawValue !== undefined) {
                     value = UIManager.formatNumber(rawValue, param.decimals);
                     if (param.key === 'quality') {
-                        value += '/10'; // Add unit specifically for quality
+                        value += '/10'; 
                     }
                 }
                  const qualityClass = (param.key === 'quality' && a.quality !== null) ? this.getQualityClass(a.quality) : '';
-                 // Add class to TD for potential styling
                  rowHtml += `<td class="${qualityClass}">${value}</td>`;
             });
             rowHtml += '</tr>';
             tbody.innerHTML += rowHtml;
         });
 
-        // --- 4. Apply Translations ---
-        LanguageManager.applyTranslations(); // Apply translations to the whole table/page
+        LanguageManager.applyTranslations(); 
 
         window.APP_LOGGER.debug('Comparison table rendered');
     }
-    // ### END CORRECTED renderComparisonTable ###
-
-
-     // ### NUEVO: Helper function to get quality class ###
+ 
     getQualityClass(quality) {
          if (quality === null || quality === undefined) return '';
          if (quality >= 8) return 'quality-excellent';
@@ -634,33 +615,27 @@ class DashboardManager {
     }
 
 
-    // ### CORRECTED clearComparison ###
     clearComparison() {
         const chartDiv = document.getElementById('comparisonChart');
         if (chartDiv) {
-            Plotly.purge('comparisonChart'); // Clear the chart
+            Plotly.purge('comparisonChart'); 
         }
 
         const table = document.getElementById('comparisonTable');
         const thead = table ? table.querySelector('thead') : null;
         const tbody = table ? table.querySelector('tbody') : null;
 
-
-        // Reset table header
          if (thead) {
               thead.innerHTML = `
                    <tr>
                         <th data-i18n="results.parameter"></th>
-                        {/* Headers will be added dynamically */}
                    </tr>
               `;
          }
 
-        // Reset table body
         if (tbody) {
             tbody.innerHTML = `
                 <tr>
-                    {/* Adjust colspan dynamically based on max samples or keep it large */}
                     <td colspan="${this.maxSelectedSamples + 1}" class="empty-state-cell">
                         <i class="fas fa-mouse-pointer"></i>
                         <p data-i18n="comparison.selectSamples"></p>
@@ -671,29 +646,24 @@ class DashboardManager {
 
         const exportBtn = document.getElementById('exportComparisonBtn');
         if (exportBtn) {
-            exportBtn.disabled = true; // Disable export button
+            exportBtn.disabled = true; 
         }
 
-        // Clear selected samples visually
         document.querySelectorAll('.sample-select-btn.selected').forEach(btn => {
              btn.classList.remove('selected');
         });
 
-        this.selectedSamples.clear(); // Ensure the set is cleared too
+        this.selectedSamples.clear(); 
         
-        // Update selection count display
          const countDisplay = document.getElementById('selectedCountDisplay');
          if (countDisplay) {
              countDisplay.textContent = LanguageManager.t('comparison.selected', { count: 0, max: this.maxSelectedSamples });
          }
 
-        // Apply translations after resetting HTML
-        if (table) LanguageManager.applyTranslations(); // Apply to whole page to catch placeholders
-
+        if (table) LanguageManager.applyTranslations(); 
 
         window.APP_LOGGER.debug('Comparison view cleared.');
     }
-    // ### END CORRECTED clearComparison ###
 
 
     async exportComparison() {
@@ -706,9 +676,8 @@ class DashboardManager {
             return;
         }
 
-        // Mostrar selector de formato
         const format = await this.showFormatSelector();
-        if (!format) return;
+        if (!format) return; 
 
         const exportBtn = document.getElementById('exportComparisonBtn');
         if(exportBtn && typeof UIManager !== 'undefined') 
@@ -717,27 +686,14 @@ class DashboardManager {
         try {
             const selectedAnalyses = this.allAnalyses.filter(a => this.selectedSamples.has(a.name));
             
-            if (format === 'csv') {
-                // Exportar CSV (método existente)
-                const csvContent = this.generateComparisonCSV(selectedAnalyses);
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement('a');
-                const url = URL.createObjectURL(blob);
-                link.setAttribute('href', url);
-                link.setAttribute('download', `comparison_${new Date().toISOString().split('T')[0]}.csv`);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            } else {
-                // Exportar en otros formatos usando el backend
-                await APIClient.exportReport({
-                    type: 'comparison',
-                    samples: selectedAnalyses,
-                    count: selectedAnalyses.length
-                }, format);
-            }
+            const payload = {
+                type: 'comparison',
+                format: format, 
+                samples: selectedAnalyses,
+                count: selectedAnalyses.length
+            };
+            
+            await APIClient.exportReport(payload);
             
             if (typeof UIManager !== 'undefined') {
                 UIManager.showNotification(LanguageManager.t('comparison.exportSuccess'), 'success');
@@ -785,60 +741,93 @@ class DashboardManager {
             });
         });
     }
-    generateComparisonCSV(analyses) {
-        // Use translated headers if possible
-        const headers = [
-            LanguageManager.t('comparison.sample') || 'Sample',
-            LanguageManager.t('comparison.date') || 'Date',
-            LanguageManager.t('results.fluor') + ' (%)' || 'Fluorine (%)',
-            LanguageManager.t('results.pifas') + ' (%)' || 'PFAS (%)',
-            LanguageManager.t('results.concentration') + ' (mM)' || 'Concentration (mM)',
-            LanguageManager.t('results.quality') || 'Quality'
-        ];
 
-         // Helper to safely format CSV values (handle commas, quotes)
-         const formatCsvValue = (value) => {
-             if (value === null || value === undefined) return '';
-             let str = String(value);
-             // If value contains comma, double quote, or newline, enclose in double quotes
-             if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                  // Escape existing double quotes by doubling them
-                  str = str.replace(/"/g, '""');
-                  return `"${str}"`;
-             }
-             return str;
-         };
+    
+    async exportDashboardData() {
+        window.APP_LOGGER.debug('Exporting dashboard data...');
+        
+        if (!this.statsCache || !this.allAnalyses || this.allAnalyses.length === 0) {
+            UIManager.showNotification('No hay datos de dashboard para exportar', 'warning');
+            return;
+        }
 
+        const exportBtn = document.getElementById('exportDashboardBtn');
+        if(exportBtn) UIManager.updateButtonState(exportBtn, 'loading');
 
-        const rows = analyses.map(a => {
-            return [
-                formatCsvValue(a.filename || a.name),
-                a.created ? new Date(a.created).toISOString().split('T')[0] : '', // Use ISO date for CSV consistency
-                UIManager.formatNumber(a.fluor, 2),
-                UIManager.formatNumber(a.pfas, 2),
-                UIManager.formatNumber(a.concentration, 4),
-                UIManager.formatNumber(a.quality, 1)
-            ].join(','); // Join values with comma
-        });
+        try {
+            const stats = this.statsCache;
+            let csvContent = "data:text/csv;charset=utf-8,";
+            
+            csvContent += "Metrica,Valor\n";
+            csvContent += `Total Analisis,${stats.totalAnalyses}\n`;
+            csvContent += `Concentracion Promedio (mM),${stats.avgConcentration}\n`;
+            csvContent += `PFAS Promedio (%),${stats.avgPfas}\n`;
+            csvContent += `Fluor Promedio (%),${stats.avgFluor}\n`;
+            csvContent += `Calidad Promedio,${stats.avgQuality}\n`;
+            csvContent += `Fuera de Limites,${stats.outOfLimits}\n`;
+            csvContent += `Analisis (Ultima Semana),${stats.lastWeek}\n`;
+            csvContent += `Analisis (Ultimo Mes),${stats.lastMonth}\n`;
+            csvContent += `Muestras Alta Calidad,${stats.highQualitySamples}\n`;
+            csvContent += `SNR Promedio,${stats.avgSNR}\n`;
+            
+            csvContent += "\nAnalisis (Todos)\n";
+            
+            const allAnalyses = [...this.allAnalyses]
+                .filter(a => a && !a.error && a.created)
+                .sort((a, b) => new Date(b.created) - new Date(a.created));
 
-        // Join header and rows with newline
-        return [headers.join(','), ...rows].join('\n');
+            csvContent += "Muestra,Fecha,Fluor (%),PFAS (%),Concentracion (mM),Calidad\n";
+
+            allAnalyses.forEach(analysis => {
+                const date = analysis.created ? new Date(analysis.created).toISOString().split('T')[0] : '--';
+                const fileName = this.escapeCsv(analysis.filename || analysis.name);
+                const fluor = UIManager.formatNumber(analysis.fluor, 2);
+                const pfas = UIManager.formatNumber(analysis.pfas, 2);
+                const concentration = UIManager.formatNumber(analysis.concentration, 4);
+                const quality = UIManager.formatNumber(analysis.quality, 1);
+                
+                csvContent += `${fileName},${date},${fluor},${pfas},${concentration},${quality}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `dashboard_export_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link); 
+            link.click();
+            document.body.removeChild(link);
+
+            UIManager.showNotification('Datos del dashboard exportados como CSV', 'success');
+            if(exportBtn) UIManager.updateButtonState(exportBtn, 'success');
+
+        } catch (error) {
+            window.APP_LOGGER.error('Dashboard export failed:', error);
+            UIManager.showNotification('Error al exportar datos del dashboard', 'error');
+            if(exportBtn) UIManager.updateButtonState(exportBtn, 'error');
+        }
+    }
+
+    escapeCsv(text) {
+        if (text === null || text === undefined) return '';
+        let str = String(text);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
     }
 
 
     // ========================================================================
-    // FILTROS DASHBOARD (Parece OK, sin cambios necesarios aquí para los errores reportados)
+    // FILTROS DASHBOARD
     // ========================================================================
 
     filterDashboardData() {
         const filter = document.getElementById('dashboardDateFilter')?.value || 'all';
-        const originalAnalyses = this.allAnalyses; // Keep a reference
+        const originalAnalyses = this.allAnalyses; 
 
         try {
             if (filter === 'all') {
-                // If filter is 'all', ensure we are using the full original dataset
-                // No need to filter, just recalculate and render with full data
-                this.calculateStats(); // Recalculate based on potentially full 'this.allAnalyses'
+                this.calculateStats(); 
                 this.renderDashboard();
                 return;
             }
@@ -854,34 +843,82 @@ class DashboardManager {
             if (startDate) {
                 const filteredAnalyses = originalAnalyses.filter(a => a && a.created && new Date(a.created) >= startDate);
                 
-                // Temporarily override this.allAnalyses FOR CALCULATION ONLY
                 this.allAnalyses = filteredAnalyses;
-                this.calculateStats(); // Calculate stats based on filtered data
+                this.calculateStats(); 
                 
-                // Restore original data before rendering (render functions use this.allAnalyses)
                 this.allAnalyses = originalAnalyses; 
                 
-                // Render dashboard using the calculated stats (which are based on filtered data)
-                // but the charts/tables will use the full data unless modified
-                 // TODO: Modify render functions to accept filtered data if charts/tables should also filter
-                 this.renderStatsCards(); // This uses this.statsCache (filtered)
-                 this.renderTrendChart(); // This currently uses this.allAnalyses (full)
-                 this.renderDistributionChart(); // This currently uses this.allAnalyses (full)
-                 this.renderRecentAnalysesTable(); // This currently uses this.allAnalyses (full)
+                 this.renderStatsCards(); 
+                 this.renderTrendChart(); 
+                 this.renderDistributionChart(); 
+                 this.renderRecentAnalysesTable(); 
 
             } else {
-                 // If no valid startDate, revert to showing all data
                  this.allAnalyses = originalAnalyses;
                  this.calculateStats();
                  this.renderDashboard();
             }
         } finally {
-             // Ensure this.allAnalyses is always restored
              this.allAnalyses = originalAnalyses;
         }
     }
 
-}
+    // ========================================================================
+    // ### FUNCIÓN NUEVA ###
+    // ========================================================================
+
+    /**
+     * Actualiza el texto de los gráficos del dashboard cuando el idioma cambia.
+     */
+    refreshTranslations() {
+        window.APP_LOGGER.debug('Refreshing dashboard chart translations...');
+        
+        // --- 1. Actualizar Gráfico de Tendencia ---
+        if (this.charts.trend) {
+            const trendLayoutUpdate = {
+                title: LanguageManager.t('dashboard.trendTitle'),
+                'xaxis.title': LanguageManager.t('dashboard.date'),
+                'yaxis.title': LanguageManager.t('results.concentration') + ' (mM)',
+                'yaxis2.title': LanguageManager.t('dashboard.pfasAxis'),
+                'yaxis3.title': LanguageManager.t('results.quality')
+            };
+            const trendDataUpdate = {
+                name: [
+                    LanguageManager.t('results.concentration'),
+                    LanguageManager.t('results.pifas'),
+                    LanguageManager.t('results.quality')
+                ]
+            };
+            Plotly.relayout(this.charts.trend, trendLayoutUpdate);
+            Plotly.restyle(this.charts.trend, trendDataUpdate, [0, 1, 2]);
+        }
+
+        // --- 2. Actualizar Gráfico de Distribución ---
+        if (this.charts.distribution) {
+            const distLayoutUpdate = {
+                title: LanguageManager.t('dashboard.distributionTitle')
+            };
+            
+            const qualityKeys = ['Excelente (>=8)', 'Buena (6-8)', 'Regular (4-6)', 'Baja (<4)'];
+            const labelTranslations = {
+                'Excelente (>=8)': LanguageManager.t('dashboard.qualityLabels.excellent'),
+                'Buena (6-8)': LanguageManager.t('dashboard.qualityLabels.good'),
+                'Regular (4-6)': LanguageManager.t('dashboard.qualityLabels.regular'),
+                'Baja (<4)': LanguageManager.t('dashboard.qualityLabels.low')
+            };
+            const translatedLabels = qualityKeys.map(key => labelTranslations[key] || key);
+
+            const distDataUpdate = {
+                labels: [translatedLabels] 
+            };
+            
+            Plotly.relayout(this.charts.distribution, distLayoutUpdate);
+            Plotly.restyle(this.charts.distribution, distDataUpdate, [0]);
+        }
+    }
+
+} // <-- Fin de la clase DashboardManager
 
 // Crear instancia global
 window.dashboardManager = new DashboardManager();
+

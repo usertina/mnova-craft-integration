@@ -500,6 +500,9 @@ class RMNAnalyzerApp {
         setTimeout(() => {
             ChartManager.refreshTranslations(lang);
         }, 100);
+        if (window.dashboardManager) {
+            window.dashboardManager.refreshTranslations(lang);
+        }
         ChartManager.refreshTranslations(lang);
         if (this.analysisResults) {
             // Re-render results to apply translations
@@ -680,7 +683,6 @@ class RMNAnalyzerApp {
             });
         });
     }
-
     toggleFullscreen() {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(err => {

@@ -9,14 +9,39 @@ from datetime import datetime
 from io import BytesIO, StringIO
 import traceback
 from export_utils import ReportExporter
-
+import numpy as np # <-- 1. Importar numpy
 
 # Importar el analizador
 sys.path.append(str(Path(__file__).parent.parent / "worker"))
 from analyzer import SpectrumAnalyzer
 
+# ============================================================================
+# 2. AÑADIR CLASE DE CODIFICADOR JSON
+# ============================================================================
+class NumpyJSONEncoder(json.JSONEncoder):
+    """
+    Codificador JSON personalizado para manejar tipos de datos de NumPy
+    que aparecen durante el análisis científico.
+    """
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
+        else:
+            return super(NumpyJSONEncoder, self).default(obj)
+
+# ============================================================================
+
 app = Flask(__name__, static_folder="../frontend")
 CORS(app)  # Permitir CORS para desarrollo
+
+# 3. Asignar el codificador personalizado a Flask
+app.json_encoder = NumpyJSONEncoder 
 
 # Directorios
 OUTPUT_DIR = Path("storage/output").resolve()
@@ -104,11 +129,14 @@ def analyze_spectrum():
         result_filename = f"{Path(file.filename).stem}_analysis_{timestamp}.json"
         result_path = ANALYSIS_DIR / result_filename
 
+        # 4. Usar el codificador al guardar en el archivo
         with open(result_path, "w") as f:
-            json.dump(results, f, indent=2)
+            json.dump(results, f, indent=2, cls=NumpyJSONEncoder)
 
         print(f"✅ Análisis completado: {result_filename}")
 
+        # 5. Flask usará automáticamente el app.json_encoder
+        #    para convertir 'results' al enviarlo
         return jsonify(results)
 
     except Exception as e:
@@ -182,11 +210,13 @@ def batch_analyze():
             "results": results
         }
 
+        # 4b. Usar el codificador también al guardar el lote
         with open(batch_result_path, "w") as f:
-            json.dump(batch_summary, f, indent=2)
+            json.dump(batch_summary, f, indent=2, cls=NumpyJSONEncoder)
 
         print(f"✅ Lote completado: {batch_summary['successful']}/{len(files)} exitosos")
 
+        # 5b. Flask usará automáticamente el app.json_encoder
         return jsonify(batch_summary)
 
     except Exception as e:
@@ -197,17 +227,23 @@ def batch_analyze():
         }), 500
 
 # ============================================================================
-# API - Exportar Reportes
+# API - Exportar Reportes (ENDPOINT MODIFICADO)
 # ============================================================================
 @app.route("/api/export", methods=["POST"])
 def export_report():
-    """Exportar reporte en PDF, DOCX, CSV o JSON"""
+    """
+    Exportar reporte en PDF, DOCX, CSV o JSON.
+    Maneja tanto análisis únicos como comparaciones.
+    """
     try:
+        # NOTA: No necesitamos usar el codificador aquí porque
+        # los datos JSON ya vienen del frontend (serializados)
+        # o se están pasando a export_utils, que maneja su propio formato.
         data = request.get_json()
-        results = data.get("results", {})
         format_type = data.get("format", "pdf").lower()
+        export_type = data.get("type", "single") # 'single' o 'comparison'
 
-        print(f"📤 Exportando reporte en formato: {format_type}")
+        print(f"📤 Solicitud de exportación: Tipo={export_type}, Formato={format_type}")
 
         # Determinar tipo MIME y nombre de archivo
         mime_types = {
@@ -216,7 +252,6 @@ def export_report():
             "pdf": "application/pdf",
             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         }
-
         extensions = {
             "json": "json",
             "csv": "csv",
@@ -225,19 +260,44 @@ def export_report():
         }
 
         if format_type not in mime_types:
-            return jsonify({"error": f"Formato '{format_type}' no soportado. Usa: json, csv, pdf, docx"}), 400
+            return jsonify({"error": f"Formato '{format_type}' no soportado"}), 400
 
-        # Exportar según formato
-        if format_type == "json":
-            output = ReportExporter.export_json(results)
-        elif format_type == "csv":
-            output = ReportExporter.export_csv(results)
-        elif format_type == "pdf":
-            output = ReportExporter.export_pdf(results)
-        elif format_type == "docx":
-            output = ReportExporter.export_docx(results)
+        output = None
+        filename_prefix = ""
 
-        filename = f"rmn_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{extensions[format_type]}"
+        if export_type == "comparison":
+            # --- Lógica de Exportación de Comparación ---
+            samples = data.get("samples", [])
+            filename_prefix = f"rmn_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            if format_type == "pdf":
+                output = ReportExporter.export_comparison_pdf(samples)
+            elif format_type == "docx":
+                output = ReportExporter.export_comparison_docx(samples)
+            elif format_type == "csv":
+                output = ReportExporter.export_comparison_csv(samples)
+            else:
+                # JSON para comparación (no solicitado, pero bueno tenerlo)
+                output = ReportExporter.export_json(data) 
+                
+        else:
+            # --- Lógica de Exportación de Análisis Único (existente) ---
+            results = data.get("results", {})
+            filename_prefix = f"rmn_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+            if format_type == "json":
+                output = ReportExporter.export_json(results)
+            elif format_type == "csv":
+                output = ReportExporter.export_csv(results)
+            elif format_type == "pdf":
+                output = ReportExporter.export_pdf(results) # (Ahora con gráfico)
+            elif format_type == "docx":
+                output = ReportExporter.export_docx(results) # (Ahora con gráfico)
+        
+        if output is None:
+             return jsonify({"error": f"No se pudo generar la exportación para {export_type} en {format_type}"}), 500
+
+        filename = f"{filename_prefix}.{extensions[format_type]}"
 
         return send_file(
             output,
@@ -250,6 +310,7 @@ def export_report():
         print(f"❌ Error exportando: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": f"Export failed: {str(e)}"}), 500
+
 # ============================================================================
 # API - Gestión de Archivos (endpoints originales)
 # ============================================================================
@@ -283,15 +344,17 @@ def list_analysis():
                 data = json.load(file)
 
             # Extraer datos clave para el historial
+            # Asegurarse de que los datos clave existen
+            analysis_data = data.get("analysis", {})
             analysis_summary = {
                 "name": f.name,
                 "size": f.stat().st_size,
                 "created": datetime.fromtimestamp(f.stat().st_ctime).isoformat(),
                 "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
                 # Datos del análisis
-                "fluor": data.get("analysis", {}).get("fluor_percentage"),
-                "pfas": data.get("analysis", {}).get("pifas_percentage"),
-                "concentration": data.get("analysis", {}).get("pifas_concentration"),
+                "fluor": analysis_data.get("fluor_percentage"),
+                "pfas": analysis_data.get("pifas_percentage"),
+                "concentration": analysis_data.get("pifas_concentration"),
                 "quality": data.get("quality_score"),
                 "filename": data.get("filename", f.name)
             }

@@ -100,12 +100,17 @@
     "connected": "Connected",
     "disconnected": "Disconnected"
   },
-  "chart": {
+  "charts": {
     "title": "NMR Spectrum",
     "xaxis": "Displacement (ppm)",
     "yaxis": "Intensity",
     "traceName": "NMR Spectrum",
-    "hover": "ppm: %{x:.2f}<br>Intensity: %{y:.2f}<extra></extra>"
+    "hover": "ppm: %{x:.2f}<br>Intensity: %{y:.2f}<extra></extra>",
+    "spectrumTitle": "NMR Spectrum",
+    "ppmAxis": "Chemical Shift (ppm)",
+    "intensityAxis": "Intensity",
+    "spectrumTrace": "Spectrum",
+    "peaksTrace": "Detected Peaks"
   },
   "history": {
     "title": "Analysis History",
@@ -129,7 +134,9 @@
     "loading": "Loading history...",             
     "loadTooltip": "Load this analysis in the analyzer", 
     "viewTooltip": "View analysis details",       
-    "deleteTooltip": "Delete this analysis"        
+    "deleteTooltip": "Delete this analysis",
+    "search": "Search...",
+    "filter": "Filter"        
   },
   "methods": {
     "title": "Analysis Methods",
@@ -164,9 +171,11 @@
     "lastWeek": "This Week",
     "avgQuality": "Average Quality",
     "avgPfas": "Average PFAS",
+    "avgFluor": "Average Fluorine",
     "trendTitle": "Concentration Trend",
     "distributionTitle": "Quality Distribution",
     "date": "Date",
+    "pfasAxis": "PFAS (%)",
     "concentration": "Concentration",
     "trendHover": "Date: %{x}<br>Concentration: %{y:.4f} mM<extra></extra>",
     "noData": "No data available",

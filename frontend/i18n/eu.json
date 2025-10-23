@@ -100,12 +100,17 @@
     "connected": "Konektatuta",
     "disconnected": "Deskonektatuta"
   },
-  "chart": {
+  "charts": {
     "title": "EMN Espektroa",
     "xaxis": "Desplazamendua (ppm)",
     "yaxis": "Intentsitatea",
     "traceName": "EMN Espektroa",
-    "hover": "ppm: %{x:.2f}<br>Intentsitatea: %{y:.2f}<extra></extra>"
+    "hover": "ppm: %{x:.2f}<br>Intentsitatea: %{y:.2f}<extra></extra>",
+    "spectrumTitle": "EMN Espektroa",
+    "ppmAxis": "Lerrakuntza Kimikoa (ppm)",
+    "intensityAxis": "Intentsitatea",
+    "spectrumTrace": "Espektroa",
+    "peaksTrace": "Atzemandako Gailurrak"
   },
   "history": {
     "title": "Analisien Historia",
@@ -129,7 +134,9 @@
     "loading": "Historia kargatzen...",           
     "loadTooltip": "Kargatu analisi hau analizatzailean", 
     "viewTooltip": "Ikusi analisiaren xehetasunak",   
-    "deleteTooltip": "Ezabatu analisi hau"           
+    "deleteTooltip": "Ezabatu analisi hau",
+    "search": "Bilatu...",
+    "filter": "Iragazi"       
   },
   "methods": {
     "title": "Analisi Metodoak",
@@ -164,9 +171,11 @@
     "lastWeek": "Aste Honetan",
     "avgQuality": "Batezbesteko Kalitatea",
     "avgPfas": "Batezbesteko PFAS",
+    "avgFluor": "Batez besteko Fluorra",
     "trendTitle": "Kontzentrazio Joera",
     "distributionTitle": "Kalitate Banaketa",
     "date": "Data",
+    "pfasAxis": "PFAS (%)",
     "concentration": "Kontzentrazioa",
     "trendHover": "Data: %{x}<br>Kontzentrazioa: %{y:.4f} mM<extra></extra>",
     "noData": "Ez dago daturik eskuragarri",
