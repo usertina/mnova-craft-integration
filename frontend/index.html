@@ -27,7 +27,6 @@
             <div class="header-left">
                 <div class="logo">
                     <img src="assets/images/logo.webp" alt="Logo Qubiz team" class="logo-img">
-                    
                     <span class="logo-text" data-i18n="app.logo">Qubiz team</span>
                 </div>
                 <nav class="main-nav">
@@ -51,8 +50,8 @@
                     <span class="user-name" data-i18n="header.user">Usuario</span>
                     <div class="user-avatar">
                         <i class="fas fa-user"></i>
-                    </div>-->
-                </div>
+                    </div>
+                </div>-->
             </div>
         </header>
 
@@ -159,43 +158,54 @@
                             </div>
 
                             <div class="result-card">
-                                <div class="result-icon concentration">
-                                    <i class="fas fa-flask"></i>
-                                </div>
-                                <div class="result-content">
-                                    <h4 data-i18n="results.concentration">Concentración</h4>
-                                    <div class="result-value" id="concentrationResult">--</div>
-                                    <div class="result-unit" data-i18n="results.millimolar">mM</div>
-                                </div>
-                            </div>
-
-                            <div class="result-card">
                                 <div class="result-icon quality">
                                     <i class="fas fa-check-circle"></i>
                                 </div>
                                 <div class="result-content">
                                     <h4 data-i18n="results.quality">Calidad</h4>
                                     <div class="result-value" id="qualityResult">--</div>
-                                    <div class="result-unit" data-i18n="results.qualityScore">/10</div>
+                                    <div class="result-badge" id="qualityBadge"></div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Detailed Results Table -->
+                        <!-- Detailed Results -->
                         <div class="detailed-results">
                             <h3 data-i18n="results.detailedResults">Resultados Detallados</h3>
+                            <div class="result-row">
+                                <span data-i18n="results.detectedPeaks">Picos Detectados:</span>
+                                <strong id="peaksCount">0</strong>
+                            </div>
+                            <div class="result-row">
+                                <span data-i18n="results.totalIntegral">Integral Total:</span>
+                                <strong id="totalIntegral">0</strong>
+                            </div>
+                            <div class="result-row">
+                                <span data-i18n="results.signalNoise">Relación S/N:</span>
+                                <strong id="snRatio">0</strong>
+                            </div>
+                        </div>
+
+                        <!-- Peak Details Table -->
+                        <div class="peak-details">
+                            <h3 data-i18n="results.peakDetails">Detalles de Picos</h3>
                             <div class="table-container">
-                                <table id="resultsTable">
+                                <table id="peakTable">
                                     <thead>
                                         <tr>
-                                            <th data-i18n="results.parameter">Parámetro</th>
-                                            <th data-i18n="results.value">Valor</th>
-                                            <th data-i18n="results.units">Unidades</th>
-                                            <th data-i18n="results.limits">Límites</th>
+                                            <th data-i18n="results.position">Posición (ppm)</th>
+                                            <th data-i18n="results.height">Altura</th>
+                                            <th data-i18n="results.area">Área</th>
+                                            <th data-i18n="results.width">Ancho (Hz)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <!-- Filled by JavaScript -->
+                                        <tr>
+                                            <td colspan="4" class="empty-state">
+                                                <i class="fas fa-chart-line"></i>
+                                                <p data-i18n="results.noPeaksYet">No hay picos analizados aún</p>
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -204,31 +214,24 @@
                 </div>
             </div>
 
-             <!-- Batch Processing Tab -->
+            <!-- Batch Processing Tab -->
             <div id="batch-tab" class="tab-content">
                 <div class="batch-container">
-                    <h2 data-i18n="batch.title">Procesamiento por Lotes</h2>
+                    <h2><i class="fas fa-layer-group"></i> <span data-i18n="batch.title">Procesamiento por Lotes</span></h2>
                     <div class="batch-upload">
-                        <div class="upload-area large" id="batchUploadArea">
-                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
-                            <p data-i18n="batch.dragDrop">Arrastra múltiples archivos de Craft aquí</p>
+                        <div class="upload-zone" id="batchUploadZone">
+                            <i class="fas fa-upload upload-icon-large"></i>
+                            <h3 data-i18n="batch.uploadFiles">Arrastra múltiples archivos aquí</h3>
                             <button class="btn btn-primary" id="browseBatchFiles">
                                 <i class="fas fa-folder-open"></i> 
-                                <span data-i18n="batch.selectFiles">Seleccionar Archivos</span>
+                                <span data-i18n="batch.browse">Seleccionar Archivos</span>
                             </button>
                             <input type="file" id="batchFileInput" accept=".csv,.txt,.json" multiple hidden>
                         </div>
-                        <div class="batch-file-list" id="batchFileList"></div>
                     </div>
-                    <div class="batch-actions">
-                        <button class="btn btn-success" id="runBatchAnalysis" disabled>
-                            <i class="fas fa-play"></i>
-                            <span data-i18n="batch.runAnalysis">Ejecutar Análisis por Lotes</span>
-                        </button>
-                    </div>
-                    <div class="batch-results" id="batchResults"></div>
+                    <div class="batch-queue" id="batchQueue"></div>
                 </div>
-            </div> 
+            </div>
 
             <!-- History Tab -->
             <div id="history-tab" class="tab-content">
@@ -236,30 +239,21 @@
                     <div class="history-header">
                         <h2><i class="fas fa-history"></i> <span data-i18n="history.title">Historial de Análisis</span></h2>
                         <div class="history-actions">
-                            <button class="btn btn-outline" id="refreshHistoryBtn">
-                                <i class="fas fa-sync-alt"></i> <span data-i18n="history.refresh">Actualizar</span>
+                            <input type="text" id="searchHistory" class="search-input" placeholder="Buscar..." data-i18n-placeholder="history.search">
+                            <button class="btn btn-outline" id="filterHistory">
+                                <i class="fas fa-filter"></i> 
+                                <span data-i18n="history.filter">Filtrar</span>
                             </button>
-                            <button class="btn btn-outline" id="clearHistoryBtn">
-                                <i class="fas fa-trash"></i> <span data-i18n="history.clear">Limpiar</span>
+                            <button class="btn btn-outline" id="clearHistory">
+                                <i class="fas fa-trash"></i> 
+                                <span data-i18n="history.clear">Limpiar</span>
                             </button>
                         </div>
                     </div>
-                    
-                    <div class="history-filters">
-                        <input type="text" id="historySearch" placeholder="Buscar por nombre..." class="filter-input">
-                        <select id="historyDateFilter" class="filter-select">
-                            <option value="all" data-i18n="history.all">Todos</option>
-                            <option value="today" data-i18n="history.today">Hoy</option>
-                            <option value="week" data-i18n="history.week">Esta semana</option>
-                            <option value="month" data-i18n="history.month">Este mes</option>
-                        </select>
-                    </div>
-                    
                     <div class="history-list" id="historyList">
                         <div class="empty-state">
-                            <i class="fas fa-folder-open"></i>
+                            <i class="fas fa-folder-open empty-icon"></i>
                             <p data-i18n="history.empty">No hay análisis guardados</p>
-                            <p class="empty-subtitle" data-i18n="history.emptySubtitle">Los análisis aparecerán aquí automáticamente</p>
                         </div>
                     </div>
                 </div>
@@ -268,161 +262,46 @@
             <!-- Methods Tab -->
             <div id="methods-tab" class="tab-content">
                 <div class="methods-container">
-                    <h2><i class="fas fa-flask"></i> <span data-i18n="methods.title">Métodos de Análisis</span></h2>
-                    
+                    <h2><i class="fas fa-cog"></i> <span data-i18n="methods.title">Métodos de Análisis</span></h2>
                     <div class="methods-grid">
-                        <!-- Method 1: PFAS Detection -->
                         <div class="method-card">
-                            <div class="method-header">
-                                <i class="fas fa-vial"></i>
-                                <h3 data-i18n="methods.pfas.title">Detección de PFAS</h3>
-                                <span class="badge">Por defecto</span>
-                            </div>
-                            <div class="method-body">
-                                <p data-i18n="methods.pfas.description">Método estándar para detección y cuantificación de PFAS en muestras ambientales</p>
-                                
-                                <div class="method-params">
-                                    <h4 data-i18n="methods.parameters">Parámetros:</h4>
-                                    <table class="params-table">
-                                        <tr>
-                                            <td data-i18n="methods.fluorRange">Rango Flúor:</td>
-                                            <td>-150 a -50 ppm</td>
-                                        </tr>
-                                        <tr>
-                                            <td data-i18n="methods.pfasRange">Rango PFAS:</td>
-                                            <td>-130 a -60 ppm</td>
-                                        </tr>
-                                        <tr>
-                                            <td data-i18n="methods.concentration">Concentración:</td>
-                                            <td>1.0 mM</td>
-                                        </tr>
-                                    </table>
-                                </div>
-                                
-                                <div class="method-actions">
-                                    <button class="btn btn-primary btn-block" onclick="applyMethod('pfas')">
-                                        <i class="fas fa-check"></i> <span data-i18n="methods.apply">Aplicar Método</span>
-                                    </button>
-                                </div>
-                            </div>
+                            <h3 data-i18n="methods.standard">Método Estándar</h3>
+                            <p data-i18n="methods.standardDesc">Análisis rápido con parámetros predefinidos</p>
+                            <button class="btn btn-primary" data-i18n="methods.select">Seleccionar</button>
                         </div>
-                        
-                        <!-- Method 2: High Sensitivity -->
                         <div class="method-card">
-                            <div class="method-header">
-                                <i class="fas fa-crosshairs"></i>
-                                <h3 data-i18n="methods.highSens.title">Alta Sensibilidad</h3>
-                                <span class="badge" style="background: #3498db;">Avanzado</span>
-                            </div>
-                            <div class="method-body">
-                                <p data-i18n="methods.highSens.description">Para muestras con bajas concentraciones de PFAS</p>
-                                
-                                <div class="method-params">
-                                    <h4 data-i18n="methods.parameters">Parámetros:</h4>
-                                    <table class="params-table">
-                                        <tr>
-                                            <td data-i18n="methods.fluorRange">Rango Flúor:</td>
-                                            <td>-160 a -40 ppm</td>
-                                        </tr>
-                                        <tr>
-                                            <td data-i18n="methods.pfasRange">Rango PFAS:</td>
-                                            <td>-135 a -55 ppm</td>
-                                        </tr>
-                                        <tr>
-                                            <td data-i18n="methods.concentration">Concentración:</td>
-                                            <td>0.1 mM</td>
-                                        </tr>
-                                    </table>
-                                </div>
-                                
-                                <div class="method-actions">
-                                    <button class="btn btn-primary btn-block" onclick="applyMethod('highSens')">
-                                        <i class="fas fa-check"></i> <span data-i18n="methods.apply">Aplicar Método</span>
-                                    </button>
-                                </div>
-                            </div>
+                            <h3 data-i18n="methods.advanced">Método Avanzado</h3>
+                            <p data-i18n="methods.advancedDesc">Análisis detallado con parámetros personalizables</p>
+                            <button class="btn btn-primary" data-i18n="methods.select">Seleccionar</button>
                         </div>
-                        
-                        <!-- Method 3: Custom -->
                         <div class="method-card">
-                            <div class="method-header">
-                                <i class="fas fa-cog"></i>
-                                <h3 data-i18n="methods.custom.title">Método Personalizado</h3>
-                                <span class="badge" style="background: #f39c12;">Personalizado</span>
-                            </div>
-                            <div class="method-body">
-                                <p data-i18n="methods.custom.description">Crea y guarda tus propios parámetros de análisis</p>
-                                
-                                <div class="method-params">
-                                    <h4 data-i18n="methods.createCustom">Crear Método:</h4>
-                                    <div class="custom-method-form">
-                                        <div class="param-group">
-                                            <label data-i18n="methods.methodName">Nombre del método:</label>
-                                            <input type="text" id="customMethodName" placeholder="Mi método">
-                                        </div>
-                                        <div class="param-group">
-                                            <label data-i18n="methods.fluorRange">Rango Flúor (ppm):</label>
-                                            <div class="range-inputs">
-                                                <input type="number" id="customFluorMin" value="-150">
-                                                <span>a</span>
-                                                <input type="number" id="customFluorMax" value="-50">
-                                            </div>
-                                        </div>
-                                        <div class="param-group">
-                                            <label data-i18n="methods.pfasRange">Rango PFAS (ppm):</label>
-                                            <div class="range-inputs">
-                                                <input type="number" id="customPfasMin" value="-130">
-                                                <span>a</span>
-                                                <input type="number" id="customPfasMax" value="-60">
-                                            </div>
-                                        </div>
-                                        <div class="param-group">
-                                            <label data-i18n="methods.concentration">Concentración (mM):</label>
-                                            <input type="number" id="customConcentration" value="1.0" step="0.1">
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="method-actions">
-                                    <button class="btn btn-success btn-block" onclick="saveCustomMethod()">
-                                        <i class="fas fa-save"></i> <span data-i18n="methods.save">Guardar Método</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Saved Custom Methods -->
-                    <div class="saved-methods" id="savedMethods" style="display: none;">
-                        <h3><i class="fas fa-bookmark"></i> <span data-i18n="methods.savedMethods">Métodos Guardados</span></h3>
-                        <div id="savedMethodsList" class="methods-list">
-                            <!-- Dynamically populated -->
+                            <h3 data-i18n="methods.custom">Método Personalizado</h3>
+                            <p data-i18n="methods.customDesc">Crea tu propio método de análisis</p>
+                            <button class="btn btn-primary" data-i18n="methods.create">Crear</button>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <!-- ============================================================================
-     DASHBOARD TAB
-     ============================================================================ -->
+
+        <!-- ============================================================================
+            DASHBOARD TAB
+            ============================================================================ -->
         <div id="dashboard-tab" class="tab-content">
             <div class="dashboard-container">
                 <!-- Header -->
                 <div class="dashboard-header">
                     <h2>
                         <i class="fas fa-chart-line"></i>
-                        <span data-i18n="dashboard.title">Dashboard de Estadísticas</span>
+                        <span data-i18n="dashboard.title">Panel de Control</span>
                     </h2>
-                    <div class="dashboard-actions">
-                        <select id="dashboardDateFilter" class="filter-select">
-                            <option value="all" data-i18n="dashboard.allTime">Todo el tiempo</option>
-                            <option value="today" data-i18n="dashboard.today">Hoy</option>
-                            <option value="week" data-i18n="dashboard.thisWeek">Esta semana</option>
-                            <option value="month" data-i18n="dashboard.thisMonth">Este mes</option>
-                        </select>
-                        <button class="btn btn-outline" id="refreshDashboardBtn">
+                    <div>
+                        <button class="btn btn-outline" id="refreshDashboard">
                             <i class="fas fa-sync-alt"></i>
                             <span data-i18n="dashboard.refresh">Actualizar</span>
+                        </button>
+                        <button class="btn btn-success" id="exportDashboardBtn">
+                            <i class="fas fa-download"></i>
+                            <span data-i18n="dashboard.export">Exportar Datos</span>
                         </button>
                     </div>
                 </div>
@@ -430,66 +309,30 @@
                 <!-- Stats Cards -->
                 <div class="stats-grid">
                     <!-- Total Análisis -->
-                    <div class="stat-card primary">
+                    <div class="stat-card info">
                         <div class="stat-card-header">
                             <div class="stat-icon">
-                                <i class="fas fa-file-alt"></i>
+                                <i class="fas fa-flask"></i>
                             </div>
                             <div>
                                 <div class="stat-label" data-i18n="dashboard.totalAnalyses">Total Análisis</div>
                                 <div class="stat-value" id="dashTotalAnalyses">0</div>
                             </div>
                         </div>
+                        <div class="stat-footer">
+                            <span data-i18n="dashboard.lastWeek">Última semana</span>
+                        </div>
                     </div>
 
-                    <!-- Concentración Promedio -->
+                    <!-- Flúor Promedio -->
                     <div class="stat-card success">
                         <div class="stat-card-header">
                             <div class="stat-icon">
-                                <i class="fas fa-flask"></i>
+                                <i class="fas fa-vial"></i>
                             </div>
                             <div>
-                                <div class="stat-label" data-i18n="dashboard.avgConcentration">Concentración Promedio</div>
-                                <div class="stat-value" id="dashAvgConcentration">0 mM</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Fuera de Límites -->
-                    <div class="stat-card danger">
-                        <div class="stat-card-header">
-                            <div class="stat-icon">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                            <div>
-                                <div class="stat-label" data-i18n="dashboard.outOfLimits">Fuera de Límites</div>
-                                <div class="stat-value" id="dashOutOfLimits">0</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Esta Semana -->
-                    <div class="stat-card warning">
-                        <div class="stat-card-header">
-                            <div class="stat-icon">
-                                <i class="fas fa-calendar-week"></i>
-                            </div>
-                            <div>
-                                <div class="stat-label" data-i18n="dashboard.lastWeek">Esta Semana</div>
-                                <div class="stat-value" id="dashLastWeek">0</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Calidad Promedio -->
-                    <div class="stat-card info">
-                        <div class="stat-card-header">
-                            <div class="stat-icon">
-                                <i class="fas fa-star"></i>
-                            </div>
-                            <div>
-                                <div class="stat-label" data-i18n="dashboard.avgQuality">Calidad Promedio</div>
-                                <div class="stat-value" id="dashAvgQuality">0/10</div>
+                                <div class="stat-label" data-i18n="dashboard.avgFluor">Flúor Promedio</div>
+                                <div class="stat-value" id="dashAvgFluor">0%</div>
                             </div>
                         </div>
                     </div>
@@ -609,15 +452,14 @@
                             <table id="comparisonTable">
                                 <thead>
                                     <tr>
-                                        <th data-i18n="results.parameter">Parámetro</th>
-                                        <!-- Columns filled by JavaScript -->
+                                        <th data-i18n="results.parameter"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td colspan="6" style="text-align: center; padding: 3rem;">
-                                            <i class="fas fa-mouse-pointer" style="font-size: 2rem; margin-bottom: 0.5rem; color: #7f8c8d;"></i>
-                                            <p data-i18n="comparison.selectSamples">Selecciona muestras para comparar</p>
+                                        <td colspan="2" class="empty-state-cell"> 
+                                            <i class="fas fa-mouse-pointer"></i>
+                                            <p data-i18n="comparison.selectSamples"></p>
                                         </td>
                                     </tr>
                                 </tbody>

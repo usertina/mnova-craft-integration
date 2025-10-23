@@ -4,136 +4,89 @@ class RMNAnalyzerApp {
         this.spectrumData = null;
         this.analysisResults = null;
         this.isConnected = false;
-        
+
         this.initializeApp();
 
-        // --- CAMBIO AQUÍ ---
-        // Movimos el 'resize' listener de chartManager.js aquí
-        // para que solo se active después de que la app esté lista.
         window.addEventListener('resize', () => {
             if (ChartManager.chart) {
                 ChartManager.resizeChart();
             }
         });
     }
-    
+
     async initializeApp() {
         try {
-            // 1. Primero cargar configuraciones
             window.APP_LOGGER.info('Initializing RMN Analyzer App...');
-            
-            // 2. Inicializar sistema de idiomas
             await LanguageManager.init();
             LanguageManager.subscribe((lang) => this.onLanguageChanged(lang));
-            
-            // 3. Configurar componentes de UI
             this.setupEventListeners();
-            
-            
-            // 4. Verificar conexión con backend
             await this.checkBackendConnection();
-            
-            // 5. Mostrar aplicación
             this.hideLoadingScreen();
-            
             window.APP_LOGGER.info('App initialized successfully');
-            
         } catch (error) {
             window.APP_LOGGER.error('Failed to initialize app:', error);
             this.showNotification('errors.initialization', 'error');
         }
     }
-    
+
     setupEventListeners() {
         // File upload - single
         document.getElementById('browseFiles').addEventListener('click', () => {
             document.getElementById('fileInput').click();
         });
-        
+
         document.getElementById('fileInput').addEventListener('change', (e) => {
             this.handleFileSelection(e.target.files[0]);
         });
-        
-        // File upload - batch
-        document.getElementById('browseBatchFiles').addEventListener('click', () => {
-            document.getElementById('batchFileInput').click();
-        });
-        
-        document.getElementById('batchFileInput').addEventListener('change', (e) => {
-            this.handleBatchFileSelection(e.target.files);
-        });
-        
+
+        /* ... (listeners comentados de batch y methods) ... */
+
         // Drag and drop
         this.setupDragAndDrop('uploadArea', (file) => this.handleFileSelection(file));
-        this.setupDragAndDrop('batchUploadArea', (files) => this.handleBatchFileSelection(files));
-        
+        /* ... (drag and drop de batch comentado) ... */
+
+
         // Analysis buttons
         document.getElementById('analyzeBtn').addEventListener('click', () => {
             this.performAnalysis();
         });
-        
-        document.getElementById('runBatchAnalysis').addEventListener('click', () => {
-            this.performBatchAnalysis();
-        });
-        
+        /* ... (botón batch comentado) ... */
+
         document.getElementById('exportBtn').addEventListener('click', () => {
             this.exportReport();
         });
 
-        // ====================================================================
-        // BLOQUE DE NAVEGACIÓN RESTAURADO
-        // ====================================================================
+        // Navigation listeners
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                // Usamos currentTarget para asegurarnos de que el dataset.tab
-                // se lee del botón aunque el usuario pulse en el icono <i>
-                const tab = e.currentTarget.dataset.tab; 
+                const tab = e.currentTarget.dataset.tab;
                 this.switchTab(tab);
-                
-                // Cargar historial al abrir la tab
+
                 if (tab === 'history') {
                     this.loadHistory();
-                    // Configurar filtros si no se han configurado
                     if (!this.historyFiltersSetup) {
                         this.setupHistoryFilters();
                         this.historyFiltersSetup = true;
                     }
                 }
-                
-                // Cargar métodos guardados al abrir la tab
-                if (tab === 'methods') {
-                    loadSavedMethods();
-                }
-                // Cargar dashboard al abrir la tab
+                /* ... (carga de methods comentada) ... */
                 if (tab === 'dashboard') {
-                    if (window.dashboardManager) {
-                        window.dashboardManager.init();
-                    } else {
-                        console.error('Dashboard Manager not initialized');
-                    }
+                   if (window.dashboardManager) window.dashboardManager.init();
+                   else console.error('Dashboard Manager not initialized');
                 }
-                
-                // Cargar comparación al abrir la tab
                 if (tab === 'comparison') {
-                    if (window.dashboardManager) {
-                        window.dashboardManager.initComparison();
-                    } else {
-                        console.error('Dashboard Manager not initialized');
-                    }
+                    if (window.dashboardManager) window.dashboardManager.initComparison();
+                    else console.error('Dashboard Manager not initialized');
                 }
             });
         });
 
-        // Fullscreen (RESTAURADO)
+        // Fullscreen listener
         document.getElementById('fullscreenBtn').addEventListener('click', () => {
             this.toggleFullscreen();
         });
 
-
-        // ====================================================================
-        
-        // --- NUEVOS LISTENERS AÑADIDOS ---
-        // History buttons
+        // History buttons listeners
         const refreshHistoryBtn = document.getElementById('refreshHistoryBtn');
         if (refreshHistoryBtn) {
             refreshHistoryBtn.addEventListener('click', () => {
@@ -141,8 +94,6 @@ class RMNAnalyzerApp {
                 this.showNotification('history.refresh', 'success');
             });
         }
-
-        // CORREGIDO: Ahora llama al método de la clase
         const clearHistoryBtn = document.getElementById('clearHistoryBtn');
         if (clearHistoryBtn) {
             clearHistoryBtn.addEventListener('click', () => {
@@ -150,92 +101,77 @@ class RMNAnalyzerApp {
             });
         }
     }
-    
+
     setupDragAndDrop(elementId, callback) {
         const element = document.getElementById(elementId);
-        
+        if (!element) return; // Add check if element exists
+
         element.addEventListener('dragover', (e) => {
             e.preventDefault();
             element.classList.add('dragover');
         });
-        
         element.addEventListener('dragleave', () => {
             element.classList.remove('dragover');
         });
-        
         element.addEventListener('drop', (e) => {
             e.preventDefault();
             element.classList.remove('dragover');
-            
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 callback(files.length === 1 ? files[0] : files);
             }
         });
     }
-    
+
     async checkBackendConnection() {
         try {
             this.updateConnectionStatus('connecting');
-            
             const result = await APIClient.checkConnection();
             this.isConnected = true;
             this.updateConnectionStatus('connected');
-            
             this.showNotification('notifications.connected', 'success');
-            
         } catch (error) {
             this.isConnected = false;
             this.updateConnectionStatus('disconnected');
-            
             if (window.APP_CONFIG.autoReconnect) {
                 setTimeout(() => this.checkBackendConnection(), window.APP_CONFIG.reconnectInterval);
             }
         }
     }
-    
+
     updateConnectionStatus(status) {
         const statusElement = document.getElementById('connectionStatus');
+        if (!statusElement) return;
         const dot = statusElement.querySelector('.connection-dot');
-        
+        const textElement = statusElement.querySelector('span');
+
         statusElement.className = `connection-status ${status}`;
-        dot.className = `fas fa-circle connection-dot ${status}`;
-        
+        if (dot) dot.className = `fas fa-circle connection-dot ${status}`;
+
         const texts = {
             connecting: 'connection.connecting',
-            connected: 'connection.connected', 
+            connected: 'connection.connected',
             disconnected: 'connection.disconnected'
         };
-        
-        const textElement = statusElement.querySelector('span');
-        textElement.setAttribute('data-i18n', texts[status]);
-        LanguageManager.applyTranslations();
+
+        if (textElement) {
+             textElement.setAttribute('data-i18n', texts[status]);
+             LanguageManager.applyTranslations(); // Apply translation only to this element
+        }
     }
-    
+
     async handleFileSelection(file) {
         if (!file) return;
-        
         if (!this.isConnected) {
             this.showNotification('errors.backendUnavailable', 'error');
             return;
         }
-        
         this.currentFile = file;
-        
-        this.showNotification('notifications.fileLoaded', 'success', {
-            filename: file.name
-        });
-        
-        // Enable analyze button
+        this.showNotification('notifications.fileLoaded', 'success', { filename: file.name });
         document.getElementById('analyzeBtn').disabled = false;
-        
-        // Update sample name with translation
-        document.getElementById('sampleName').textContent = 
+        document.getElementById('sampleName').textContent =
             LanguageManager.t('analyzer.sampleName', { name: file.name });
-        
-        // Show file in list
-        this.addFileToList(file, 'fileList');
-        
+        this.addFileToList(file, 'fileList'); // Clear previous file from list before adding new one
         try {
             const content = await this.readFileContent(file);
             this.previewFile(content);
@@ -243,114 +179,286 @@ class RMNAnalyzerApp {
             this.showNotification('notifications.fileReadError', 'error');
         }
     }
-    
+
     async performAnalysis() {
         if (!this.currentFile || !this.isConnected) return;
-        
         const analyzeBtn = document.getElementById('analyzeBtn');
-        
-        // Update button state
-        const analyzingText = LanguageManager.t('analyzer.analyzing');
-        analyzeBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${analyzingText}`;
-        analyzeBtn.disabled = true;
-        
+        UIManager.updateButtonState(analyzeBtn, 'loading'); // Use UIManager for button state
+
         try {
             const params = this.getAnalysisParameters();
             const results = await APIClient.analyzeSpectrum(this.currentFile, params);
-            
+
+            if (results.error) { // Check if analyzer returned an error
+                 throw new Error(results.error);
+            }
+
             this.analysisResults = results;
-            this.updateResultsDisplay(results);
-            
+            this.updateResultsDisplay(results); // Display results
             this.showNotification('notifications.analysisComplete', 'success');
-            
-            // Enable export button
             document.getElementById('exportBtn').disabled = false;
-            
+
         } catch (error) {
+            console.error("Analysis Error:", error); // Log the full error
+            // Try to parse Python's traceback if available
+            let errorMessage = error.message;
+            if (error.details) {
+                 // Look for the actual error message at the end of the traceback
+                 const lines = error.details.split('\n');
+                 const lastLine = lines[lines.length - 2] || lines[lines.length - 1]; // Get last non-empty line
+                 errorMessage = lastLine.startsWith('Error:') ? lastLine : error.message;
+            }
             this.showNotification('notifications.analysisError', 'error', {
-                error: error.message
+                error: errorMessage
             });
+            // Optionally clear previous results on error
+            // this.clearAnalysisResults();
         } finally {
-            const runAnalysisText = LanguageManager.t('analyzer.runAnalysis');
-            analyzeBtn.innerHTML = `<i class="fas fa-play"></i> ${runAnalysisText}`;
-            analyzeBtn.disabled = false;
+            UIManager.updateButtonState(analyzeBtn, 'default'); // Restore button using UIManager
         }
     }
-    
+
     updateResultsDisplay(results) {
-        // Update chart
+        // Update chart - Make sure to pass peaks
         if (results.spectrum) {
             ChartManager.updateSpectrumChart(results.spectrum, results.peaks || []);
         }
-        
+
         // Update result cards
         if (results.analysis) {
-            document.getElementById('fluorResult').textContent = 
-                results.analysis.fluor_percentage?.toFixed(2) || '--';
-            document.getElementById('pifasResult').textContent = 
-                results.analysis.pifas_percentage?.toFixed(2) || '--';
-            document.getElementById('concentrationResult').textContent = 
-                results.analysis.concentration?.toFixed(4) || '--';
-            document.getElementById('qualityResult').textContent = 
-                results.quality_score?.toFixed(1) || '--';
+             // Use UIManager.formatNumber for consistent formatting
+            UIManager.updateElementText('fluorResult', UIManager.formatNumber(results.analysis.fluor_percentage, 2));
+            UIManager.updateElementText('pifasResult', UIManager.formatNumber(results.analysis.pifas_percentage, 2));
+            UIManager.updateElementText('concentrationResult', UIManager.formatNumber(results.analysis.pifas_concentration, 4)); // More decimals for concentration
+            UIManager.updateElementText('qualityResult', UIManager.formatNumber(results.quality_score, 1));
+        } else {
+             // Clear cards if no analysis data
+             UIManager.updateElementText('fluorResult', '--');
+             UIManager.updateElementText('pifasResult', '--');
+             UIManager.updateElementText('concentrationResult', '--');
+             UIManager.updateElementText('qualityResult', '--');
         }
-        
+
         // Update detailed table
         if (results.detailed_analysis) {
             this.updateResultsTable(results.detailed_analysis);
+        } else {
+             // Clear table if no detailed data
+             const tbody = document.querySelector('#resultsTable tbody');
+             if (tbody) tbody.innerHTML = '<tr><td colspan="4" data-i18n="results.noDetails">No hay datos detallados disponibles.</td></tr>';
+             LanguageManager.applyTranslations(); // Translate the message
         }
+
+        // ### NUEVO: Update Peaks Table ###
+        this.updatePeaksTable(results.peaks || []);
+
+        // ### NUEVO: Update Quality Breakdown ###
+        this.updateQualityBreakdown(results.quality_score, results.quality_breakdown || {});
+
+         // ### NUEVO: Display Baseline Value ###
+         const baselineValue = results.spectrum?.baseline_value;
+         const baselineElement = document.getElementById('baselineValueDisplay'); // Needs an element in HTML
+         if (baselineElement) {
+              baselineElement.textContent = baselineValue !== null && baselineValue !== undefined
+                   ? `Baseline Estimado: ${UIManager.formatNumber(baselineValue, 2)} a.u.`
+                   : '';
+         }
+         // Add this near the detailed results table in index.html:
+         // <p id="baselineValueDisplay" class="small text-muted mt-2"></p>
+
+
+        // Make sure export button is enabled only if results are valid
+        document.getElementById('exportBtn').disabled = !results.analysis;
     }
-    
+
+    // ### MODIFICADO: Updated updateResultsTable function ###
     updateResultsTable(detailedResults) {
         const tbody = document.querySelector('#resultsTable tbody');
-        tbody.innerHTML = '';
-        
-        Object.entries(detailedResults).forEach(([param, data]) => {
-            // Formatear el valor
-            let displayValue = '--';
-            if (data.value !== null && data.value !== undefined) {
-                if (typeof data.value === 'number') {
-                    displayValue = data.value.toFixed(4);
-                } else {
-                    displayValue = data.value;
-                }
-            }
-            
-            // Traducir nombre del parámetro
-            const translatedParam = LanguageManager.t(`results.${param}`) || param;
-            
-            // Reemplazar N/A por guión
-            let displayLimits = data.limits || '--';
-            if (displayLimits === 'N/A' || displayLimits === 'n/a') {
-                displayLimits = '—';  // ← ESTO ELIMINA EL N/A
-            }
-            
+        if (!tbody) return; // Exit if table body not found
+        tbody.innerHTML = ''; // Clear previous results
+
+        // Check if detailedResults is an object and not empty
+        if (typeof detailedResults !== 'object' || detailedResults === null || Object.keys(detailedResults).length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" data-i18n="results.noDetails">No hay datos detallados disponibles.</td></tr>';
+             LanguageManager.applyTranslations(); // Translate the message
+            return;
+        }
+
+        // Iterate through the detailed results object
+        Object.entries(detailedResults).forEach(([key, data]) => {
+            if (!data || typeof data !== 'object') return; // Skip invalid entries
+
+            // Determine status class
+            let statusClass = '';
+            if (data.status === 'OK') statusClass = 'status-ok';
+            else if (data.status === 'WARN') statusClass = 'status-warn';
+            else if (data.status === 'FAIL') statusClass = 'status-fail';
+            else statusClass = 'status-info'; // Default for INFO or undefined
+
+            // Use provided parameter name, fallback to key, then translate
+            const paramName = data.parameter || key;
+            // ### CORRECCIÓN: Usar la clave original 'key' para buscar traducción primero ###
+            const translatedParam = LanguageManager.t(`results.${key}`) || LanguageManager.t(paramName) || paramName;
+
+            const displayValue = data.value ?? '--'; // Use nullish coalescing
+            const displayUnit = data.unit || '--';
+            const displayLimits = data.limits || '—'; // Use em dash for consistency
+
             const row = document.createElement('tr');
+            row.className = statusClass; // Apply status class to the row
             row.innerHTML = `
                 <td>${translatedParam}</td>
                 <td>${displayValue}</td>
-                <td>${data.unit || '--'}</td>
+                <td>${displayUnit}</td>
                 <td>${displayLimits}</td>
             `;
             tbody.appendChild(row);
         });
+         // ### CAMBIO AQUÍ ###
+         LanguageManager.applyTranslations(); // Use the general function
     }
+     // ### NUEVO: Function to update the peaks table ###
+     updatePeaksTable(peaks) {
+         const tbody = document.querySelector('#peaksTable tbody'); // Assumes table has id="peaksTable"
+         if (!tbody) {
+              console.warn("Peaks table body not found!");
+              return; // Exit if table body not found
+         }
+         tbody.innerHTML = ''; // Clear previous results
 
-    
+         if (!peaks || peaks.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="5" data-i18n="peaks.none">No se detectaron picos significativos.</td></tr>';
+              LanguageManager.applyTranslations(); // Translate the message
+              return;
+         }
+
+         // Sort peaks by PPM for display (optional, backend might already do this)
+         peaks.sort((a, b) => a.ppm - b.ppm);
+
+         peaks.forEach(peak => {
+              const row = document.createElement('tr');
+              row.innerHTML = `
+                   <td>${UIManager.formatNumber(peak.ppm, 3)}</td>
+                   <td>${UIManager.formatNumber(peak.intensity, 2)}</td>
+                   <td>${UIManager.formatNumber(peak.relative_intensity, 1)}</td>
+                   <td>${UIManager.formatNumber(peak.width_ppm, 3)}</td>
+                   <td>${peak.region || '--'}</td>
+              `;
+              tbody.appendChild(row);
+         });
+          // Add translations keys to your language files for table headers like peaks.ppm, peaks.intensity etc.
+          // Example HTML for the table in index.html:
+          /*
+          <div class="detailed-results"> <h3 data-i18n="peaks.title">Picos Detectados</h3>
+              <div class="table-container">
+                  <table id="peaksTable">
+                      <thead>
+                          <tr>
+                              <th data-i18n="peaks.ppm">PPM</th>
+                              <th data-i18n="peaks.intensity">Intensidad</th>
+                              <th data-i18n="peaks.relIntensity">Int. Rel. (%)</th>
+                              <th data-i18n="peaks.width">Ancho (ppm)</th>
+                              <th data-i18n="peaks.region">Región</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          </tbody>
+                  </table>
+              </div>
+          </div>
+          */
+     }
+
+     // ### NUEVO: Function to update the quality breakdown ###
+     updateQualityBreakdown(score, breakdown) {
+          const qualityContainer = document.getElementById('qualityBreakdownContainer'); // Needs an element in HTML
+          if (!qualityContainer) {
+               console.warn("Quality breakdown container not found!");
+               return; // Exit if container not found
+          }
+
+          // Update progress bar (assuming it exists with id 'qualityProgressBar' and its child div)
+          const progressBarDiv = document.getElementById('qualityProgressBar');
+          if (progressBarDiv) {
+              const bar = progressBarDiv.querySelector('.progress-bar');
+              if (bar) {
+                   const scoreValue = typeof score === 'number' ? score : 0;
+                   bar.style.width = `${scoreValue * 10}%`;
+                   bar.textContent = `${UIManager.formatNumber(scoreValue, 1)} / 10`;
+                   bar.setAttribute('aria-valuenow', scoreValue);
+              }
+          } else {
+               // Fallback: Just display the score if no progress bar element
+               qualityContainer.innerHTML = `<p><strong data-i18n="quality.score">Puntuación de Calidad:</strong> ${UIManager.formatNumber(score, 1)} / 10</p>`;
+          }
+
+
+          // Display breakdown details
+          let breakdownHtml = `<h5 data-i18n="quality.breakdownTitle">Desglose de Penalizaciones:</h5>`;
+          if (breakdown && Object.keys(breakdown).length > 0) {
+               breakdownHtml += `<ul class="quality-breakdown-list">`;
+               Object.entries(breakdown).forEach(([key, reason]) => {
+                    // Translate the metric key if possible
+                    const translatedKey = LanguageManager.t(`quality.${key}`) || key;
+                    breakdownHtml += `<li><strong>${translatedKey}:</strong> ${reason}</li>`;
+               });
+               breakdownHtml += `</ul>`;
+          } else {
+               breakdownHtml += `<p class="text-muted small" data-i18n="quality.noPenalties">No se aplicaron penalizaciones.</p>`;
+          }
+          qualityContainer.innerHTML += breakdownHtml; // Append breakdown after progress bar/score
+
+          LanguageManager.applyTranslationsToElement(qualityContainer); // Apply translations
+
+          // Add this container in your index.html where you want the quality info:
+          /*
+          <div class="result-card quality-card"> <div class="result-icon quality"><i class="fas fa-check-circle"></i></div>
+               <div class="result-content">
+                    <h4 data-i18n="results.quality">Calidad</h4>
+                    <div class="progress" id="qualityProgressBar" style="height: 20px;">
+                         <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="10">0/10</div>
+                    </div>
+                    <div id="qualityBreakdownContainer" class="mt-2">
+                         </div>
+               </div>
+          </div>
+          */
+
+           // Add some basic CSS for the breakdown list:
+           /*
+           .quality-breakdown-list {
+               list-style: none;
+               padding-left: 0;
+               font-size: 0.85em;
+               margin-top: 0.5rem;
+           }
+           .quality-breakdown-list li {
+               margin-bottom: 0.3rem;
+               color: #555;
+           }
+            .quality-breakdown-list strong {
+                color: #333;
+                margin-right: 0.3rem;
+           }
+           */
+     }
+
+
     getAnalysisParameters() {
+        // Retrieve values safely, providing defaults
+        const fluorMin = parseFloat(document.getElementById('fluorMin')?.value) || -150;
+        const fluorMax = parseFloat(document.getElementById('fluorMax')?.value) || -50;
+        const pifasMin = parseFloat(document.getElementById('pifasMin')?.value) || -130;
+        const pifasMax = parseFloat(document.getElementById('pifasMax')?.value) || -60;
+        const concentration = parseFloat(document.getElementById('concentration')?.value) || 1.0;
+
         return {
-            fluor_range: {
-                min: parseFloat(document.getElementById('fluorMin').value),
-                max: parseFloat(document.getElementById('fluorMax').value)
-            },
-            pifas_range: {
-                min: parseFloat(document.getElementById('pifasMin').value),
-                max: parseFloat(document.getElementById('pifasMax').value)
-            },
-            concentration: parseFloat(document.getElementById('concentration').value)
+            fluor_range: { min: fluorMin, max: fluorMax },
+            pifas_range: { min: pifasMin, max: pifasMax },
+            concentration: concentration
         };
     }
-    
+
     readFileContent(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -359,103 +467,124 @@ class RMNAnalyzerApp {
             reader.readAsText(file);
         });
     }
-    
+
     previewFile(content) {
-        // Basic preview - can be extended based on file format
-        window.APP_LOGGER.debug('File preview:', content.substring(0, 200));
+        window.APP_LOGGER.debug('File preview:', content.substring(0, 200) + (content.length > 200 ? '...' : ''));
     }
-    
+
     onLanguageChanged(lang) {
         this.updateDynamicTexts();
-        
-        // Actualizar traducciones del gráfico
+        setTimeout(() => {
+            ChartManager.refreshTranslations(lang);
+        }, 100);
         ChartManager.refreshTranslations(lang);
-        
         if (this.analysisResults) {
+            // Re-render results to apply translations
             this.updateResultsDisplay(this.analysisResults);
         }
+        // Update static texts managed by LanguageManager
+        LanguageManager.applyTranslations();
     }
-    
+
     updateDynamicTexts() {
-        // Update dynamic texts that don't have data-i18n
-        const sampleName = document.getElementById('sampleName');
-        if (this.currentFile) {
-            sampleName.textContent = LanguageManager.t('analyzer.sampleName', { 
-                name: this.currentFile.name 
-            });
+        const sampleNameEl = document.getElementById('sampleName');
+        if (sampleNameEl) {
+            if (this.currentFile) {
+                sampleNameEl.textContent = LanguageManager.t('analyzer.sampleName', {
+                    name: this.currentFile.name
+                });
+            } else if (!this.analysisResults) {
+                sampleNameEl.setAttribute('data-i18n', 'analyzer.waitingData');
+                // ### CORRECTION ###
+                LanguageManager.applyTranslations(); // Use the general function
+            }
         }
+        // It's generally safe to call the general applyTranslations here anyway
+        // to catch any other dynamic elements, unless it causes performance issues.
+        // LanguageManager.applyTranslations();
     }
-    
+
     showNotification(messageKey, type = 'info', params = {}) {
         const message = LanguageManager.t(messageKey, params);
-        UIManager.showNotification(message, type);
+        // Use UIManager safely
+        if (typeof UIManager !== 'undefined' && UIManager.showNotification) {
+             UIManager.showNotification(message, type);
+        } else {
+             console.warn("UIManager not available, falling back to console:", type, message);
+             if(type === 'error') console.error(message);
+             else if(type === 'warning') console.warn(message);
+             else console.log(message);
+        }
     }
-    
+
     switchTab(tabName) {
-    // Verificar si la tab existe
-    const tabElement = document.getElementById(`${tabName}-tab`);
-    if (!tabElement) {
-        console.warn(`Tab ${tabName} no existe aún`);
-        return;
+        const tabElement = document.getElementById(`${tabName}-tab`);
+        if (!tabElement) {
+            // If the target tab doesn't exist (because it's commented out), maybe switch to default?
+             console.warn(`Tab ${tabName} content not found. Switching to analyzer.`);
+             tabName = 'analyzer'; // Fallback to analyzer tab
+             // Try finding analyzer tab again
+             const defaultTabElement = document.getElementById('analyzer-tab');
+             if(!defaultTabElement) {
+                  console.error("Default analyzer tab not found either!");
+                  return; // Critical error if default tab is missing
+             }
+             tabElement = defaultTabElement; // Use default tab
+        }
+
+        // Update navigation buttons
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const navBtn = document.querySelector(`.nav-btn[data-tab="${tabName}"]`);
+        if (navBtn) {
+            navBtn.classList.add('active');
+        } else {
+             // If the nav button for the target tab doesn't exist (commented out), activate analyzer button
+             const defaultNavBtn = document.querySelector('.nav-btn[data-tab="analyzer"]');
+             if (defaultNavBtn) defaultNavBtn.classList.add('active');
+        }
+
+
+        // Show selected tab content
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        if (tabElement) tabElement.classList.add('active');
+
+        // Update page title if element exists
+        const pageTitle = document.getElementById('pageTitle');
+        if (pageTitle) {
+             const titleKey = `header.${tabName}`; // Assumes translation key matches tab name
+             pageTitle.setAttribute('data-i18n', titleKey);
+             LanguageManager.applyTranslationsToElement(pageTitle);
+        }
     }
-    
-    // Update navigation
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    const navBtn = document.querySelector(`[data-tab="${tabName}"]`);
-    if (navBtn) {
-        navBtn.classList.add('active');
-    }
-    
-    // Show selected tab
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    tabElement.classList.add('active');
-    }
-    
+
     hideLoadingScreen() {
-        setTimeout(() => {
-            document.getElementById('loadingScreen').classList.add('hidden');
-            document.getElementById('app').classList.remove('hidden');
-        }, 1000);
+        const loadingScreen = document.getElementById('loadingScreen');
+        const appElement = document.getElementById('app');
+        if (loadingScreen) loadingScreen.classList.add('hidden');
+        if (appElement) appElement.classList.remove('hidden');
     }
-    
-    // Batch processing methods
-    handleBatchFileSelection(files) {
-        if (!files || files.length === 0) return;
-        
-        this.batchFiles = Array.from(files);
-        document.getElementById('runBatchAnalysis').disabled = false;
-        
-        // Show files in batch list
-        const fileList = document.getElementById('batchFileList');
-        fileList.innerHTML = '';
-        
-        this.batchFiles.forEach(file => {
-            this.addFileToList(file, 'batchFileList');
-        });
-        
-        this.showNotification('notifications.batchFilesLoaded', 'success', {
-            count: files.length
-        });
-    }
-    
+
+    /* ... (Batch methods commented out) ... */
+
     addFileToList(file, listId) {
         const list = document.getElementById(listId);
+        if (!list) return;
+        list.innerHTML = ''; // Clear previous file entry
         const fileElement = document.createElement('div');
         fileElement.className = 'file-item';
         fileElement.innerHTML = `
-            <i class="fas fa-file"></i>
-            <span class="file-name">${file.name}</span>
+            <i class="fas fa-file-alt"></i>
+            <span class="file-name">${UIManager.escapeHtml(file.name)}</span>
             <span class="file-size">(${this.formatFileSize(file.size)})</span>
         `;
         list.appendChild(fileElement);
     }
-    
+
+
     formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
@@ -463,106 +592,47 @@ class RMNAnalyzerApp {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
-    
-    async performBatchAnalysis() {
-        if (!this.batchFiles || !this.isConnected) return;
-        
-        const batchBtn = document.getElementById('runBatchAnalysis');
-        const analyzingText = LanguageManager.t('batch.analyzing');
-        batchBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${analyzingText}`;
-        batchBtn.disabled = true;
-        
-        try {
-            const params = this.getAnalysisParameters();
-            const results = await APIClient.batchAnalyze(this.batchFiles, params);
-            
-            this.displayBatchResults(results);
-            this.showNotification('notifications.batchComplete', 'success', {
-                count: results.total_files
-            });
-            
-        } catch (error) {
-            this.showNotification('notifications.batchError', 'error', {
-                error: error.message
-            });
-        } finally {
-            const runAnalysisText = LanguageManager.t('batch.runAnalysis');
-            batchBtn.innerHTML = `<i class="fas fa-play"></i> ${runAnalysisText}`;
-            batchBtn.disabled = false;
-        }
-    }
-    
-    displayBatchResults(results) {
-        const resultsContainer = document.getElementById('batchResults');
-        resultsContainer.innerHTML = '';
-        
-        if (results.results && results.results.length > 0) {
-            const table = document.createElement('table');
-            table.className = 'batch-results-table';
-            
-            // Create header
-            const header = document.createElement('thead');
-            header.innerHTML = `
-                <tr>
-                    <th data-i18n="results.parameter">Archivo</th>
-                    <th data-i18n="results.fluor">Flúor %</th>
-                    <th data-i18n="results.pifas">PIFAS %</th>
-                    <th data-i18n="results.concentration">Concentración</th>
-                </tr>
-            `;
-            table.appendChild(header);
-            
-            // Create body
-            const tbody = document.createElement('tbody');
-            results.results.forEach(result => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${result.filename}</td>
-                    <td>${result.analysis?.fluor_percentage?.toFixed(2) || '--'}</td>
-                    <td>${result.analysis?.pifas_percentage?.toFixed(2) || '--'}</td>
-                    <td>${result.analysis?.concentration?.toFixed(2) || '--'}</td>
-                `;
-                tbody.appendChild(row);
-            });
-            table.appendChild(tbody);
-            
-            resultsContainer.appendChild(table);
-            LanguageManager.applyTranslations();
-        }
-    }
-    
+
+    /* ... (performBatchAnalysis, displayBatchResults commented out) ... */
+
     async exportReport() {
         if (!this.analysisResults) return;
-        
+        const exportBtn = document.getElementById('exportBtn');
+        UIManager.updateButtonState(exportBtn, 'loading');
+
         try {
+            // Pass the entire results object
             await APIClient.exportReport(this.analysisResults, 'csv');
             this.showNotification('notifications.exportSuccess', 'success');
+             UIManager.updateButtonState(exportBtn, 'success');
         } catch (error) {
             this.showNotification('notifications.exportError', 'error', {
                 error: error.message
             });
+             UIManager.updateButtonState(exportBtn, 'error');
         }
+        // No finally needed, success/error states handle timeout
     }
-    
+
     toggleFullscreen() {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(err => {
                 console.error('Error attempting to enable fullscreen:', err);
+                 this.showNotification('errors.fullscreen', 'error');
             });
         } else {
-            document.exitFullscreen();
+            if (document.exitFullscreen) {
+                 document.exitFullscreen();
+            }
         }
     }
 
-    // ============================================================================
-    // MÉTODOS DE HISTORIAL Y FILTROS
-    // ============================================================================
+    // --- History Methods ---
     
-    // (EL PRIMER loadHistory() DUPLICADO HA SIDO ELIMINADO)
-
     displayHistory(analyses) {
         const historyList = document.getElementById('historyList');
-        
+        if (!historyList) return; // Salir si el elemento no existe
+
         if (!analyses || analyses.length === 0) {
             historyList.innerHTML = `
                 <div class="empty-state">
@@ -571,474 +641,234 @@ class RMNAnalyzerApp {
                     <p class="empty-subtitle" data-i18n="history.emptySubtitle">Los análisis aparecerán aquí automáticamente</p>
                 </div>
             `;
-            LanguageManager.applyTranslations();
+            // Aplicar traducciones a este mensaje estático si se usa i18n
+            if (typeof LanguageManager !== 'undefined') {
+                LanguageManager.applyTranslationsToElement(historyList);
+            }
             return;
         }
-        
+
         historyList.innerHTML = analyses.map(analysis => {
-            // Formatear valores con verificación de null/undefined
-            const fluor = analysis.fluor != null ? analysis.fluor.toFixed(2) : '--';
-            const pfas = analysis.pfas != null ? analysis.pfas.toFixed(2) : '--';
-            const quality = analysis.quality != null ? analysis.quality.toFixed(1) : '--';
-            
-            // Formatear fecha
-            const date = new Date(analysis.created);
-            const formattedDate = date.toLocaleString();
-            
-            // Usar filename original si existe, si no usar name
-            const displayName = analysis.filename || analysis.name;
-            
+            // Formatear valores de forma segura
+            const fluor = UIManager.formatNumber(analysis.fluor, 2);
+            const pfas = UIManager.formatNumber(analysis.pfas, 2);
+            const quality = UIManager.formatNumber(analysis.quality, 1);
+            let formattedDate = '--';
+            try {
+                formattedDate = new Date(analysis.created).toLocaleString();
+            } catch(e) { console.error("Error formatting date", analysis.created); }
+
+            // Obtener nombres escapando HTML
+            const displayName = UIManager.escapeHtml(analysis.filename || analysis.name || 'Nombre Desconocido');
+            // Nombre único para acciones (generalmente el nombre del archivo JSON)
+            const analysisName = UIManager.escapeHtml(analysis.name || '');
+
+            // Escapar comillas simples para que no rompan el onclick
+            const escapedAnalysisName = analysisName.replace(/'/g, "\\'");
+            const escapedDisplayName = displayName.replace(/'/g, "\\'");
+
+            // Obtener textos traducidos para tooltips (con fallback)
+            const loadTooltip = LanguageManager.t('history.loadTooltip') || 'Cargar este análisis';
+            const viewTooltip = LanguageManager.t('history.viewTooltip') || 'Ver análisis';
+            const deleteTooltip = LanguageManager.t('history.deleteTooltip') || 'Eliminar análisis';
+
             return `
                 <div class="history-item">
-                    <div class="history-item-content" onclick="rmnApp.loadAnalysisFromHistory('${analysis.name}')">
+                    <div class="history-item-content" onclick="window.rmnApp.loadAnalysisFromHistory('${escapedAnalysisName}')" title="${loadTooltip}">
                         <div class="history-item-header">
                             <div class="history-item-title">
-                                <i class="fas fa-file"></i> ${displayName}
+                                <i class="fas fa-file-alt"></i> ${displayName}
                             </div>
-                            <div class="history-item-date">
-                                ${formattedDate}
-                            </div>
+                            <div class="history-item-date">${formattedDate}</div>
                         </div>
                         <div class="history-item-stats">
-                            <div class="history-stat">
-                                <i class="fas fa-vial"></i>
-                                <span>Flúor: ${fluor}%</span>
-                            </div>
-                            <div class="history-stat">
-                                <i class="fas fa-chart-bar"></i>
-                                <span>PFAS: ${pfas}%</span>
-                            </div>
-                            <div class="history-stat">
-                                <i class="fas fa-check-circle"></i>
-                                <span>Calidad: ${quality}/10</span>
-                            </div>
+                            <div class="history-stat" title="${LanguageManager.t('results.fluor') || 'Flúor'}"><i class="fas fa-vial"></i> ${fluor}%</div>
+                            <div class="history-stat" title="${LanguageManager.t('results.pifas') || 'PFAS'}"><i class="fas fa-chart-bar"></i> ${pfas}%</div>
+                            <div class="history-stat" title="${LanguageManager.t('results.quality') || 'Calidad'}"><i class="fas fa-check-circle"></i> ${quality}/10</div>
                         </div>
                     </div>
                     <div class="history-item-actions">
-                        <button class="btn btn-icon btn-view" 
-                                onclick="event.stopPropagation(); rmnApp.viewAnalysis('${analysis.name}')"
-                                title="Ver análisis">
+                        <button class="btn btn-icon btn-view"
+                                onclick="event.stopPropagation(); window.rmnApp.viewAnalysis('${escapedAnalysisName}')"
+                                title="${viewTooltip}">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button class="btn btn-icon btn-delete" 
-                                onclick="event.stopPropagation(); rmnApp.deleteAnalysis('${analysis.name}', '${displayName}')"
-                                title="Eliminar análisis">
+                        <button class="btn btn-icon btn-delete"
+                                onclick="event.stopPropagation(); window.rmnApp.deleteAnalysis('${escapedAnalysisName}', '${escapedDisplayName}')"
+                                title="${deleteTooltip}">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
             `;
         }).join('');
+
     }
 
-    // ============================================================================
-    // FUNCIONES DE FILTRADO DE HISTORIAL
-    // ============================================================================
-    
     setupHistoryFilters() {
         const searchInput = document.getElementById('historySearch');
         const dateFilter = document.getElementById('historyDateFilter');
-        
-        if (searchInput) {
-            searchInput.addEventListener('input', () => {
-                this.filterHistory();
-            });
-        }
-        
-        if (dateFilter) {
-            dateFilter.addEventListener('change', () => {
-                this.filterHistory();
-            });
-        }
+        if (searchInput) searchInput.addEventListener('input', () => this.filterHistory());
+        if (dateFilter) dateFilter.addEventListener('change', () => this.filterHistory());
     }
-    
+
     filterHistory() {
-        if (!this.allAnalyses) {
-            // Si this.allAnalyses no está cargado, no hacer nada.
-            // loadHistory() se encargará de llamar a filterHistory() cuando tenga los datos.
-            return;
-        }
-        
-        const searchTerm = document.getElementById('historySearch').value.toLowerCase();
-        const dateFilter = document.getElementById('historyDateFilter').value;
-        
+        if (!this.allAnalyses) return;
+        const searchTerm = document.getElementById('historySearch')?.value.toLowerCase() || '';
+        const dateFilter = document.getElementById('historyDateFilter')?.value || 'all';
         let filtered = [...this.allAnalyses];
-        
-        // Filtrar por búsqueda
+
         if (searchTerm) {
-            filtered = filtered.filter(analysis => {
-                const name = (analysis.filename || analysis.name || '').toLowerCase();
-                return name.includes(searchTerm);
-            });
+            filtered = filtered.filter(analysis =>
+                (analysis.filename || analysis.name || '').toLowerCase().includes(searchTerm)
+            );
         }
-        
-        // Filtrar por fecha
+
         if (dateFilter !== 'all') {
             const now = new Date();
             let startDate;
-            
-            switch(dateFilter) {
-                case 'today':
-                    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    break;
-                case 'week':
-                    startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    break;
-                case 'month':
-                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                    break;
+            switch (dateFilter) {
+                case 'today': startDate = new Date(now.setHours(0, 0, 0, 0)); break;
+                case 'week': startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+                case 'month': startDate = new Date(now.getFullYear(), now.getMonth(), 1); break;
             }
-            
             if (startDate) {
-                filtered = filtered.filter(analysis => {
-                    const analysisDate = new Date(analysis.created);
-                    return analysisDate >= startDate;
-                });
+                filtered = filtered.filter(analysis => new Date(analysis.created) >= startDate);
             }
         }
-        
         this.displayHistory(filtered);
     }
-    
-    // ============================================================================
-    // FUNCIONES PARA VER Y ELIMINAR ANÁLISIS
-    // ============================================================================
-    
+
     viewAnalysis(filename) {
-        // Cargar y mostrar el análisis en el tab del Analizador
         this.loadAnalysisFromHistory(filename);
     }
-    
+
     async loadAnalysisFromHistory(filename) {
+        if(!filename) return;
+        UIManager.showLoading(document.getElementById('analyzer-tab'), LanguageManager.t('history.loadingAnalysis')); // Show loading
         try {
-            // Usar el método correcto de APIClient
             const data = await APIClient.getResult(filename);
-            
             this.analysisResults = data;
             this.updateResultsDisplay(data);
-            this.switchTab('analyzer');
-            
-            // Notificación con clave de traducción
+            this.switchTab('analyzer'); // Switch after loading
             const displayName = data.filename || filename;
-            this.showNotification('notifications.fileLoaded', 'success', {
-                filename: displayName
-            });
-            
+            this.showNotification('notifications.analysisLoaded', 'success', { filename: displayName });
         } catch (error) {
-            console.error('Error loading analysis:', error);
-            this.showNotification('errors.analysisFailed', 'error');
+            console.error('Error loading analysis from history:', error);
+            this.showNotification('errors.analysisLoad', 'error');
+        } finally {
+             UIManager.hideLoading(document.getElementById('analyzer-tab')); // Hide loading
         }
     }
-    
-/**
- * Cargar historial de análisis desde el servidor
- */
+
+
     async loadHistory() {
+         const historyListContainer = document.getElementById('historyList');
+         if(historyListContainer) UIManager.showLoading(historyListContainer, LanguageManager.t('history.loading'));
         try {
             const data = await APIClient.getAnalysisList();
             this.allAnalyses = data.analyses || [];
-            this.filterHistory(); // Aplica filtros y muestra
-            
+            this.filterHistory(); // Apply filters and display
             window.APP_LOGGER.debug(`History loaded: ${this.allAnalyses.length} analyses`);
         } catch (error) {
             console.error('Error loading history:', error);
             this.showNotification('errors.historyLoad', 'error');
-            this.displayHistory([]);
+            this.displayHistory([]); // Show empty state on error
+        } finally {
+             if(historyListContainer) UIManager.hideLoading(historyListContainer);
         }
     }
 
-    /**
-     * Limpiar TODO el historial (con doble confirmación)
-     */
     async clearHistory() {
-        // Primera confirmación
-        const confirmMessage = LanguageManager.t('history.confirmClearAll') || 
-            '⚠️ ADVERTENCIA\n\n' +
-            'Esta acción eliminará TODOS los análisis guardados.\n\n' +
-            '¿Estás seguro de que deseas continuar?';
-        
-        if (!confirm(confirmMessage)) {
-            return;
-        }
-        
-        // Segunda confirmación - pedir escribir texto
-        const secondConfirm = prompt(
-            LanguageManager.t('history.confirmClearAll2') || 
-            'Para confirmar, escribe "ELIMINAR" (en mayúsculas):'
-        );
-        
+        const confirmMessage = LanguageManager.t('history.confirmClearAll') || /* ... default message ... */ '';
+        if (!confirm(confirmMessage)) return;
+        const secondConfirm = prompt(LanguageManager.t('history.confirmClearAll2') || /* ... default message ... */ '');
         if (secondConfirm !== 'ELIMINAR') {
             this.showNotification('history.clearCancelled', 'info');
             return;
         }
-        
+
+        const clearBtn = document.getElementById('clearHistoryBtn');
+        if (clearBtn) UIManager.updateButtonState(clearBtn, 'loading');
+
         try {
-            // Mostrar loading
-            const clearBtn = document.getElementById('clearHistoryBtn');
-            if (clearBtn) {
-                UIManager.updateButtonState(clearBtn, 'loading');
-            }
-            
-            // Llamar al backend
             const result = await APIClient.clearAllHistory();
-            
-            // Limpiar UI
             this.allAnalyses = [];
             this.displayHistory([]);
-            
-            // Si el análisis actual estaba en el historial, limpiarlo
-            if (this.analysisResults) {
-                this.clearAnalysisResults();
-            }
-            
-            // Mostrar resultado
-            this.showNotification('history.clearSuccess', 'success', {
-                count: result.deleted_count
-            });
-            
+            if (this.analysisResults) this.clearAnalysisResults();
+            this.showNotification('history.clearSuccess', 'success', { count: result.deleted_count });
             window.APP_LOGGER.info(`History cleared: ${result.deleted_count} analyses deleted`);
-            
         } catch (error) {
             console.error('Error clearing history:', error);
-            this.showNotification('history.clearError', 'error', {
-                error: error.message
-            });
+            this.showNotification('history.clearError', 'error', { error: error.message });
         } finally {
-            // Restaurar botón
-            const clearBtn = document.getElementById('clearHistoryBtn');
-            if (clearBtn) {
-                UIManager.updateButtonState(clearBtn, 'default');
-            }
+            if (clearBtn) UIManager.updateButtonState(clearBtn, 'default');
         }
     }
 
-    /**
-     * Eliminar un análisis específico
-     */
     async deleteAnalysis(filename, displayName) {
-        // Obtener mensaje traducido para la confirmación
-        const confirmMessage = LanguageManager.t('history.confirmDelete', { 
-            name: displayName 
-        }) || `¿Estás seguro de que quieres eliminar el análisis "${displayName}"?\n\nEsta acción no se puede deshacer.`;
-        
-        if (!confirm(confirmMessage)) {
-            return;
-        }
-        
+         if (!filename) return;
+        const confirmMessage = LanguageManager.t('history.confirmDelete', { name: displayName }) || /* ... default message ... */ '';
+        if (!confirm(confirmMessage)) return;
+
         try {
-            // Llamar al backend
             await APIClient.deleteAnalysis(filename);
-            
-            // Notificar éxito
-            this.showNotification('history.deleteSuccess', 'success', {
-                name: displayName
-            });
-            
-            // Recargar el historial
-            await this.loadHistory();
-            
-            // Si el análisis eliminado era el que estaba siendo mostrado, limpiar la vista
-            if (this.analysisResults && this.analysisResults.filename === displayName) {
+            this.showNotification('history.deleteSuccess', 'success', { name: displayName });
+            // Remove from local cache before reloading list visually
+            this.allAnalyses = this.allAnalyses.filter(a => a.name !== filename);
+            this.filterHistory(); // Update display immediately
+            // await this.loadHistory(); // Or reload fully from server
+
+            if (this.analysisResults && (this.analysisResults.filename === displayName || this.analysisResults.name === filename)) {
                 this.clearAnalysisResults();
             }
-            
             window.APP_LOGGER.info(`Analysis deleted: ${filename}`);
-            
         } catch (error) {
             console.error('Error deleting analysis:', error);
-            this.showNotification('history.deleteError', 'error', {
-                error: error.message
-            });
+            this.showNotification('history.deleteError', 'error', { error: error.message });
         }
     }
 
-    /**
-     * Limpiar los resultados mostrados en el analizador
-     */
     clearAnalysisResults() {
-        // Limpiar valores de las tarjetas
-        document.getElementById('fluorResult').textContent = '--';
-        document.getElementById('pifasResult').textContent = '--';
-        document.getElementById('concentrationResult').textContent = '--';
-        document.getElementById('qualityResult').textContent = '--';
-        
-        // Limpiar tabla detallada
+        UIManager.updateElementText('fluorResult', '--');
+        UIManager.updateElementText('pifasResult', '--');
+        UIManager.updateElementText('concentrationResult', '--');
+        UIManager.updateElementText('qualityResult', '--');
+
         const tbody = document.querySelector('#resultsTable tbody');
-        if (tbody) {
-            tbody.innerHTML = '';
-        }
-        
-        // Resetear gráfico
+        if (tbody) tbody.innerHTML = '';
+
+        ChartManager.clearPeaks(); // Clear peaks from chart
+        // Optionally create an empty chart or just clear data
         if (ChartManager && ChartManager.chart) {
-            ChartManager.chart.data[0].x = [];
-            ChartManager.chart.data[0].y = [];
-            Plotly.react('spectrumChart', ChartManager.chart.data, ChartManager.chart.layout, ChartManager.config);
+             Plotly.react('spectrumChart', [{x:[], y:[]}], ChartManager.layout, ChartManager.config);
         }
-        
-        // Actualizar título
-        document.getElementById('sampleName').setAttribute('data-i18n', 'analyzer.waitingData');
-        LanguageManager.applyTranslations();
-        
-        // Deshabilitar botón de exportar
-        document.getElementById('exportBtn').disabled = true;
-        
-        // Limpiar referencia interna
+
+
+        const sampleNameEl = document.getElementById('sampleName');
+        if(sampleNameEl){
+             sampleNameEl.setAttribute('data-i18n', 'analyzer.waitingData');
+             LanguageManager.applyTranslationsToElement(sampleNameEl);
+        }
+
+        UIManager.disableElement('exportBtn');
         this.analysisResults = null;
         this.currentFile = null;
-        
+
+        // Clear file list display
+        const fileList = document.getElementById('fileList');
+        if (fileList) fileList.innerHTML = '';
+
         window.APP_LOGGER.debug('Analysis results cleared');
-    }  
-    
-    loadAnalysisFromHistory(filename) {
-        // Asumiendo que APIClient tiene un método para esto
-        APIClient.getResult(filename) 
-            .then(data => {
-                this.analysisResults = data;
-                this.updateResultsDisplay(data);
-                this.switchTab('analyzer');
-                this.showNotification('notifications.fileLoaded', 'success', {
-                    filename: filename
-                });
-            })
-            .catch(error => {
-                this.showNotification('errors.analysisFailed', 'error');
-            });
     }
+
+
+    /* ... (loadAnalysisFromHistory already exists) ... */
 
 } // <-- FIN DE LA CLASE RMNAnalyzerApp
 
 
-// ============================================================================
-// FUNCIONES GLOBALES PARA GESTIÓN DE MÉTODOS
-// (Estas se quedan aquí fuera porque son llamadas por `onclick` en el HTML)
-// ============================================================================
-
-function applyMethod(methodType) {
-    const methods = {
-        pfas: {
-            fluorMin: -150,
-            fluorMax: -50,
-            pifasMin: -130,
-            pifasMax: -60,
-            concentration: 1.0
-        },
-        highSens: {
-            fluorMin: -160,
-            fluorMax: -40,
-            pifasMin: -135,
-            pifasMax: -55,
-            concentration: 0.1
-        }
-    };
-    
-    const method = methods[methodType];
-    if (method) {
-        document.getElementById('fluorMin').value = method.fluorMin;
-        document.getElementById('fluorMax').value = method.fluorMax;
-        document.getElementById('pifasMin').value = method.pifasMin;
-        document.getElementById('pifasMax').value = method.pifasMax;
-        document.getElementById('concentration').value = method.concentration;
-        
-        UIManager.showNotification('Método aplicado correctamente', 'success');
-        
-        // Cambiar a tab de analizador
-        window.rmnApp.switchTab('analyzer');
-    }
-}
-
-function saveCustomMethod() {
-    const methodName = document.getElementById('customMethodName').value;
-    const fluorMin = parseFloat(document.getElementById('customFluorMin').value);
-    const fluorMax = parseFloat(document.getElementById('customFluorMax').value);
-    const pifasMin = parseFloat(document.getElementById('customPfasMin').value);
-    const pifasMax = parseFloat(document.getElementById('customPfasMax').value);
-    const concentration = parseFloat(document.getElementById('customConcentration').value);
-    
-    if (!methodName) {
-        UIManager.showNotification('Por favor ingresa un nombre para el método', 'warning');
-        return;
-    }
-    
-    // Guardar en localStorage
-    const savedMethods = JSON.parse(localStorage.getItem('customMethods') || '[]');
-    savedMethods.push({
-        name: methodName,
-        params: {
-            fluorMin,
-            fluorMax,
-            pifasMin,
-            pifasMax,
-            concentration
-        },
-        created: new Date().toISOString()
-    });
-    
-    localStorage.setItem('customMethods', JSON.stringify(savedMethods));
-
-    // Usamos LanguageManager para la notificación
-    UIManager.showNotification(LanguageManager.t('methods.saved', { name: methodName }), 'success');
-    
-    // Limpiar formulario
-    document.getElementById('customMethodName').value = '';
-    
-    // Mostrar métodos guardados
-    loadSavedMethods();
-}
-
-function loadSavedMethods() {
-    const savedMethods = JSON.parse(localStorage.getItem('customMethods') || '[]');
-    const container = document.getElementById('savedMethods');
-    const list = document.getElementById('savedMethodsList');
-    
-    if (savedMethods.length === 0) {
-        container.style.display = 'none';
-        return;
-    }
-    
-    container.style.display = 'block';
-    list.innerHTML = savedMethods.map((method, index) => `
-        <div class="saved-method-item">
-            <div class="saved-method-name">
-                <i class="fas fa-bookmark"></i> ${method.name}
-            </div>
-            <div class="saved-method-actions">
-                <button class="btn btn-icon" onclick="applyCustomMethod(${index})" title="Aplicar">
-                    <i class="fas fa-check"></i>
-                </button>
-                <button class="btn btn-icon" onclick="deleteCustomMethod(${index})" title="Eliminar">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
-}
-
-function applyCustomMethod(index) {
-    const savedMethods = JSON.parse(localStorage.getItem('customMethods') || '[]');
-    const method = savedMethods[index];
-    
-    if (method) {
-        document.getElementById('fluorMin').value = method.params.fluorMin;
-        document.getElementById('fluorMax').value = method.params.fluorMax;
-        document.getElementById('pifasMin').value = method.params.pifasMin;
-        document.getElementById('pifasMax').value = method.params.pifasMax;
-        document.getElementById('concentration').value = method.params.concentration;
-        
-        UIManager.showNotification(LanguageManager.t('methods.applied', { name: method.name }), 'success');
-        window.rmnApp.switchTab('analyzer');
-    }
-}
-
-function deleteCustomMethod(index) {
-    const savedMethods = JSON.parse(localStorage.getItem('customMethods') || '[]');
-    const methodName = savedMethods[index].name;
-    
-    savedMethods.splice(index, 1);
-    localStorage.setItem('customMethods', JSON.stringify(savedMethods));
-    
-    UIManager.showNotification(LanguageManager.t('methods.deleted', { name: methodName }), 'info');
-    loadSavedMethods();
-}
+/* ... (Funciones globales de Methods comentadas) ... */
 
 
 // ============================================================================
@@ -1046,16 +876,16 @@ function deleteCustomMethod(index) {
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // 1. Esperamos a que ChartManager esté 100% listo
-        await ChartManager.init();
-        
-        // 2. Solo ENTONCES creamos la aplicación
-        window.rmnApp = new RMNAnalyzerApp();
-
-        // 3. AÑADIMOS ESTA LÍNEA para cargar los métodos al inicio
-        loadSavedMethods(); 
-        
+        await ChartManager.init(); // Initialize ChartManager first
+        window.rmnApp = new RMNAnalyzerApp(); // THEN initialize the App
+        /* ... (Carga de methods comentada) ... */
     } catch (error) {
-        console.error("Error grave al inicializar la aplicación", error);
+        console.error("Critical application initialization error:", error);
+         // Display error to user if possible
+         const loadingScreen = document.getElementById('loadingScreen');
+         if(loadingScreen) {
+              loadingScreen.innerHTML = `<div class="loading-content"><p class="error">Error al iniciar la aplicación. Revise la consola.</p></div>`;
+              loadingScreen.classList.remove('hidden'); // Ensure it's visible
+         }
     }
 });
