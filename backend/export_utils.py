@@ -1,16 +1,19 @@
+# backend/export_utils.py
+
 """
-Utilidades de Exportación - CraftRMN Pro
-Genera reportes en múltiples formatos: PDF, DOCX, CSV, JSON
+Utilidades de Exportación Mejoradas - CraftRMN Pro
+Genera reportes completos con gráficos en PDF, DOCX y CSV
 """
 
 import io
 import json
+import base64
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, BinaryIO
+from typing import Dict, List, BinaryIO
 
 import plotly.graph_objects as go
-from plotly.io import write_image
+from plotly.io import to_image
 
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
@@ -20,12 +23,19 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
+from reportlab.platypus import (
+    SimpleDocTemplate, Table, TableStyle, Paragraph, 
+    Spacer, Image, PageBreak
+)
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 
 class ReportExporter:
-    """Clase para exportar análisis RMN en múltiples formatos"""
+    """Clase mejorada para exportar análisis RMN con gráficos"""
+    
+    # ========================================================================
+    # EXPORTACIÓN JSON (sin cambios)
+    # ========================================================================
     
     @staticmethod
     def export_json(results: Dict) -> BinaryIO:
@@ -36,222 +46,52 @@ class ReportExporter:
         output.seek(0)
         return output
     
-    @staticmethod
-    def export_csv(results: Dict) -> BinaryIO:
-        """Exporta resultados como CSV completo"""
-        import csv
-        from io import StringIO
-        
-        text_buffer = StringIO()
-        writer = csv.writer(text_buffer)
-        
-        # Encabezados
-        writer.writerow(["REPORTE DE ANÁLISIS RMN - PFAS"])
-        writer.writerow(["Generado:", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-        writer.writerow(["Archivo:", results.get("filename", "N/A")])
-        writer.writerow([])
-        
-        # Composición Química
-        writer.writerow(["COMPOSICIÓN QUÍMICA"])
-        writer.writerow(["Parámetro", "Valor", "Unidad"])
-        
-        analysis = results.get("analysis", {})
-        writer.writerow(["Flúor Total (% Área)", f"{analysis.get('fluor_percentage', 0):.2f}", "%"])
-        writer.writerow(["PFAS (% Flúor)", f"{analysis.get('pifas_percentage', 0):.2f}", "%"])
-        writer.writerow(["Concentración PFAS", f"{analysis.get('pifas_concentration', 0):.4f}", "mM"])
-        writer.writerow(["Área Total Integrada", f"{analysis.get('total_area', 0):.2f}", "a.u."])
-        writer.writerow([])
-        
-        # Calidad
-        writer.writerow(["MÉTRICAS DE CALIDAD"])
-        writer.writerow(["Métrica", "Valor"])
-        writer.writerow(["Score de Calidad", f"{results.get('quality_score', 0):.1f}/10"])
-        
-        quality = results.get("quality_metrics", {})
-        writer.writerow(["SNR", f"{quality.get('snr', 0):.2f}"])
-        writer.writerow(["Rango Dinámico", f"{quality.get('dynamic_range', 0):.2f}"])
-        writer.writerow(["Estabilidad Baseline", f"{quality.get('baseline_stability_std', 0):.3f}"])
-        writer.writerow([])
-        
-        # Picos Detectados
-        peaks = results.get("peaks", [])
-        writer.writerow(["PICOS DETECTADOS"])
-        writer.writerow(["PPM", "Intensidad", "Int. Relativa (%)", "Ancho (ppm)", "Región"])
-        
-        for peak in peaks[:20]:  # Top 20
-            writer.writerow([
-                f"{peak.get('ppm', 0):.3f}",
-                f"{peak.get('intensity', 0):.1f}",
-                f"{peak.get('relative_intensity', 0):.1f}",
-                f"{peak.get('width_ppm', 0):.3f}",
-                peak.get('region', '')
-            ])
-        
-        # Convertir a bytes
-        byte_buffer = io.BytesIO()
-        byte_buffer.write(text_buffer.getvalue().encode('utf-8'))
-        byte_buffer.seek(0)
-        text_buffer.close()
-        
-        return byte_buffer
+    # ========================================================================
+    # UTILIDADES PARA GRÁFICOS
+    # ========================================================================
     
     @staticmethod
-    def export_docx(results: Dict) -> BinaryIO:
-        """Exporta reporte completo en formato DOCX"""
-        doc = Document()
-        
-        # Configurar estilos
-        style = doc.styles['Normal']
-        style.font.name = 'Calibri'
-        style.font.size = Pt(11)
-        
-        # ===== PORTADA =====
-        title = doc.add_heading('Reporte de Análisis RMN', 0)
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        subtitle = doc.add_heading('Detección y Cuantificación de PFAS', level=2)
-        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        doc.add_paragraph()
-        info_p = doc.add_paragraph()
-        info_p.add_run(f"Muestra: {results.get('filename', 'N/A')}").bold = True
-        info_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        date_p = doc.add_paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-        date_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        doc.add_page_break()
-        
-        # ===== RESUMEN EJECUTIVO =====
-        doc.add_heading('1. Resumen Ejecutivo', level=1)
-        
-        analysis = results.get("analysis", {})
-        
-        summary_table = doc.add_table(rows=4, cols=3)
-        summary_table.style = 'Light Grid Accent 1'
-        
-        # Encabezados
-        hdr_cells = summary_table.rows[0].cells
-        hdr_cells[0].text = 'Parámetro'
-        hdr_cells[1].text = 'Valor'
-        hdr_cells[2].text = 'Unidad'
-        
-        # Datos clave
-        row1 = summary_table.rows[1].cells
-        row1[0].text = 'Flúor Total'
-        row1[1].text = f"{analysis.get('fluor_percentage', 0):.2f}"
-        row1[2].text = '%'
-        
-        row2 = summary_table.rows[2].cells
-        row2[0].text = 'PFAS'
-        row2[1].text = f"{analysis.get('pifas_percentage', 0):.2f}"
-        row2[2].text = '% del Flúor'
-        
-        row3 = summary_table.rows[3].cells
-        row3[0].text = 'Concentración PFAS'
-        row3[1].text = f"{analysis.get('pifas_concentration', 0):.4f}"
-        row3[2].text = 'mM'
-        
-        doc.add_paragraph()
-        
-        quality_p = doc.add_paragraph()
-        quality_p.add_run('Score de Calidad: ').bold = True
-        quality_p.add_run(f"{results.get('quality_score', 0):.1f}/10")
-        
-        doc.add_page_break()
-        
-        # ===== RESULTADOS DETALLADOS =====
-        doc.add_heading('2. Análisis Detallado', level=1)
-        
-        doc.add_heading('2.1 Composición Química', level=2)
-        
-        comp_table = doc.add_table(rows=5, cols=2)
-        comp_table.style = 'Light Shading Accent 1'
-        
-        comp_data = [
-            ('Área Total Integrada', f"{analysis.get('total_area', 0):,.2f} a.u."),
-            ('Área Flúor', f"{analysis.get('fluor_area', 0):,.2f} a.u."),
-            ('Área PFAS', f"{analysis.get('pifas_area', 0):,.2f} a.u."),
-            ('Concentración Muestra', f"{analysis.get('concentration', 0):.2f} mM")
-        ]
-        
-        for idx, (param, val) in enumerate(comp_data):
-            comp_table.rows[idx].cells[0].text = param
-            comp_table.rows[idx].cells[1].text = val
-        
-        doc.add_paragraph()
-        
-        # ===== MÉTRICAS DE CALIDAD =====
-        doc.add_heading('2.2 Métricas de Calidad', level=2)
-        
-        quality = results.get("quality_metrics", {})
-        
-        qual_table = doc.add_table(rows=6, cols=2)
-        qual_table.style = 'Light Shading Accent 1'
-        
-        qual_data = [
-            ('Score de Calidad', f"{results.get('quality_score', 0):.1f}/10"),
-            ('SNR', f"{quality.get('snr', 0):.2f}"),
-            ('Rango Dinámico', f"{quality.get('dynamic_range', 0):.2f}"),
-            ('Estabilidad Baseline', f"{quality.get('baseline_stability_std', 0):.3f}"),
-            ('Puntos de Datos', f"{quality.get('total_points', 0):,}")
-        ]
-        
-        for idx, (param, val) in enumerate(qual_data):
-            qual_table.rows[idx].cells[0].text = param
-            qual_table.rows[idx].cells[1].text = val
-        
-        doc.add_page_break()
-        
-        # ===== PICOS DETECTADOS =====
-        doc.add_heading('3. Picos Detectados', level=1)
-        
-        peaks = results.get("peaks", [])[:20]  # Top 20
-        
-        if peaks:
-            peak_table = doc.add_table(rows=len(peaks)+1, cols=5)
-            peak_table.style = 'Light Grid Accent 1'
-            
-            # Encabezados
-            hdr = peak_table.rows[0].cells
-            hdr[0].text = 'PPM'
-            hdr[1].text = 'Intensidad'
-            hdr[2].text = 'Int. Rel. (%)'
-            hdr[3].text = 'Ancho (ppm)'
-            hdr[4].text = 'Región'
-            
-            # Datos
-            for idx, peak in enumerate(peaks, start=1):
-                row = peak_table.rows[idx].cells
-                row[0].text = f"{peak.get('ppm', 0):.3f}"
-                row[1].text = f"{peak.get('intensity', 0):.1f}"
-                row[2].text = f"{peak.get('relative_intensity', 0):.1f}"
-                row[3].text = f"{peak.get('width_ppm', 0):.3f}"
-                row[4].text = peak.get('region', '')[:30]  # Truncar si es muy largo
-        else:
-            doc.add_paragraph("No se detectaron picos significativos.")
-        
-        # Guardar en BytesIO
-        output = io.BytesIO()
-        doc.save(output)
-        output.seek(0)
-        
-        return output
+    def plotly_to_image(plotly_json: Dict, format='png', width=800, height=500) -> bytes:
+        """Convierte un gráfico Plotly (JSON) a imagen"""
+        try:
+            fig = go.Figure(plotly_json)
+            img_bytes = to_image(fig, format=format, width=width, height=height, scale=2)
+            return img_bytes
+        except Exception as e:
+            print(f"Error convirtiendo gráfico Plotly: {e}")
+            return None
     
     @staticmethod
-    def export_pdf(results: Dict) -> BinaryIO:
-        """Exporta reporte completo en formato PDF"""
+    def base64_to_bytes(base64_str: str) -> bytes:
+        """Convierte string base64 a bytes"""
+        try:
+            # Remover prefijo "data:image/png;base64," si existe
+            if ',' in base64_str:
+                base64_str = base64_str.split(',')[1]
+            return base64.b64decode(base64_str)
+        except Exception as e:
+            print(f"Error decodificando base64: {e}")
+            return None
+    
+    # ========================================================================
+    # EXPORTACIÓN DE ANÁLISIS INDIVIDUAL
+    # ========================================================================
+    
+    @staticmethod
+    def export_pdf(results: Dict, chart_image: bytes = None) -> BinaryIO:
+        """Exporta análisis individual como PDF con gráfico"""
         output = io.BytesIO()
         
-        # Configurar documento
-        doc = SimpleDocTemplate(output, pagesize=A4,
-                               topMargin=0.75*inch, bottomMargin=0.75*inch,
-                               leftMargin=0.75*inch, rightMargin=0.75*inch)
+        doc = SimpleDocTemplate(
+            output, pagesize=A4,
+            topMargin=0.75*inch, bottomMargin=0.75*inch,
+            leftMargin=0.75*inch, rightMargin=0.75*inch
+        )
         
         story = []
         styles = getSampleStyleSheet()
         
-        # Estilo personalizado para título
+        # Estilo título
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
@@ -274,8 +114,17 @@ class ReportExporter:
         story.append(Paragraph(f"<b>Fecha:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", info_style))
         story.append(PageBreak())
         
+        # ===== GRÁFICO DEL ESPECTRO =====
+        if chart_image:
+            story.append(Paragraph("1. Espectro RMN", styles['Heading1']))
+            story.append(Spacer(1, 0.2*inch))
+            
+            img = Image(io.BytesIO(chart_image), width=6*inch, height=3.5*inch)
+            story.append(img)
+            story.append(Spacer(1, 0.3*inch))
+        
         # ===== RESUMEN EJECUTIVO =====
-        story.append(Paragraph("1. Resumen Ejecutivo", styles['Heading1']))
+        story.append(Paragraph("2. Resumen Ejecutivo", styles['Heading1']))
         story.append(Spacer(1, 0.2*inch))
         
         analysis = results.get("analysis", {})
@@ -297,8 +146,6 @@ class ReportExporter:
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
         ]))
         
         story.append(summary_table)
@@ -309,10 +156,10 @@ class ReportExporter:
         story.append(PageBreak())
         
         # ===== ANÁLISIS DETALLADO =====
-        story.append(Paragraph("2. Análisis Detallado", styles['Heading1']))
+        story.append(Paragraph("3. Análisis Detallado", styles['Heading1']))
         story.append(Spacer(1, 0.2*inch))
         
-        story.append(Paragraph("2.1 Composición Química", styles['Heading2']))
+        story.append(Paragraph("3.1 Composición Química", styles['Heading2']))
         story.append(Spacer(1, 0.1*inch))
         
         comp_data = [
@@ -329,43 +176,14 @@ class ReportExporter:
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
         
         story.append(comp_table)
         story.append(Spacer(1, 0.3*inch))
         
-        # ===== MÉTRICAS DE CALIDAD =====
-        story.append(Paragraph("2.2 Métricas de Calidad", styles['Heading2']))
-        story.append(Spacer(1, 0.1*inch))
-        
-        quality = results.get("quality_metrics", {})
-        
-        qual_data = [
-            ['Métrica', 'Valor'],
-            ['Score de Calidad', f"{results.get('quality_score', 0):.1f}/10"],
-            ['SNR', f"{quality.get('snr', 0):.2f}"],
-            ['Rango Dinámico', f"{quality.get('dynamic_range', 0):.2f}"],
-            ['Estabilidad Baseline', f"{quality.get('baseline_stability_std', 0):.3f}"],
-            ['Puntos de Datos', f"{quality.get('total_points', 0):,}"],
-        ]
-        
-        qual_table = Table(qual_data, colWidths=[3.5*inch, 2*inch])
-        qual_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f39c12')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ]))
-        
-        story.append(qual_table)
-        story.append(PageBreak())
-        
         # ===== PICOS DETECTADOS =====
-        story.append(Paragraph("3. Picos Detectados", styles['Heading1']))
+        story.append(Paragraph("4. Picos Detectados", styles['Heading1']))
         story.append(Spacer(1, 0.2*inch))
         
         peaks = results.get("peaks", [])[:20]
@@ -395,8 +213,544 @@ class ReportExporter:
         else:
             story.append(Paragraph("No se detectaron picos significativos.", styles['Normal']))
         
-        # Construir PDF
         doc.build(story)
+        output.seek(0)
+        
+        return output
+    
+    @staticmethod
+    def export_docx(results: Dict, chart_image: bytes = None) -> BinaryIO:
+        """Exporta análisis individual como DOCX con gráfico"""
+        doc = Document()
+        
+        # Configurar estilos
+        style = doc.styles['Normal']
+        style.font.name = 'Calibri'
+        style.font.size = Pt(11)
+        
+        # ===== PORTADA =====
+        title = doc.add_heading('Reporte de Análisis RMN', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        subtitle = doc.add_heading('Detección y Cuantificación de PFAS', level=2)
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        info_p = doc.add_paragraph()
+        info_p.add_run(f"Muestra: {results.get('filename', 'N/A')}").bold = True
+        info_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        date_p = doc.add_paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+        date_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_page_break()
+        
+        # ===== GRÁFICO DEL ESPECTRO =====
+        if chart_image:
+            doc.add_heading('1. Espectro RMN', level=1)
+            doc.add_picture(io.BytesIO(chart_image), width=Inches(6))
+            doc.add_paragraph()
+        
+        # ===== RESUMEN EJECUTIVO =====
+        doc.add_heading('2. Resumen Ejecutivo', level=1)
+        
+        analysis = results.get("analysis", {})
+        
+        summary_table = doc.add_table(rows=4, cols=3)
+        summary_table.style = 'Light Grid Accent 1'
+        
+        hdr_cells = summary_table.rows[0].cells
+        hdr_cells[0].text = 'Parámetro'
+        hdr_cells[1].text = 'Valor'
+        hdr_cells[2].text = 'Unidad'
+        
+        row1 = summary_table.rows[1].cells
+        row1[0].text = 'Flúor Total'
+        row1[1].text = f"{analysis.get('fluor_percentage', 0):.2f}"
+        row1[2].text = '%'
+        
+        row2 = summary_table.rows[2].cells
+        row2[0].text = 'PFAS'
+        row2[1].text = f"{analysis.get('pifas_percentage', 0):.2f}"
+        row2[2].text = '% del Flúor'
+        
+        row3 = summary_table.rows[3].cells
+        row3[0].text = 'Concentración PFAS'
+        row3[1].text = f"{analysis.get('pifas_concentration', 0):.4f}"
+        row3[2].text = 'mM'
+        
+        doc.add_paragraph()
+        
+        quality_p = doc.add_paragraph()
+        quality_p.add_run('Score de Calidad: ').bold = True
+        quality_p.add_run(f"{results.get('quality_score', 0):.1f}/10")
+        
+        doc.add_page_break()
+        
+        # ===== RESULTADOS DETALLADOS =====
+        doc.add_heading('3. Análisis Detallado', level=1)
+        doc.add_heading('3.1 Composición Química', level=2)
+        
+        comp_table = doc.add_table(rows=5, cols=2)
+        comp_table.style = 'Light Shading Accent 1'
+        
+        comp_data = [
+            ('Área Total Integrada', f"{analysis.get('total_area', 0):,.2f} a.u."),
+            ('Área Flúor', f"{analysis.get('fluor_area', 0):,.2f} a.u."),
+            ('Área PFAS', f"{analysis.get('pifas_area', 0):,.2f} a.u."),
+            ('Concentración Muestra', f"{analysis.get('concentration', 0):.2f} mM")
+        ]
+        
+        for idx, (param, val) in enumerate(comp_data):
+            comp_table.rows[idx].cells[0].text = param
+            comp_table.rows[idx].cells[1].text = val
+        
+        doc.add_paragraph()
+        
+        # ===== PICOS DETECTADOS =====
+        doc.add_heading('4. Picos Detectados', level=1)
+        
+        peaks = results.get("peaks", [])[:20]
+        
+        if peaks:
+            peak_table = doc.add_table(rows=len(peaks)+1, cols=5)
+            peak_table.style = 'Light Grid Accent 1'
+            
+            hdr = peak_table.rows[0].cells
+            hdr[0].text = 'PPM'
+            hdr[1].text = 'Intensidad'
+            hdr[2].text = 'Int. Rel. (%)'
+            hdr[3].text = 'Ancho (ppm)'
+            hdr[4].text = 'Región'
+            
+            for idx, peak in enumerate(peaks, start=1):
+                row = peak_table.rows[idx].cells
+                row[0].text = f"{peak.get('ppm', 0):.3f}"
+                row[1].text = f"{peak.get('intensity', 0):.1f}"
+                row[2].text = f"{peak.get('relative_intensity', 0):.1f}"
+                row[3].text = f"{peak.get('width_ppm', 0):.3f}"
+                row[4].text = peak.get('region', '')[:30]
+        else:
+            doc.add_paragraph("No se detectaron picos significativos.")
+        
+        output = io.BytesIO()
+        doc.save(output)
+        output.seek(0)
+        
+        return output
+    
+    @staticmethod
+    def export_csv(results: Dict) -> BinaryIO:
+        """Exporta análisis individual como CSV"""
+        import csv
+        from io import StringIO
+        
+        text_buffer = StringIO()
+        writer = csv.writer(text_buffer)
+        
+        writer.writerow(["REPORTE DE ANÁLISIS RMN - PFAS"])
+        writer.writerow(["Generado:", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+        writer.writerow(["Archivo:", results.get("filename", "N/A")])
+        writer.writerow([])
+        
+        writer.writerow(["COMPOSICIÓN QUÍMICA"])
+        writer.writerow(["Parámetro", "Valor", "Unidad"])
+        
+        analysis = results.get("analysis", {})
+        writer.writerow(["Flúor Total (% Área)", f"{analysis.get('fluor_percentage', 0):.2f}", "%"])
+        writer.writerow(["PFAS (% Flúor)", f"{analysis.get('pifas_percentage', 0):.2f}", "%"])
+        writer.writerow(["Concentración PFAS", f"{analysis.get('pifas_concentration', 0):.4f}", "mM"])
+        writer.writerow(["Área Total Integrada", f"{analysis.get('total_area', 0):.2f}", "a.u."])
+        writer.writerow([])
+        
+        writer.writerow(["CALIDAD"])
+        writer.writerow(["Métrica", "Valor"])
+        writer.writerow(["Score de Calidad", f"{results.get('quality_score', 0):.1f}/10"])
+        
+        quality = results.get("quality_metrics", {})
+        writer.writerow(["SNR", f"{quality.get('snr', 0):.2f}"])
+        writer.writerow(["Rango Dinámico", f"{quality.get('dynamic_range', 0):.2f}"])
+        writer.writerow([])
+        
+        writer.writerow(["PICOS DETECTADOS"])
+        writer.writerow(["PPM", "Intensidad", "Int. Relativa (%)", "Ancho (ppm)", "Región"])
+        
+        peaks = results.get("peaks", [])
+        for peak in peaks[:20]:
+            writer.writerow([
+                f"{peak.get('ppm', 0):.3f}",
+                f"{peak.get('intensity', 0):.1f}",
+                f"{peak.get('relative_intensity', 0):.1f}",
+                f"{peak.get('width_ppm', 0):.3f}",
+                peak.get('region', '')
+            ])
+        
+        byte_buffer = io.BytesIO()
+        byte_buffer.write(text_buffer.getvalue().encode('utf-8'))
+        byte_buffer.seek(0)
+        text_buffer.close()
+        
+        return byte_buffer
+    
+    # ========================================================================
+    # EXPORTACIÓN DE COMPARACIÓN
+    # ========================================================================
+    
+    @staticmethod
+    def export_comparison_pdf(samples: List[Dict], chart_image: bytes = None) -> BinaryIO:
+        """Exporta comparación de muestras como PDF con gráfico"""
+        output = io.BytesIO()
+        
+        doc = SimpleDocTemplate(
+            output, pagesize=A4,
+            topMargin=0.75*inch, bottomMargin=0.75*inch,
+            leftMargin=0.75*inch, rightMargin=0.75*inch
+        )
+        
+        story = []
+        styles = getSampleStyleSheet()
+        
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#2c3e50'),
+            spaceAfter=30,
+            alignment=TA_CENTER
+        )
+        
+        # PORTADA
+        story.append(Paragraph("Comparación de Muestras RMN", title_style))
+        story.append(Spacer(1, 0.3*inch))
+        
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Heading2'], alignment=TA_CENTER)
+        story.append(Paragraph(f"Análisis Comparativo de {len(samples)} Muestras", subtitle_style))
+        story.append(Spacer(1, 0.5*inch))
+        
+        info_style = ParagraphStyle('Info', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12)
+        story.append(Paragraph(f"<b>Fecha:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", info_style))
+        story.append(PageBreak())
+        
+        # GRÁFICO DE COMPARACIÓN
+        if chart_image:
+            story.append(Paragraph("1. Gráfico Comparativo", styles['Heading1']))
+            story.append(Spacer(1, 0.2*inch))
+            
+            img = Image(io.BytesIO(chart_image), width=6*inch, height=3.5*inch)
+            story.append(img)
+            story.append(Spacer(1, 0.3*inch))
+            story.append(PageBreak())
+        
+        # TABLA COMPARATIVA
+        story.append(Paragraph("2. Tabla Comparativa", styles['Heading1']))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Crear tabla
+        table_data = [['Parámetro'] + [s.get('filename', s.get('name', 'N/A'))[:15] for s in samples]]
+        
+        params = [
+            ('Flúor (%)', 'fluor', lambda x: f"{x:.2f}"),
+            ('PFAS (%)', 'pfas', lambda x: f"{x:.2f}"),
+            ('Concentración (mM)', 'concentration', lambda x: f"{x:.4f}"),
+            ('Calidad (/10)', 'quality', lambda x: f"{x:.1f}")
+        ]
+        
+        for param_name, param_key, formatter in params:
+            row = [param_name]
+            for sample in samples:
+                value = sample.get(param_key, 0)
+                row.append(formatter(value) if value else '--')
+            table_data.append(row)
+        
+        # Calcular anchos de columna
+        col_width = min(1.2*inch, 6*inch / (len(samples) + 1))
+        col_widths = [1.5*inch] + [col_width] * len(samples)
+        
+        comp_table = Table(table_data, colWidths=col_widths)
+        comp_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ]))
+        
+        story.append(comp_table)
+        
+        doc.build(story)
+        output.seek(0)
+        
+        return output
+    
+    @staticmethod
+    def export_comparison_docx(samples: List[Dict], chart_image: bytes = None) -> BinaryIO:
+        """Exporta comparación de muestras como DOCX con gráfico"""
+        doc = Document()
+        
+        style = doc.styles['Normal']
+        style.font.name = 'Calibri'
+        style.font.size = Pt(11)
+        
+        # PORTADA
+        title = doc.add_heading('Comparación de Muestras RMN', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        subtitle = doc.add_heading(f'Análisis Comparativo de {len(samples)} Muestras', level=2)
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        date_p = doc.add_paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+        date_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_page_break()
+        
+        # GRÁFICO
+        if chart_image:
+            doc.add_heading('1. Gráfico Comparativo', level=1)
+            doc.add_picture(io.BytesIO(chart_image), width=Inches(6))
+            doc.add_paragraph()
+            doc.add_page_break()
+        
+        # TABLA COMPARATIVA
+        doc.add_heading('2. Tabla Comparativa', level=1)
+        
+        table = doc.add_table(rows=5, cols=len(samples)+1)
+        table.style = 'Light Grid Accent 1'
+        
+        # Encabezados
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = 'Parámetro'
+        for idx, sample in enumerate(samples, 1):
+            hdr_cells[idx].text = sample.get('filename', sample.get('name', 'N/A'))[:20]
+        
+        # Datos
+        params = [
+            ('Flúor (%)', 'fluor'),
+            ('PFAS (%)', 'pfas'),
+            ('Concentración (mM)', 'concentration'),
+            ('Calidad (/10)', 'quality')
+        ]
+        
+        for row_idx, (param_name, param_key) in enumerate(params, 1):
+            row_cells = table.rows[row_idx].cells
+            row_cells[0].text = param_name
+            for col_idx, sample in enumerate(samples, 1):
+                value = sample.get(param_key, 0)
+                if param_key == 'concentration':
+                    row_cells[col_idx].text = f"{value:.4f}" if value else '--'
+                elif param_key == 'quality':
+                    row_cells[col_idx].text = f"{value:.1f}" if value else '--'
+                else:
+                    row_cells[col_idx].text = f"{value:.2f}" if value else '--'
+        
+        output = io.BytesIO()
+        doc.save(output)
+        output.seek(0)
+        
+        return output
+    
+    @staticmethod
+    def export_comparison_csv(samples: List[Dict]) -> BinaryIO:
+        """Exporta comparación de muestras como CSV"""
+        import csv
+        from io import StringIO
+        
+        text_buffer = StringIO()
+        writer = csv.writer(text_buffer)
+        
+        writer.writerow(["COMPARACIÓN DE MUESTRAS RMN - PFAS"])
+        writer.writerow(["Generado:", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+        writer.writerow(["Total de muestras:", len(samples)])
+        writer.writerow([])
+        
+        # Encabezados
+        headers = ['Parámetro'] + [s.get('filename', s.get('name', 'N/A')) for s in samples]
+        writer.writerow(headers)
+        
+        # Datos
+        params = [
+            ('Flúor (%)', 'fluor'),
+            ('PFAS (%)', 'pfas'),
+            ('Concentración (mM)', 'concentration'),
+            ('Calidad (/10)', 'quality')
+        ]
+        
+        for param_name, param_key in params:
+            row = [param_name]
+            for sample in samples:
+                value = sample.get(param_key, 0)
+                if param_key == 'concentration':
+                    row.append(f"{value:.4f}" if value else '--')
+                elif param_key == 'quality':
+                    row.append(f"{value:.1f}" if value else '--')
+                else:
+                    row.append(f"{value:.2f}" if value else '--')
+            writer.writerow(row)
+        
+        byte_buffer = io.BytesIO()
+        byte_buffer.write(text_buffer.getvalue().encode('utf-8'))
+        byte_buffer.seek(0)
+        text_buffer.close()
+        
+        return byte_buffer
+    
+    # ========================================================================
+    # EXPORTACIÓN DE DASHBOARD
+    # ========================================================================
+    
+    @staticmethod
+    def export_dashboard_pdf(stats: Dict, chart_images: Dict[str, bytes]) -> BinaryIO:
+        """Exporta estadísticas del dashboard como PDF con gráficos"""
+        output = io.BytesIO()
+        
+        doc = SimpleDocTemplate(
+            output, pagesize=A4,
+            topMargin=0.75*inch, bottomMargin=0.75*inch,
+            leftMargin=0.75*inch, rightMargin=0.75*inch
+        )
+        
+        story = []
+        styles = getSampleStyleSheet()
+        
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#2c3e50'),
+            spaceAfter=30,
+            alignment=TA_CENTER
+        )
+        
+        # PORTADA
+        story.append(Paragraph("Dashboard de Estadísticas", title_style))
+        story.append(Spacer(1, 0.3*inch))
+        
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Heading2'], alignment=TA_CENTER)
+        story.append(Paragraph("Análisis Agregado de Muestras RMN", subtitle_style))
+        story.append(Spacer(1, 0.5*inch))
+        
+        info_style = ParagraphStyle('Info', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12)
+        story.append(Paragraph(f"<b>Fecha:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", info_style))
+        story.append(PageBreak())
+        
+        # ESTADÍSTICAS GENERALES
+        story.append(Paragraph("1. Estadísticas Generales", styles['Heading1']))
+        story.append(Spacer(1, 0.2*inch))
+        
+        stats_data = [
+            ['Métrica', 'Valor'],
+            ['Total de Análisis', str(stats.get('totalAnalyses', 0))],
+            ['Concentración Promedio', f"{stats.get('avgConcentration', 0)} mM"],
+            ['PFAS Promedio', f"{stats.get('avgPfas', 0)} %"],
+            ['Flúor Promedio', f"{stats.get('avgFluor', 0)} %"],
+            ['Calidad Promedio', f"{stats.get('avgQuality', 0)}/10"],
+            ['Muestras Alta Calidad', str(stats.get('highQualitySamples', 0))],
+        ]
+        
+        stats_table = Table(stats_data, colWidths=[3*inch, 2*inch])
+        stats_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        
+        story.append(stats_table)
+        story.append(Spacer(1, 0.3*inch))
+        story.append(PageBreak())
+        
+        # GRÁFICOS
+        if chart_images:
+            story.append(Paragraph("2. Gráficos Estadísticos", styles['Heading1']))
+            story.append(Spacer(1, 0.2*inch))
+            
+            if 'trend' in chart_images:
+                story.append(Paragraph("2.1 Tendencia de Concentración", styles['Heading2']))
+                story.append(Spacer(1, 0.1*inch))
+                img = Image(io.BytesIO(chart_images['trend']), width=6*inch, height=3.5*inch)
+                story.append(img)
+                story.append(Spacer(1, 0.3*inch))
+            
+            if 'distribution' in chart_images:
+                story.append(Paragraph("2.2 Distribución de Calidad", styles['Heading2']))
+                story.append(Spacer(1, 0.1*inch))
+                img = Image(io.BytesIO(chart_images['distribution']), width=6*inch, height=3.5*inch)
+                story.append(img)
+        
+        doc.build(story)
+        output.seek(0)
+        
+        return output
+    
+    @staticmethod
+    def export_dashboard_docx(stats: Dict, chart_images: Dict[str, bytes]) -> BinaryIO:
+        """Exporta estadísticas del dashboard como DOCX con gráficos"""
+        doc = Document()
+        
+        style = doc.styles['Normal']
+        style.font.name = 'Calibri'
+        style.font.size = Pt(11)
+        
+        # PORTADA
+        title = doc.add_heading('Dashboard de Estadísticas', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        subtitle = doc.add_heading('Análisis Agregado de Muestras RMN', level=2)
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        date_p = doc.add_paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+        date_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_page_break()
+        
+        # ESTADÍSTICAS GENERALES
+        doc.add_heading('1. Estadísticas Generales', level=1)
+        
+        table = doc.add_table(rows=8, cols=2)
+        table.style = 'Light Grid Accent 1'
+        
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = 'Métrica'
+        hdr_cells[1].text = 'Valor'
+        
+        stats_data = [
+            ('Total de Análisis', str(stats.get('totalAnalyses', 0))),
+            ('Concentración Promedio', f"{stats.get('avgConcentration', 0)} mM"),
+            ('PFAS Promedio', f"{stats.get('avgPfas', 0)} %"),
+            ('Flúor Promedio', f"{stats.get('avgFluor', 0)} %"),
+            ('Calidad Promedio', f"{stats.get('avgQuality', 0)}/10"),
+            ('Muestras Alta Calidad', str(stats.get('highQualitySamples', 0))),
+            ('SNR Promedio', str(stats.get('avgSNR', 'N/A')))
+        ]
+        
+        for idx, (metric, value) in enumerate(stats_data, 1):
+            row_cells = table.rows[idx].cells
+            row_cells[0].text = metric
+            row_cells[1].text = value
+        
+        doc.add_page_break()
+        
+        # GRÁFICOS
+        if chart_images:
+            doc.add_heading('2. Gráficos Estadísticos', level=1)
+            
+            if 'trend' in chart_images:
+                doc.add_heading('2.1 Tendencia de Concentración', level=2)
+                doc.add_picture(io.BytesIO(chart_images['trend']), width=Inches(6))
+                doc.add_paragraph()
+            
+            if 'distribution' in chart_images:
+                doc.add_heading('2.2 Distribución de Calidad', level=2)
+                doc.add_picture(io.BytesIO(chart_images['distribution']), width=Inches(6))
+        
+        output = io.BytesIO()
+        doc.save(output)
         output.seek(0)
         
         return output
