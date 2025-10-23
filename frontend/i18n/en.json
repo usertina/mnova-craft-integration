@@ -67,7 +67,10 @@
     "area": "Area",
     "width": "Width (Hz)",
     "noPeaksYet": "No peaks analyzed yet",
-    "noDetails": "No detailed data available"
+    "noDetails": "No detailed data available",
+    "max_signal_corr": "Max Signal (Corrected)",
+    "mean_intensity_corr": "Mean Intensity (Corrected)",
+    "std_intensity_corr": "Standard Deviation (Corrected)"
   },
   "notifications": {
     "fileLoaded": "File loaded: {filename}",

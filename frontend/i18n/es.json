@@ -55,9 +55,14 @@
     "intensity_range_corrected": "Rango de Intensidad",
     "intensity_range_original": "Rango Intensidad (Original)",
     "mean_intensity": "Intensidad Media",
-    "std_intensity": "Desviación Estándar",
     "max_signal": "Señal Máxima",
+    "std_intensity": "Desviación Estándar",
     "signal_to_noise": "Relación Señal/Ruido",
+    
+    "max_signal_corr": "Señal Máxima (Corregida)",
+    "mean_intensity_corr": "Intensidad Media (Corregida)",
+    "std_intensity_corr": "Desviación Estándar (Corregida)",
+    
     "detectedPeaks": "Picos Detectados",
     "totalIntegral": "Integral Total",
     "signalNoise": "Relación S/N",
@@ -65,7 +70,8 @@
     "position": "Posición (ppm)",
     "height": "Altura",
     "area": "Área",
-    "width": "Ancho (Hz)",
+    "width": "Ancho (ppm)",
+    "region": "Región",
     "noPeaksYet": "No hay picos analizados aún",
     "noDetails": "No hay datos detallados disponibles"
   },

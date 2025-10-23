@@ -199,94 +199,97 @@ class RMNAnalyzerApp {
     async performAnalysis() {
         if (!this.currentFile || !this.isConnected) return;
         const analyzeBtn = document.getElementById('analyzeBtn');
-        UIManager.updateButtonState(analyzeBtn, 'loading'); // Use UIManager for button state
+        UIManager.updateButtonState(analyzeBtn, 'loading');
 
         try {
             const params = this.getAnalysisParameters();
+            console.log("🔬 Iniciando análisis con parámetros:", params);
+            
             const results = await APIClient.analyzeSpectrum(this.currentFile, params);
+            
+            console.log("📊 Resultados del análisis:", results);
+            
+            if (results.error) {
+                throw new Error(results.error);
+            }
 
-            if (results.error) { // Check if analyzer returned an error
-                 throw new Error(results.error);
+            // Log específico para picos
+            console.log("🔍 Picos detectados:", results.peaks ? results.peaks.length : 0);
+            if (results.peaks && results.peaks.length > 0) {
+                console.log("   Primeros 3 picos:", results.peaks.slice(0, 3));
             }
 
             this.analysisResults = results;
-            this.updateResultsDisplay(results); // Display results
+            this.updateResultsDisplay(results);
             this.showNotification('notifications.analysisComplete', 'success');
             document.getElementById('exportBtn').disabled = false;
 
         } catch (error) {
-            console.error("Analysis Error:", error); // Log the full error
-            // Try to parse Python's traceback if available
+            console.error("❌ Error en análisis:", error);
             let errorMessage = error.message;
             if (error.details) {
-                 // Look for the actual error message at the end of the traceback
-                 const lines = error.details.split('\n');
-                 const lastLine = lines[lines.length - 2] || lines[lines.length - 1]; // Get last non-empty line
-                 errorMessage = lastLine.startsWith('Error:') ? lastLine : error.message;
+                const lines = error.details.split('\n');
+                const lastLine = lines[lines.length - 2] || lines[lines.length - 1];
+                errorMessage = lastLine.startsWith('Error:') ? lastLine : error.message;
             }
             this.showNotification('notifications.analysisError', 'error', {
                 error: errorMessage
             });
-            // Optionally clear previous results on error
-            // this.clearAnalysisResults();
         } finally {
-            UIManager.updateButtonState(analyzeBtn, 'default'); // Restore button using UIManager
+            UIManager.updateButtonState(analyzeBtn, 'default');
         }
     }
 
     updateResultsDisplay(results) {
-        // Update chart - Make sure to pass peaks
+        // Update chart
         if (results.spectrum) {
             ChartManager.updateSpectrumChart(results.spectrum, results.peaks || []);
         }
 
         // Update result cards
         if (results.analysis) {
-             // Use UIManager.formatNumber for consistent formatting
             UIManager.updateElementText('fluorResult', UIManager.formatNumber(results.analysis.fluor_percentage, 2));
             UIManager.updateElementText('pifasResult', UIManager.formatNumber(results.analysis.pifas_percentage, 2));
-            UIManager.updateElementText('concentrationResult', UIManager.formatNumber(results.analysis.pifas_concentration, 4)); // More decimals for concentration
             UIManager.updateElementText('qualityResult', UIManager.formatNumber(results.quality_score, 1));
         } else {
-             // Clear cards if no analysis data
-             UIManager.updateElementText('fluorResult', '--');
-             UIManager.updateElementText('pifasResult', '--');
-             UIManager.updateElementText('concentrationResult', '--');
-             UIManager.updateElementText('qualityResult', '--');
+            UIManager.updateElementText('fluorResult', '--');
+            UIManager.updateElementText('pifasResult', '--');
+            UIManager.updateElementText('qualityResult', '--');
         }
+
+        // ### CORRECCIÓN: Actualizar detalles básicos ###
+        const peaksCount = results.peaks ? results.peaks.length : 0;
+        const totalIntegral = results.analysis ? results.analysis.total_area : 0;
+        const snr = results.quality_metrics ? results.quality_metrics.snr : 0;
+        
+        UIManager.updateElementText('peaksCount', peaksCount);
+        UIManager.updateElementText('totalIntegral', UIManager.formatNumber(totalIntegral, 2));
+        UIManager.updateElementText('snRatio', UIManager.formatNumber(snr, 2));
+        
+        console.log(`✅ Detalles actualizados: Picos=${peaksCount}, Integral=${totalIntegral}, SNR=${snr}`);
 
         // Update detailed table
         if (results.detailed_analysis) {
             this.updateResultsTable(results.detailed_analysis);
         } else {
-             // Clear table if no detailed data
-             const tbody = document.querySelector('#resultsTable tbody');
-             if (tbody) tbody.innerHTML = '<tr><td colspan="4" data-i18n="results.noDetails">No hay datos detallados disponibles.</td></tr>';
-             LanguageManager.applyTranslations(); // Translate the message
+            const tbody = document.querySelector('#resultsTable tbody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="4" data-i18n="results.noDetails">No hay datos detallados disponibles.</td></tr>';
+                LanguageManager.applyTranslations();
+            }
         }
 
-        // ### NUEVO: Update Peaks Table ###
+        // Update Peaks Table
         this.updatePeaksTable(results.peaks || []);
-        // ### ACTUALIZAR EL CONTADOR DE PICOS ###
+        
+        // Update Peak Count
         const peaksCountElement = document.getElementById('peaksCount');
         if (peaksCountElement) {
-            peaksCountElement.textContent = (results.peaks || []).length;
+            peaksCountElement.textContent = peaksCount;
         }
 
-        // ### NUEVO: Update Quality Breakdown ###
+        // Update Quality Breakdown
         this.updateQualityBreakdown(results.quality_score, results.quality_breakdown || {});
-
-         // ### NUEVO: Display Baseline Value ###
-         const baselineValue = results.spectrum?.baseline_value;
-         const baselineElement = document.getElementById('baselineValueDisplay'); // Needs an element in HTML
-         if (baselineElement) {
-              baselineElement.textContent = baselineValue !== null && baselineValue !== undefined
-                   ? `Baseline Estimado: ${UIManager.formatNumber(baselineValue, 2)} a.u.`
-                   : '';
-         }
-         // Add this near the detailed results table in index.html:
-         // <p id="baselineValueDisplay" class="small text-muted mt-2"></p>
-
 
         // Make sure export button is enabled only if results are valid
         document.getElementById('exportBtn').disabled = !results.analysis;
@@ -339,97 +342,96 @@ class RMNAnalyzerApp {
          LanguageManager.applyTranslations(); // Use the general function
     }
      // ### NUEVO: Function to update the peaks table ###
-     updatePeaksTable(peaks) {
-         const tbody = document.querySelector('#peaksTable tbody'); // Assumes table has id="peaksTable"
-         if (!tbody) {
-              console.warn("Peaks table body not found!");
-              return; // Exit if table body not found
-         }
-         tbody.innerHTML = ''; // Clear previous results
+    updatePeaksTable(peaks) {
+        const tbody = document.querySelector('#peakTable tbody');
+        if (!tbody) {
+            console.warn("Peaks table body not found!");
+            return;
+        }
+        tbody.innerHTML = ''; // Clear previous results
 
-         if (!peaks || peaks.length === 0) {
-              tbody.innerHTML = '<tr><td colspan="5" data-i18n="peaks.none">No se detectaron picos significativos.</td></tr>';
-              LanguageManager.applyTranslations(); // Translate the message
-              return;
-         }
+        // Log para debug
+        console.log("Actualizando tabla de picos:", peaks);
 
-         // Sort peaks by PPM for display (optional, backend might already do this)
-         peaks.sort((a, b) => a.ppm - b.ppm);
+        if (!peaks || peaks.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        <i class="fas fa-chart-line"></i>
+                        <p data-i18n="peaks.none">No se detectaron picos significativos.</p>
+                    </td>
+                </tr>
+            `;
+            LanguageManager.applyTranslations();
+            return;
+        }
 
-         peaks.forEach(peak => {
-              const row = document.createElement('tr');
-              row.innerHTML = `
-                   <td>${UIManager.formatNumber(peak.ppm, 3)}</td>
-                   <td>${UIManager.formatNumber(peak.intensity, 2)}</td>
-                   <td>${UIManager.formatNumber(peak.relative_intensity, 1)}</td>
-                   <td>${UIManager.formatNumber(peak.width_ppm, 3)}</td>
-                   <td>${peak.region || '--'}</td>
-              `;
-              tbody.appendChild(row);
-         });
-          // Add translations keys to your language files for table headers like peaks.ppm, peaks.intensity etc.
-          // Example HTML for the table in index.html:
-          /*
-          <div class="detailed-results"> <h3 data-i18n="peaks.title">Picos Detectados</h3>
-              <div class="table-container">
-                  <table id="peaksTable">
-                      <thead>
-                          <tr>
-                              <th data-i18n="peaks.ppm">PPM</th>
-                              <th data-i18n="peaks.intensity">Intensidad</th>
-                              <th data-i18n="peaks.relIntensity">Int. Rel. (%)</th>
-                              <th data-i18n="peaks.width">Ancho (ppm)</th>
-                              <th data-i18n="peaks.region">Región</th>
-                          </tr>
-                      </thead>
-                      <tbody>
-                          </tbody>
-                  </table>
-              </div>
-          </div>
-          */
-     }
+        // Ordenar picos por PPM para la tabla
+        const sortedPeaks = [...peaks].sort((a, b) => a.ppm - b.ppm);
+
+        sortedPeaks.forEach(peak => {
+            const row = document.createElement('tr');
+            
+            // Asegurar que todos los valores existen
+            const ppm = peak.ppm !== undefined && peak.ppm !== null ? UIManager.formatNumber(peak.ppm, 3) : '--';
+            const intensity = peak.intensity !== undefined && peak.intensity !== null ? UIManager.formatNumber(peak.intensity, 2) : '--';
+            const relIntensity = peak.relative_intensity !== undefined && peak.relative_intensity !== null ? UIManager.formatNumber(peak.relative_intensity, 1) : '--';
+            const width = peak.width_ppm !== undefined && peak.width_ppm !== null ? UIManager.formatNumber(peak.width_ppm, 3) : '--';
+            const region = peak.region || '--';
+            
+            row.innerHTML = `
+                <td>${ppm}</td>
+                <td>${intensity}</td>
+                <td>${relIntensity}</td>
+                <td>${width}</td>
+                <td>${UIManager.escapeHtml(region)}</td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+        console.log(`✅ Tabla de picos actualizada: ${sortedPeaks.length} picos mostrados`);
+    } 
 
      // ### NUEVO: Function to update the quality breakdown ###
-     updateQualityBreakdown(score, breakdown) {
-          const qualityContainer = document.getElementById('qualityBreakdownContainer'); // Needs an element in HTML
-          if (!qualityContainer) {
-               console.warn("Quality breakdown container not found!");
-               return; // Exit if container not found
-          }
+    updateQualityBreakdown(score, breakdown) {
+        const qualityContainer = document.getElementById('qualityBreakdownContainer'); // Needs an element in HTML
+        if (!qualityContainer) {
+            console.warn("Quality breakdown container not found!");
+            return; // Exit if container not found
+        }
 
           // Update progress bar (assuming it exists with id 'qualityProgressBar' and its child div)
-          const progressBarDiv = document.getElementById('qualityProgressBar');
-          if (progressBarDiv) {
-              const bar = progressBarDiv.querySelector('.progress-bar');
-              if (bar) {
-                   const scoreValue = typeof score === 'number' ? score : 0;
-                   bar.style.width = `${scoreValue * 10}%`;
-                   bar.textContent = `${UIManager.formatNumber(scoreValue, 1)} / 10`;
-                   bar.setAttribute('aria-valuenow', scoreValue);
-              }
-          } else {
+        const progressBarDiv = document.getElementById('qualityProgressBar');
+        if (progressBarDiv) {
+            const bar = progressBarDiv.querySelector('.progress-bar');
+            if (bar) {
+                const scoreValue = typeof score === 'number' ? score : 0;
+                bar.style.width = `${scoreValue * 10}%`;
+                bar.textContent = `${UIManager.formatNumber(scoreValue, 1)} / 10`;
+                bar.setAttribute('aria-valuenow', scoreValue);
+            }
+        } else {
                // Fallback: Just display the score if no progress bar element
-               qualityContainer.innerHTML = `<p><strong data-i18n="quality.score">Puntuación de Calidad:</strong> ${UIManager.formatNumber(score, 1)} / 10</p>`;
-          }
+            qualityContainer.innerHTML = `<p><strong data-i18n="quality.score">Puntuación de Calidad:</strong> ${UIManager.formatNumber(score, 1)} / 10</p>`;
+        }
 
 
           // Display breakdown details
-          let breakdownHtml = `<h5 data-i18n="quality.breakdownTitle">Desglose de Penalizaciones:</h5>`;
-          if (breakdown && Object.keys(breakdown).length > 0) {
-               breakdownHtml += `<ul class="quality-breakdown-list">`;
-               Object.entries(breakdown).forEach(([key, reason]) => {
+        let breakdownHtml = `<h5 data-i18n="quality.breakdownTitle">Desglose de Penalizaciones:</h5>`;
+        if (breakdown && Object.keys(breakdown).length > 0) {
+            breakdownHtml += `<ul class="quality-breakdown-list">`;
+            Object.entries(breakdown).forEach(([key, reason]) => {
                     // Translate the metric key if possible
-                    const translatedKey = LanguageManager.t(`quality.${key}`) || key;
-                    breakdownHtml += `<li><strong>${translatedKey}:</strong> ${reason}</li>`;
-               });
-               breakdownHtml += `</ul>`;
-          } else {
-               breakdownHtml += `<p class="text-muted small" data-i18n="quality.noPenalties">No se aplicaron penalizaciones.</p>`;
-          }
-          qualityContainer.innerHTML += breakdownHtml; // Append breakdown after progress bar/score
+                const translatedKey = LanguageManager.t(`quality.${key}`) || key;
+                breakdownHtml += `<li><strong>${translatedKey}:</strong> ${reason}</li>`;
+            });
+            breakdownHtml += `</ul>`;
+        } else {
+            breakdownHtml += `<p class="text-muted small" data-i18n="quality.noPenalties">No se aplicaron penalizaciones.</p>`;
+        }
+        qualityContainer.innerHTML += breakdownHtml; // Append breakdown after progress bar/score
 
-          LanguageManager.applyTranslationsToElement(qualityContainer); // Apply translations
+        LanguageManager.applyTranslationsToElement(qualityContainer); // Apply translations
 
           // Add this container in your index.html where you want the quality info:
           /*
@@ -462,7 +464,7 @@ class RMNAnalyzerApp {
                 margin-right: 0.3rem;
            }
            */
-     }
+    }
 
 
     getAnalysisParameters() {

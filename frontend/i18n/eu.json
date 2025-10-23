@@ -67,7 +67,10 @@
     "area": "Area",
     "width": "Zabalera (Hz)",
     "noPeaksYet": "Ez da pikorik aztertu oraindik",
-    "noDetails": "Ez dago datu xeherik eskuragarri"
+    "noDetails": "Ez dago datu xeherik eskuragarri",
+    "max_signal_corr": "Seinale Maximoa (Zuzenduta)",
+    "mean_intensity_corr": "Batez Besteko Intentsitatea (Zuzenduta)",
+    "std_intensity_corr": "Desbiderapen Estandarra (Zuzenduta)"
   },
   "notifications": {
     "fileLoaded": "Fitxategia kargatua: {filename}",

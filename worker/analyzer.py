@@ -266,7 +266,7 @@ class SpectrumAnalyzer:
             "fluor_atoms_estimate": round(float(fluor_atoms_estimate), 1)
         }
     
-    def _detect_peaks_advanced(self, prominence_factor=1.5, height_factor=1.0) -> List[Dict]: # ### MODIFICADO ### Parámetros ajustables
+    def _detect_peaks_advanced(self, prominence_factor=0.5, height_factor=0.3) -> List[Dict]: # ### UMBRALES MÁS BAJOS ###
         """Detecta picos usando scipy.signal.find_peaks y calcula anchos."""
         print("\n   🔍 Detectando picos significativos...")
         
@@ -277,47 +277,72 @@ class SpectrumAnalyzer:
             print("   ⚠️  Advertencia: No hay suficientes puntos para detectar picos.")
             return []
         
-        # --- Estimación de ruido y umbrales ---
-        noise_region = intensity[intensity < np.percentile(intensity, 10)]
+        # --- Estimación de ruido y umbrales (MÁS PERMISIVOS) ---
+        # Usar percentil 5 para estimar ruido
+        noise_region = intensity[intensity < np.percentile(intensity, 15)] # Percentil más alto
         noise_std = np.std(noise_region) if len(noise_region) > 1 else np.std(intensity) / 3
-        noise_std = max(noise_std, 1e-9) # Evitar ruido cero
+        noise_std = max(noise_std, 1e-9)
+        
+        # Media de la señal para calcular umbral relativo
+        signal_mean = np.mean(intensity)
+        signal_max = np.max(intensity)
+        
+        # Umbrales más permisivos
+        min_prominence = max(prominence_factor * noise_std, signal_max * 0.01) # Al menos 1% del máximo
+        min_height = max(height_factor * noise_std, signal_mean * 0.1) # Al menos 10% de la media
+        min_distance = max(len(intensity) // 500, 3) # Menos restrictivo
 
-        # Prominencia: Cuánto "sobresale" el pico de su entorno. Múltiplo del ruido.
-        min_prominence = prominence_factor * noise_std 
-        # Altura: Altura mínima absoluta del pico sobre el cero (o baseline corregido).
-        min_height = height_factor * noise_std 
-        # Distancia mínima entre picos (en número de puntos)
-        min_distance = max(len(intensity) // 200, 5) # Ajustable
-
+        print(f"   ℹ️  Señal: Max={signal_max:.2f}, Media={signal_mean:.2f}, Ruido Std={noise_std:.2f}")
         print(f"   ℹ️  Criterios picos: Prominencia > {min_prominence:.2f}, Altura > {min_height:.2f}, Distancia > {min_distance} pts")
 
         # --- Encontrar Picos ---
-        peak_indices, properties = find_peaks(
-            intensity,
-            height=min_height,
-            prominence=min_prominence,
-            distance=min_distance
-        )
+        try:
+            peak_indices, properties = find_peaks(
+                intensity,
+                height=min_height,
+                prominence=min_prominence,
+                distance=min_distance
+            )
+        except Exception as e:
+            print(f"   ❌ Error detectando picos: {e}")
+            return []
+
+        print(f"   ℹ️  Picos candidatos encontrados: {len(peak_indices)}")
 
         if len(peak_indices) == 0:
-             print("   ℹ️  No se detectaron picos con los criterios actuales.")
-             return []
+            print("   ⚠️  No se detectaron picos. Intentando con criterios más relajados...")
+            # Segundo intento con umbrales aún más bajos
+            try:
+                peak_indices, properties = find_peaks(
+                    intensity,
+                    height=signal_mean * 0.05, # 5% de la media
+                    prominence=signal_max * 0.005, # 0.5% del máximo
+                    distance=3
+                )
+                print(f"   ℹ️  Segundo intento: {len(peak_indices)} picos encontrados")
+            except Exception as e:
+                print(f"   ❌ Error en segundo intento: {e}")
+                return []
+            
+            if len(peak_indices) == 0:
+                print("   ℹ️  No se detectaron picos incluso con criterios relajados.")
+                return []
 
-        # --- Calcular Ancho de Picos --- ### NUEVO ###
-        # rel_height=0.5 calcula FWHM (Full Width at Half Maximum)
-        widths, width_heights, left_ips, right_ips = peak_widths(
-            intensity, peak_indices, rel_height=0.5
-        )
-        # Convertir anchos de puntos a PPM
-        # Necesitamos interpolar las posiciones (ips) a PPM
-        # Crear una función de interpolación índice -> ppm
-        indices = np.arange(len(ppm))
-        interp_ppm = np.interp # Interpolación lineal simple y rápida
-        
-        widths_ppm = abs(interp_ppm(right_ips, indices, ppm) - interp_ppm(left_ips, indices, ppm))
+        # --- Calcular Ancho de Picos ---
+        try:
+            widths, width_heights, left_ips, right_ips = peak_widths(
+                intensity, peak_indices, rel_height=0.5
+            )
+            
+            # Convertir anchos a PPM
+            indices = np.arange(len(ppm))
+            widths_ppm = abs(np.interp(right_ips, indices, ppm) - np.interp(left_ips, indices, ppm))
+        except Exception as e:
+            print(f"   ⚠️  Error calculando anchos de pico: {e}. Usando valores por defecto.")
+            widths_ppm = np.ones(len(peak_indices)) * 0.1 # Ancho por defecto
 
         peaks = []
-        max_intensity_overall = np.max(intensity) if np.max(intensity) > 0 else 1.0 # Evitar división por cero
+        max_intensity_overall = signal_max if signal_max > 0 else 1.0
 
         for i, idx in enumerate(peak_indices):
             peak_ppm = float(ppm[idx])
@@ -328,35 +353,43 @@ class SpectrumAnalyzer:
                 "ppm": round(peak_ppm, 3),
                 "intensity": round(peak_intensity, 2),
                 "relative_intensity": round((peak_intensity / max_intensity_overall * 100), 1),
-                "width_ppm": round(float(widths_ppm[i]), 3), # ### NUEVO ### Ancho en PPM (FWHM)
+                "width_ppm": round(float(widths_ppm[i]), 3),
                 "region": region,
                 "prominence": round(float(properties["prominences"][i]), 2),
-                # "height": round(float(properties["peak_heights"][i]), 2) # Opcional: Altura sobre cero
             })
         
-        # Ordenar por PPM
-        peaks.sort(key=lambda x: x["ppm"]) 
+        # Ordenar por intensidad (más intensos primero) y tomar los top 20
+        peaks.sort(key=lambda x: x["intensity"], reverse=True)
+        peaks = peaks[:20] # Limitar a 20 picos más relevantes
         
-        print(f"   ✅ Detectados {len(peaks)} picos con scipy")
+        # Re-ordenar por PPM para visualización
+        peaks.sort(key=lambda x: x["ppm"])
+        
+        print(f"   ✅ Detectados {len(peaks)} picos significativos (top 20 por intensidad)")
         if len(peaks) > 0:
-            # Encontrar el pico más intenso para el resumen
             main_peak = max(peaks, key=lambda p: p["intensity"])
-            print(f"   ✅ Pico principal: {main_peak['ppm']:.3f} ppm (Int: {main_peak['intensity']:.1f}, Ancho: {main_peak['width_ppm']:.3f} ppm)")
+            print(f"   ✅ Pico principal: {main_peak['ppm']:.3f} ppm (Int: {main_peak['intensity']:.1f}, Rel: {main_peak['relative_intensity']:.1f}%)")
         
         return peaks
     
     def _classify_chemical_region(self, ppm: float) -> str:
         """Clasifica la región química basada en rangos típicos de PFAS."""
-        # Rangos ajustados ligeramente para más especificidad
-        if -85 <= ppm <= -75: return "CF3 (Extremo, ej. PFOA)"
-        if -110 <= ppm <= -100: return "CF2 (Interno, Lejano)"
-        if -120 <= ppm <= -110: return "CF2 (Interno)"
-        if -128 <= ppm <= -120: return "CF2 (Próximo a grupo polar, ej. PFOA)"
-        if ppm < -128: return "CF2 (Otros o cadena larga)"
-        if -65 <= ppm <= -55: return "CF (Ramificado?)" # Menos común
-        # Puedes añadir más regiones si esperas otros tipos de flúor
-        return "Fuera de rango PFAS típico"
-    
+        # Rangos ajustados según literatura de 19F-NMR para PFAS
+        if -90 <= ppm <= -75:
+            return "CF₃ Terminal (ej. PFOA, PFOS)"
+        elif -100 <= ppm <= -90:
+            return "CF₂ Interno (Lejano del grupo polar)"
+        elif -115 <= ppm <= -100:
+            return "CF₂ Interno (Central)"
+        elif -130 <= ppm <= -115:
+            return "CF₂ Próximo a grupo polar (ej. -CF₂-COO⁻)"
+        elif ppm < -130:
+            return "CF₂ Otros / Fluoruros especiales"
+        elif -75 <= ppm <= -55:
+            return "CF Ramificado / CFH"
+        else:
+            return "Fuera de rango PFAS típico (-130 a -55 ppm)"
+            
     def _analyze_regions(self) -> Dict:
         """Analiza la contribución de área en regiones químicas predefinidas."""
         print("\n   🗺️  Analizando contribución por regiones químicas...")
