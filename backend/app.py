@@ -236,16 +236,25 @@ def export_report():
     Maneja tanto análisis únicos como comparaciones.
     """
     try:
-        # NOTA: No necesitamos usar el codificador aquí porque
-        # los datos JSON ya vienen del frontend (serializados)
-        # o se están pasando a export_utils, que maneja su propio formato.
         data = request.get_json()
         format_type = data.get("format", "pdf").lower()
-        export_type = data.get("type", "single") # 'single' o 'comparison'
+        export_type = data.get("type", "single")
+        
+        # 🆕 OBTENER LA IMAGEN DEL GRÁFICO (si existe)
+        chart_image_base64 = data.get("chart_image")
+        chart_image_bytes = None
+        
+        if chart_image_base64:
+            try:
+                # Convertir base64 a bytes
+                chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64)
+                print(f"📊 Imagen del gráfico recibida y decodificada ({len(chart_image_bytes)} bytes)")
+            except Exception as e:
+                print(f"⚠️ Error decodificando imagen del gráfico: {e}")
+                chart_image_bytes = None
 
-        print(f"📤 Solicitud de exportación: Tipo={export_type}, Formato={format_type}")
+        print(f"📤 Solicitud de exportación: Tipo={export_type}, Formato={format_type}, Con gráfico={chart_image_bytes is not None}")
 
-        # Determinar tipo MIME y nombre de archivo
         mime_types = {
             "json": "application/json",
             "csv": "text/csv",
@@ -266,22 +275,20 @@ def export_report():
         filename_prefix = ""
 
         if export_type == "comparison":
-            # --- Lógica de Exportación de Comparación ---
             samples = data.get("samples", [])
             filename_prefix = f"rmn_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             
             if format_type == "pdf":
-                output = ReportExporter.export_comparison_pdf(samples)
+                output = ReportExporter.export_comparison_pdf(samples, chart_image_bytes)
             elif format_type == "docx":
-                output = ReportExporter.export_comparison_docx(samples)
+                output = ReportExporter.export_comparison_docx(samples, chart_image_bytes)
             elif format_type == "csv":
                 output = ReportExporter.export_comparison_csv(samples)
             else:
-                # JSON para comparación (no solicitado, pero bueno tenerlo)
-                output = ReportExporter.export_json(data) 
+                output = ReportExporter.export_json(data)
                 
         else:
-            # --- Lógica de Exportación de Análisis Único (existente) ---
+            # 🆕 PASAR LA IMAGEN AL EXPORTADOR
             results = data.get("results", {})
             filename_prefix = f"rmn_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
@@ -290,9 +297,9 @@ def export_report():
             elif format_type == "csv":
                 output = ReportExporter.export_csv(results)
             elif format_type == "pdf":
-                output = ReportExporter.export_pdf(results) # (Ahora con gráfico)
+                output = ReportExporter.export_pdf(results, chart_image_bytes)  # 🆕 CON IMAGEN
             elif format_type == "docx":
-                output = ReportExporter.export_docx(results) # (Ahora con gráfico)
+                output = ReportExporter.export_docx(results, chart_image_bytes)  # 🆕 CON IMAGEN
         
         if output is None:
              return jsonify({"error": f"No se pudo generar la exportación para {export_type} en {format_type}"}), 500
@@ -310,7 +317,6 @@ def export_report():
         print(f"❌ Error exportando: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": f"Export failed: {str(e)}"}), 500
-
 # ============================================================================
 # API - Gestión de Archivos (endpoints originales)
 # ============================================================================

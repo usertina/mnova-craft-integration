@@ -365,4 +365,33 @@ class ChartManager {
                 }
             });
     }
+
+    static async getChartAsBase64() {
+        /**
+         * Captura el gráfico actual como imagen base64
+         * @returns {Promise<string>} - String base64 de la imagen PNG
+         */
+        const chartDiv = document.getElementById('spectrumChart');
+        if (!chartDiv || !chartDiv.data) {
+            window.APP_LOGGER.warn('No chart available to capture');
+            return null;
+        }
+        
+        try {
+            // Usar Plotly.toImage para obtener la imagen como base64
+            const imageData = await Plotly.toImage(chartDiv, {
+                format: 'png',
+                width: 800,
+                height: 500,
+                scale: 2 // Mejor calidad
+            });
+            
+            window.APP_LOGGER.debug('Chart captured as base64');
+            return imageData; // Ya viene como "data:image/png;base64,..."
+            
+        } catch (error) {
+            window.APP_LOGGER.error('Error capturing chart:', error);
+            return null;
+        }
+    }
 }

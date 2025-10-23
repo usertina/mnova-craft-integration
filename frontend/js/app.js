@@ -632,9 +632,26 @@ class RMNAnalyzerApp {
         UIManager.updateButtonState(exportBtn, 'loading');
 
         try {
-            await APIClient.exportReport(this.analysisResults, format);
+            // 🆕 CAPTURAR EL GRÁFICO COMO IMAGEN BASE64
+            let chartImage = null;
+            try {
+                chartImage = await ChartManager.getChartAsBase64();
+                if (chartImage) {
+                    window.APP_LOGGER.debug('Chart image captured successfully');
+                } else {
+                    window.APP_LOGGER.warn('Could not capture chart image, exporting without it');
+                }
+            } catch (error) {
+                window.APP_LOGGER.error('Error capturing chart:', error);
+                // Continuar sin la imagen si hay error
+            }
+            
+            // Exportar con la imagen del gráfico
+            await APIClient.exportReport(this.analysisResults, format, chartImage);
+            
             this.showNotification('notifications.exportSuccess', 'success');
             UIManager.updateButtonState(exportBtn, 'success');
+            
         } catch (error) {
             this.showNotification('notifications.exportError', 'error', {
                 error: error.message

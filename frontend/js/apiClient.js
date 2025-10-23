@@ -80,17 +80,26 @@ class APIClient {
         }
     }
 
-    static async exportReport(results, format = 'pdf') {
+    static async exportReport(results, format = 'pdf', chartImage = null) {
         try {
+            // Preparar el payload
+            const payload = {
+                results: results,
+                format: format
+            };
+            
+            // Añadir la imagen del gráfico si existe
+            if (chartImage) {
+                payload.chart_image = chartImage; // Base64 string
+                window.APP_LOGGER.debug('Chart image included in export payload');
+            }
+            
             const response = await fetch(`${this.baseURL}/export`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    results: results,
-                    format: format
-                })
+                body: JSON.stringify(payload)
             });
             
             if (!response.ok) {
@@ -98,7 +107,7 @@ class APIClient {
                 throw new Error(error.error || 'Export failed');
             }
             
-            // Handle file download
+            // Manejar descarga del archivo
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
