@@ -57,7 +57,17 @@
     "intensity_range_original": "Intentsitate Tartea (Jatorrizkoa)",
     "max_signal": "Seinale Maximoa",
     "std_intensity": "Desbiderapen Estandarra",
-    "signal_to_noise": "Seinale/Zarata Ratioa"
+    "signal_to_noise": "Seinale/Zarata Ratioa",
+    "detectedPeaks": "Detektatutako Pikoak",
+    "totalIntegral": "Integral Osoa",
+    "signalNoise": "S/Z Ratioa",
+    "peakDetails": "Piko Xehetasunak",
+    "position": "Posizioa (ppm)",
+    "height": "Altuera",
+    "area": "Area",
+    "width": "Zabalera (Hz)",
+    "noPeaksYet": "Ez da pikorik aztertu oraindik",
+    "noDetails": "Ez dago datu xeherik eskuragarri"
   },
   "notifications": {
     "fileLoaded": "Fitxategia kargatua: {filename}",
@@ -79,7 +89,8 @@
     "invalidFile": "Fitxategi baliogabea",
     "analysisLoad": "Errorea historialeko analisia kargatzean.",
     "initialization": "Errorea aplikazioa abiaraztean",
-    "historyLoad": "Errorea historia kargatzerakoan"
+    "historyLoad": "Errorea historia kargatzerakoan",
+    "fullscreen": "Errorea pantaila osoa aktibatzean"
   },
   "connection": {
     "connecting": "Konektatzen...",
@@ -164,11 +175,14 @@
     "today": "Gaur",
     "thisWeek": "Aste honetan",
     "thisMonth": "Hilabete honetan",
+    "avgSNR": "Batezbesteko SNR",
+    "highQuality": "Kalitate Altuko Laginak",
+    "export": "Esportatu Datuak",
     "qualityLabels": {                             
-        "Excelente (>=8)": "Bikain (≥8)",
-        "Buena (6-8)": "Ona (6-8)",
-        "Regular (4-6)": "Erregularra (4-6)",
-        "Baja (<4)": "Txarra (<4)"
+        "excellent": "Bikain (≥8)",
+        "good": "Ona (6-8)",
+        "Regular": "Erregularra (4-6)",
+        "low": "Txarra (<4)"
     }
   },
   "comparison": {
@@ -188,7 +202,28 @@
     "instructions": "Hautatu gehienez {max} lagin haien emaitzak konparatzeko",
     "selected": "{count} {max}-tik hautatuta",
     "compareResults": "Konparatu Emaitzak",
-    "comparisonTable": "Konparazio Taula"
+    "comparisonTable": "Konparazio Taula",
+    "selectMoreSamples": "Hautatu gutxienez 2 lagin konparatzeko",
+    "maxSamplesReached": "Gehienezko {max} lagin heldu da"
+  },
+  "peaks": {
+    "title": "Detektatutako Pikoak",
+    "ppm": "PPM",
+    "intensity": "Intentsitatea",
+    "relIntensity": "Int. Erlatiboa (%)",
+    "width": "Zabalera (ppm)",
+    "region": "Eskualdea",
+    "none": "Ez da piko esanguratsurik detektatu."
+  },
+  "quality": {
+    "score": "Kalitate Puntuazioa",
+    "breakdownTitle": "Zigorra Xehetasunak",
+    "noPenalties": "Ez da zigorrik aplikatu.",
+    "snr": "SNR (Seinale/Zarata Ratioa)",
+    "total_points": "Datu Puntu Guztira",
+    "dynamic_range": "Eremu Dinamikoa",
+    "baseline_stability": "Oinarri Lerroa Egonkortasuna",
+    "peak_detection": "Piko Detekzioa"
   },
   "languages": {
     "es": "Español",

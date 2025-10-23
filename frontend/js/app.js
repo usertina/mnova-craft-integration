@@ -94,10 +94,26 @@ class RMNAnalyzerApp {
                 this.showNotification('history.refresh', 'success');
             });
         }
-        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const clearHistoryBtn = document.getElementById('clearHistory');
         if (clearHistoryBtn) {
             clearHistoryBtn.addEventListener('click', () => {
                 this.clearHistory();
+            });
+        }
+
+        const filterHistoryBtn = document.getElementById('filterHistory');
+        if (filterHistoryBtn) {
+            filterHistoryBtn.addEventListener('click', () => {
+                // Toggle filtros o mostrar menú
+                console.log('Filter history clicked - implementar UI de filtros');
+                // Puedes implementar un dropdown de fechas aquí
+            });
+        }
+
+        const searchHistoryInput = document.getElementById('searchHistory');
+        if (searchHistoryInput) {
+            searchHistoryInput.addEventListener('input', () => {
+                this.filterHistory();
             });
         }
     }
@@ -251,6 +267,11 @@ class RMNAnalyzerApp {
 
         // ### NUEVO: Update Peaks Table ###
         this.updatePeaksTable(results.peaks || []);
+        // ### ACTUALIZAR EL CONTADOR DE PICOS ###
+        const peaksCountElement = document.getElementById('peaksCount');
+        if (peaksCountElement) {
+            peaksCountElement.textContent = (results.peaks || []).length;
+        }
 
         // ### NUEVO: Update Quality Breakdown ###
         this.updateQualityBreakdown(results.quality_score, results.quality_breakdown || {});

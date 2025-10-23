@@ -57,7 +57,17 @@
     "mean_intensity": "Intensidad Media",
     "std_intensity": "Desviación Estándar",
     "max_signal": "Señal Máxima",
-    "signal_to_noise": "Relación Señal/Ruido"
+    "signal_to_noise": "Relación Señal/Ruido",
+    "detectedPeaks": "Picos Detectados",
+    "totalIntegral": "Integral Total",
+    "signalNoise": "Relación S/N",
+    "peakDetails": "Detalles de Picos",
+    "position": "Posición (ppm)",
+    "height": "Altura",
+    "area": "Área",
+    "width": "Ancho (Hz)",
+    "noPeaksYet": "No hay picos analizados aún",
+    "noDetails": "No hay datos detallados disponibles"
   },
   "notifications": {
     "fileLoaded": "Archivo cargado: {filename}",
@@ -79,7 +89,8 @@
     "analysisLoad": "Error al cargar el análisis del historial.",
     "invalidFile": "Archivo inválido",
     "initialization": "Error inicializando la aplicación",
-    "historyLoad": "Error al cargar el historial"
+    "historyLoad": "Error al cargar el historial",
+    "fullscreen": "Error al activar pantalla completa"
   },
   "connection": {
     "connecting": "Conectando...",
@@ -164,11 +175,14 @@
     "today": "Hoy",
     "thisWeek": "Esta semana",
     "thisMonth": "Este mes",
-    "qualityLabels": {                               
-        "Excelente (>=8)": "Excelente (≥8)",
-        "Buena (6-8)": "Buena (6-8)",
-        "Regular (4-6)": "Regular (4-6)",
-        "Baja (<4)": "Baja (<4)"
+    "avgSNR": "SNR Promedio",
+    "highQuality": "Muestras Alta Calidad",
+    "export": "Exportar Datos",
+    "qualityLabels": {
+    "excellent": "Excelente (≥8)",
+    "good": "Buena (6-8)",
+    "regular": "Regular (4-6)",
+    "low": "Baja (<4)"
     }
   },
   "comparison": {
@@ -188,7 +202,28 @@
     "instructions": "Selecciona hasta {max} muestras para comparar sus resultados",
     "selected": "{count} de {max} seleccionadas",
     "compareResults": "Comparar Resultados",
-    "comparisonTable": "Tabla Comparativa"
+    "comparisonTable": "Tabla Comparativa",
+    "selectMoreSamples": "Selecciona al menos 2 muestras para comparar",
+    "maxSamplesReached": "Máximo {max} muestras alcanzado"
+  },
+  "peaks": {
+    "title": "Picos Detectados",
+    "ppm": "PPM",
+    "intensity": "Intensidad",
+    "relIntensity": "Int. Relativa (%)",
+    "width": "Ancho (ppm)",
+    "region": "Región",
+    "none": "No se detectaron picos significativos."
+  },
+  "quality": {
+    "score": "Puntuación de Calidad",
+    "breakdownTitle": "Desglose de Penalizaciones",
+    "noPenalties": "No se aplicaron penalizaciones.",
+    "snr": "SNR (Relación Señal/Ruido)",
+    "total_points": "Total de Puntos de Datos",
+    "dynamic_range": "Rango Dinámico",
+    "baseline_stability": "Estabilidad de Línea Base",
+    "peak_detection": "Detección de Picos"
   },
   "languages": {
     "es": "Español",

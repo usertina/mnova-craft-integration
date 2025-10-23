@@ -276,7 +276,13 @@ class DashboardManager {
         });
 
         // Translate labels
-        const translatedLabels = qualityKeys.map(key => LanguageManager.t(`dashboard.qualityLabels.${key}`) || key);
+        const labelTranslations = {
+            'Excelente (>=8)': LanguageManager.t('dashboard.qualityLabels.excellent') || 'Excelente (≥8)',
+            'Buena (6-8)': LanguageManager.t('dashboard.qualityLabels.good') || 'Buena (6-8)',
+            'Regular (4-6)': LanguageManager.t('dashboard.qualityLabels.regular') || 'Regular (4-6)',
+            'Baja (<4)': LanguageManager.t('dashboard.qualityLabels.low') || 'Baja (<4)'
+        };
+        const translatedLabels = qualityKeys.map(key => labelTranslations[key] || key);
 
 
         const trace = {
@@ -338,7 +344,6 @@ class DashboardManager {
             const date = new Date(analysis.created).toLocaleString(LanguageManager.currentLang);
             const fluor = UIManager.formatNumber(analysis.fluor, 2) + '%';
             const pfas = UIManager.formatNumber(analysis.pfas, 2) + '%';
-            //const concentration = UIManager.formatNumber(analysis.concentration, 4) + ' mM'; // Concentration not in default header
             const quality = UIManager.formatNumber(analysis.quality, 1);
             const qualityClass = this.getQualityClass(analysis.quality);
 
@@ -347,7 +352,6 @@ class DashboardManager {
                 <td>${date}</td>
                 <td>${fluor}</td>
                 <td>${pfas}</td>
-                {/*<td>${concentration}</td> We removed this column from default header */}
                 <td><span class="quality-badge ${qualityClass}">${quality}/10</span></td>
             `;
             tbody.appendChild(row);

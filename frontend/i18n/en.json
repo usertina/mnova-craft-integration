@@ -57,7 +57,17 @@
     "mean_intensity": "Mean Intensity",
     "max_signal": "Max Signal",
     "std_intensity": "Standard Deviation",
-    "signal_to_noise": "Signal-to-Noise Ratio"
+    "signal_to_noise": "Signal-to-Noise Ratio",
+    "detectedPeaks": "Detected Peaks",
+    "totalIntegral": "Total Integral",
+    "signalNoise": "S/N Ratio",
+    "peakDetails": "Peak Details",
+    "position": "Position (ppm)",
+    "height": "Height",
+    "area": "Area",
+    "width": "Width (Hz)",
+    "noPeaksYet": "No peaks analyzed yet",
+    "noDetails": "No detailed data available"
   },
   "notifications": {
     "fileLoaded": "File loaded: {filename}",
@@ -79,7 +89,8 @@
     "invalidFile": "Invalid file",
     "analysisLoad": "Error loading analysis from history.",
     "initialization": "Error initializing application",
-    "historyLoad": "Error loading history"
+    "historyLoad": "Error loading history",
+    "fullscreen": "Error enabling fullscreen"
   },
   "connection": {
     "connecting": "Connecting...",
@@ -164,11 +175,14 @@
     "today": "Today",
     "thisWeek": "This week",
     "thisMonth": "This month",
+    "avgSNR": "Average SNR",
+    "highQuality": "High Quality Samples",
+    "export": "Export Data",
     "qualityLabels": {                             
-        "Excelente (>=8)": "Excellent (≥8)",
-        "Buena (6-8)": "Good (6-8)",
-        "Regular (4-6)": "Fair (4-6)",
-        "Baja (<4)": "Poor (<4)"
+        "excellent": "Excellent (≥8)",
+        "good": "Good (6-8)",
+        "Regular": "Fair (4-6)",
+        "low": "Poor (<4)"
     }
   },
   "comparison": {
@@ -188,7 +202,28 @@
     "instructions": "Select up to {max} samples to compare their results",
     "selected": "{count} of {max} selected",
     "compareResults": "Compare Results",
-    "comparisonTable": "Comparison Table"
+    "comparisonTable": "Comparison Table",
+    "selectMoreSamples": "Select at least 2 samples to compare",
+    "maxSamplesReached": "Maximum {max} samples reached"
+  },
+  "peaks": {
+    "title": "Detected Peaks",
+    "ppm": "PPM",
+    "intensity": "Intensity",
+    "relIntensity": "Rel. Intensity (%)",
+    "width": "Width (ppm)",
+    "region": "Region",
+    "none": "No significant peaks detected."
+  },
+  "quality": {
+    "score": "Quality Score",
+    "breakdownTitle": "Penalty Breakdown",
+    "noPenalties": "No penalties applied.",
+    "snr": "SNR (Signal-to-Noise Ratio)",
+    "total_points": "Total Data Points",
+    "dynamic_range": "Dynamic Range",
+    "baseline_stability": "Baseline Stability",
+    "peak_detection": "Peak Detection"
   },
   "languages": {
     "es": "Spanish",

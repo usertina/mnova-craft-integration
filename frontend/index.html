@@ -186,6 +186,30 @@
                             </div>
                         </div>
 
+                        <!-- Detailed Statistics Table -->
+                        <div class="detailed-results">
+                            <h3 data-i18n="results.detailedResults">Resultados Detallados</h3>
+                            <div class="table-container">
+                                <table id="resultsTable">
+                                    <thead>
+                                        <tr>
+                                            <th data-i18n="results.parameter">Parámetro</th>
+                                            <th data-i18n="results.value">Valor</th>
+                                            <th data-i18n="results.units">Unidades</th>
+                                            <th data-i18n="results.limits">Límites</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="4" class="empty-state">
+                                                <i class="fas fa-chart-line"></i>
+                                                <p data-i18n="results.noDetails">No hay datos detallados disponibles</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                         <!-- Peak Details Table -->
                         <div class="peak-details">
                             <h3 data-i18n="results.peakDetails">Detalles de Picos</h3>
@@ -457,7 +481,7 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td colspan="2" class="empty-state-cell"> 
+                                        <td colspan="2" class="empty-state-cell">
                                             <i class="fas fa-mouse-pointer"></i>
                                             <p data-i18n="comparison.selectSamples"></p>
                                         </td>
