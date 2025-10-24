@@ -154,6 +154,30 @@ class ReportExporter:
         quality_text = f"<b>Score de Calidad:</b> {results.get('quality_score', 0):.1f}/10"
         story.append(Paragraph(quality_text, styles['Normal']))
         story.append(PageBreak())
+
+        # ===== sección simple ===== 
+        story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph("Información Rápida", styles['Heading2']))
+        story.append(Spacer(1, 0.1*inch))
+
+        quick_info_data = [
+            ['Métrica', 'Valor'],
+            ['Picos Detectados', str(len(results.get('peaks', [])))],
+            ['Integral Total', f"{analysis.get('total_area', 0):,.2f}"],
+            ['Relación S/N', f"{results.get('quality_metrics', {}).get('snr', 0):.2f}"]
+        ]
+
+        quick_table = Table(quick_info_data, colWidths=[2.5*inch, 2*inch])
+        quick_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9b59b6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+
+        story.append(quick_table)
+        story.append(PageBreak())
         
         # ===== ANÁLISIS DETALLADO =====
         story.append(Paragraph("3. Análisis Detallado", styles['Heading1']))
@@ -181,6 +205,63 @@ class ReportExporter:
         
         story.append(comp_table)
         story.append(Spacer(1, 0.3*inch))
+
+        # 🆕 3.2 Estadísticas Detalladas
+        story.append(Paragraph("3.2 Estadísticas Detalladas", styles['Heading2']))
+        story.append(Spacer(1, 0.1*inch))
+
+        detailed_stats = results.get("detailed_analysis", {})
+
+        if detailed_stats and not detailed_stats.get("error"):
+            # Crear tabla de estadísticas detalladas
+            stats_data = [['Parámetro', 'Valor', 'Unidades', 'Límites']]
+            
+            # Orden de parámetros a mostrar
+            param_order = [
+                'ppm_range',
+                'intensity_range_corrected',
+                'intensity_range_original',
+                'max_signal_corr',
+                'mean_intensity_corr',
+                'std_intensity_corr',
+                'signal_to_noise'
+            ]
+            
+            for param_key in param_order:
+                if param_key in detailed_stats:
+                    stat = detailed_stats[param_key]
+                    param_name = stat.get('parameter', param_key)
+                    value = stat.get('value', '--')
+                    unit = stat.get('unit', '')
+                    limits = stat.get('limits', '—')
+                    
+                    # Convertir valor a string si no lo es
+                    if not isinstance(value, str):
+                        if isinstance(value, float):
+                            value = f"{value:.2f}"
+                        else:
+                            value = str(value)
+                    
+                    stats_data.append([param_name, value, unit, limits])
+            
+            stats_table = Table(stats_data, colWidths=[2.2*inch, 1.5*inch, 1*inch, 1.1*inch])
+            stats_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('ALIGN', (1, 1), (1, -1), 'RIGHT'),  # Alinear valores a la derecha
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ]))
+            
+            story.append(stats_table)
+        else:
+            story.append(Paragraph("No hay estadísticas detalladas disponibles.", styles['Normal']))
+
+        story.append(PageBreak())
+
+
         
         # ===== PICOS DETECTADOS =====
         story.append(Paragraph("4. Picos Detectados", styles['Heading1']))
@@ -286,6 +367,33 @@ class ReportExporter:
         quality_p.add_run(f"{results.get('quality_score', 0):.1f}/10")
         
         doc.add_page_break()
+
+        doc.add_paragraph()
+
+        # 🆕 Información Rápida
+        info_p = doc.add_paragraph()
+        info_p.add_run('Información Rápida').bold = True
+        info_p.style = 'Heading 2'
+
+        quick_table = doc.add_table(rows=4, cols=2)
+        quick_table.style = 'Light List Accent 1'
+
+        quick_data = [
+            ('Picos Detectados', str(len(results.get('peaks', [])))),
+            ('Integral Total', f"{analysis.get('total_area', 0):,.2f}"),
+            ('Relación S/N', f"{results.get('quality_metrics', {}).get('snr', 0):.2f}")
+        ]
+
+        hdr_cells = quick_table.rows[0].cells
+        hdr_cells[0].text = 'Métrica'
+        hdr_cells[1].text = 'Valor'
+
+        for idx, (metric, value) in enumerate(quick_data, start=1):
+            row_cells = quick_table.rows[idx].cells
+            row_cells[0].text = metric
+            row_cells[1].text = value
+
+        doc.add_page_break()
         
         # ===== RESULTADOS DETALLADOS =====
         doc.add_heading('3. Análisis Detallado', level=1)
@@ -306,7 +414,64 @@ class ReportExporter:
             comp_table.rows[idx].cells[1].text = val
         
         doc.add_paragraph()
-        
+
+        # 🆕 3.2 Estadísticas Detalladas
+        doc.add_heading('3.2 Estadísticas Detalladas', level=2)
+
+        detailed_stats = results.get("detailed_analysis", {})
+
+        if detailed_stats and not detailed_stats.get("error"):
+            # Orden de parámetros
+            param_order = [
+                'ppm_range',
+                'intensity_range_corrected',
+                'intensity_range_original',
+                'max_signal_corr',
+                'mean_intensity_corr',
+                'std_intensity_corr',
+                'signal_to_noise'
+            ]
+            
+            # Contar parámetros válidos
+            valid_params = [p for p in param_order if p in detailed_stats]
+            
+            if valid_params:
+                stats_table = doc.add_table(rows=len(valid_params)+1, cols=4)
+                stats_table.style = 'Light Grid Accent 1'
+                
+                # Encabezados
+                hdr = stats_table.rows[0].cells
+                hdr[0].text = 'Parámetro'
+                hdr[1].text = 'Valor'
+                hdr[2].text = 'Unidades'
+                hdr[3].text = 'Límites'
+                
+                # Datos
+                for idx, param_key in enumerate(valid_params, start=1):
+                    stat = detailed_stats[param_key]
+                    row = stats_table.rows[idx].cells
+                    
+                    row[0].text = stat.get('parameter', param_key)
+                    
+                    # Formatear valor
+                    value = stat.get('value', '--')
+                    if not isinstance(value, str):
+                        if isinstance(value, float):
+                            value = f"{value:.2f}"
+                        else:
+                            value = str(value)
+                    row[1].text = value
+                    
+                    row[2].text = stat.get('unit', '')
+                    row[3].text = stat.get('limits', '—')
+            else:
+                doc.add_paragraph("No hay estadísticas detalladas disponibles.")
+        else:
+            doc.add_paragraph("No hay estadísticas detalladas disponibles.")
+
+        doc.add_paragraph()
+
+                
         # ===== PICOS DETECTADOS =====
         doc.add_heading('4. Picos Detectados', level=1)
         
