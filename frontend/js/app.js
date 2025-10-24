@@ -17,7 +17,6 @@ class RMNAnalyzerApp {
     async initializeApp() {
         try {
             window.APP_LOGGER.info('Initializing RMN Analyzer App...');
-            await LanguageManager.init();
             LanguageManager.subscribe((lang) => this.onLanguageChanged(lang));
             this.setupEventListeners();
             await this.checkBackendConnection();
@@ -591,7 +590,7 @@ class RMNAnalyzerApp {
         }
         qualityContainer.innerHTML += breakdownHtml; // Append breakdown after progress bar/score
 
-        LanguageManager.applyTranslationsToElement(qualityContainer); // Apply translations
+        LanguageManager.applyTranslations(qualityContainer); // Apply translations
 
           // Add this container in your index.html where you want the quality info:
           /*
@@ -681,12 +680,15 @@ class RMNAnalyzerApp {
         });
             
         setTimeout(() => {
-            ChartManager.refreshTranslations(lang);
-        }, 100);
+            // 💡 Solo refresca el gráfico si ya existe Y TIENE DATOS
+            if (ChartManager.chart && ChartManager.chart.data) { // <--- MODIFICA ESTA LÍNEA
+                ChartManager.refreshTranslations(lang);
+            }
+        }, 400);
+
         if (window.dashboardManager) {
             window.dashboardManager.refreshTranslations(lang);
         }
-        ChartManager.refreshTranslations(lang);
         if (this.analysisResults) {
             // Re-render results to apply translations
             this.updateResultsDisplay(this.analysisResults);
@@ -727,7 +729,7 @@ class RMNAnalyzerApp {
     }
 
     switchTab(tabName) {
-        const tabElement = document.getElementById(`${tabName}-tab`);
+        let tabElement = document.getElementById(`${tabName}-tab`);
         if (!tabElement) {
             // If the target tab doesn't exist (because it's commented out), maybe switch to default?
              console.warn(`Tab ${tabName} content not found. Switching to analyzer.`);
@@ -766,7 +768,7 @@ class RMNAnalyzerApp {
         if (pageTitle) {
              const titleKey = `header.${tabName}`; // Assumes translation key matches tab name
              pageTitle.setAttribute('data-i18n', titleKey);
-             LanguageManager.applyTranslationsToElement(pageTitle);
+             LanguageManager.applyTranslations(pageTitle);
         }
     }
 
@@ -912,7 +914,7 @@ class RMNAnalyzerApp {
             `;
             // Aplicar traducciones a este mensaje estático si se usa i18n
             if (typeof LanguageManager !== 'undefined') {
-                LanguageManager.applyTranslationsToElement(historyList);
+                LanguageManager.applyTranslations(historyList);
             }
             return;
         }
@@ -1117,7 +1119,7 @@ class RMNAnalyzerApp {
         const sampleNameEl = document.getElementById('sampleName');
         if(sampleNameEl){
              sampleNameEl.setAttribute('data-i18n', 'analyzer.waitingData');
-             LanguageManager.applyTranslationsToElement(sampleNameEl);
+             LanguageManager.applyTranslations(sampleNameEl);
         }
 
         UIManager.disableElement('exportBtn');
@@ -1145,16 +1147,17 @@ class RMNAnalyzerApp {
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        await ChartManager.init(); // Initialize ChartManager first
-        window.rmnApp = new RMNAnalyzerApp(); // THEN initialize the App
+        // 1. Inicializa el idioma PRIMERO
+        await LanguageManager.init(); 
+        
+        // 2. Ahora inicializa el ChartManager (que usa las traducciones)
+        await ChartManager.init(); 
+        
+        // 3. Finalmente, inicializa la App (que también usa el idioma)
+        window.rmnApp = new RMNAnalyzerApp(); 
         /* ... (Carga de methods comentada) ... */
     } catch (error) {
         console.error("Critical application initialization error:", error);
-         // Display error to user if possible
-         const loadingScreen = document.getElementById('loadingScreen');
-         if(loadingScreen) {
-              loadingScreen.innerHTML = `<div class="loading-content"><p class="error">Error al iniciar la aplicación. Revise la consola.</p></div>`;
-              loadingScreen.classList.remove('hidden'); // Ensure it's visible
-         }
+         
     }
 });

@@ -27,6 +27,7 @@
             <div class="header-left">
                 <div class="logo">
                     <img src="assets/images/logo.webp" alt="Logo Qubiz team" class="logo-img">
+                    <img src="assets/images/logo_qubiz.png" alt="Logo Qubiz team" class="logo-img">
                     <span class="logo-text" data-i18n="app.logo">Qubiz team</span>
                 </div>
                 <nav class="main-nav">
@@ -42,6 +43,7 @@
             <div class="header-right">
                 <!-- Language Selector -->
                 <div class="language-selector">
+                    <label for="languageSelector" class="visually-hidden">Selector de Idioma</label>
                     <select id="languageSelector" class="language-dropdown">
                         <!-- Opciones se llenan dinámicamente -->
                     </select>
@@ -144,16 +146,20 @@
                                 </div>
                             </div>
 
-                            <div class="result-card">
+                            <div class="result-card quality-card">
                                 <div class="result-icon quality">
                                     <i class="fas fa-check-circle"></i>
                                 </div>
                                 <div class="result-content">
                                     <h4 data-i18n="results.quality">Calidad</h4>
-                                    <div class="result-value" id="qualityResult">--</div>
-                                    <div class="result-badge" id="qualityBadge"></div>
+                                    <div class="progress" id="qualityProgressBar" style="height: 20px;">
+                                        <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="10">0/10</div>
+                                    </div>
+                                    <div id="qualityBreakdownContainer" class="mt-2">
+                                    </div>
                                 </div>
                             </div>
+
                         </div>
 
                         <!-- Quick Stats -->
@@ -224,7 +230,7 @@
                                                 <th data-i18n="results.height">Altura</th>
                                                 <th data-i18n="results.area">Área</th>
                                                 <th data-i18n="results.width">Ancho (Hz)</th>
-                                                <th data-i18n="results.region">Región</th>
+                                                <th data-i18n="peaks.region">Región</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -249,6 +255,7 @@
                     <div class="history-header">
                         <h2><i class="fas fa-history"></i> <span data-i18n="history.title">Historial de Análisis</span></h2>
                         <div class="history-actions">
+                            <label for="searchHistory" class="visually-hidden" data-i18n="history.search">Buscar...</label>
                             <input type="text" id="searchHistory" class="search-input" placeholder="Buscar..." data-i18n-placeholder="history.search">
                             <button class="btn btn-outline" id="filterHistory">
                                 <i class="fas fa-filter"></i> 
@@ -285,7 +292,7 @@
                 <div class="dashboard-controls">
                     <!-- Filtros rápidos -->
                     <div class="date-filter-group">
-                        <label class="filter-label" data-i18n="dashboard.filterBy">Filtrar por:</label>
+                        <label class="filter-label" for="dashboardQuickFilter" data-i18n="dashboard.filterBy">Filtrar por:</label>
                         <select id="dashboardQuickFilter" class="filter-select">
                             <option value="all" data-i18n="dashboard.filters.all">Todos los análisis</option>
                             <option value="today" data-i18n="dashboard.filters.today">Hoy</option>
@@ -298,14 +305,14 @@
                     <!-- Selector de rango personalizado (inicialmente oculto) -->
                     <div class="date-range-selector" id="customDateRange" style="display: none;">
                         <div class="date-input-group">
-                            <label class="date-label">
+                            <label class="date-label" for="dateFrom"></label>
                                 <i class="fas fa-calendar-day"></i>
                                 <span data-i18n="dashboard.dateFrom">Desde:</span>
                             </label>
                             <input type="date" id="dateFrom" class="date-input">
                         </div>
                         <div class="date-input-group">
-                            <label class="date-label">
+                            <label class="date-label" for="dateTo"></label>
                                 <i class="fas fa-calendar-day"></i>
                                 <span data-i18n="dashboard.dateTo">Hasta:</span>
                             </label>
@@ -424,6 +431,72 @@
             </div>
         </div>
     </div>
+    <div id="comparison-tab" class="tab-content">
+                <div class="comparison-container">
+                    
+                    <div class="comparison-header">
+                        <h2>
+                            <i class="fas fa-balance-scale"></i> 
+                            <span data-i18n="comparison.title">Comparación de Muestras</span>
+                        </h2>
+                        <div class="comparison-actions">
+                            <span id="selectedCountDisplay" data-params-count="0" data-params-max="5">{count} of {max} selected</span>
+                            <button class="btn btn-success" id="exportComparisonBtn" disabled>
+                                <i class="fas fa-download"></i>
+                                <span data-i18n="comparison.exportComparison">Exportar Comparación</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="comparison-content-grid">
+                        
+                        <div class="sample-selector-panel">
+                            <h3 data-i18n="comparison.selectSamples">Seleccionar Muestras</h3>
+                            <p class="small-instructions" data-i18n="comparison.instructions" data-params-max="5">Selecciona hasta 5 muestras.</p>
+                            <div class="sample-selector-grid" id="sampleSelectorContainer">
+                                <div class="empty-state-comparison" data-i18n="comparison.noSamples">
+                                    No hay muestras disponibles
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="comparison-results-panel">
+                            
+                            <div class="chart-card">
+                                <h3>
+                                    <i class="fas fa-chart-bar"></i>
+                                    <span data-i18n="comparison.chartTitle">Gráfico de Comparación</span>
+                                </h3>
+                                <div class="chart-container-dash" id="comparisonChart"></div>
+                            </div>
+
+                            <div class="table-card">
+                                <h3>
+                                    <i class="fas fa-table"></i>
+                                    <span data-i18n="comparison.comparisonTable">Tabla Comparativa</span>
+                                </h3>
+                                <div class="table-container">
+                                    <table id="comparisonTable">
+                                        <thead>
+                                            <tr>
+                                                <th data-i18n="results.parameter">Parámetro</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="6" class="empty-state-cell" data-i18n="comparison.selectSamples">
+                                                    Selecciona muestras para comparar
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
 
         </main>
 

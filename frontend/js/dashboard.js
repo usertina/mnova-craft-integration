@@ -640,7 +640,7 @@ class DashboardManager {
 
         if (recentAnalyses.length === 0) {
             tbody.innerHTML = `<tr><td colspan="5" data-i18n="dashboard.noData" class="empty-state-cell"></td></tr>`; 
-            LanguageManager.applyTranslationsToElement(tbody);
+            LanguageManager.applyTranslations(tbody);
             return;
         }
 
@@ -723,7 +723,7 @@ class DashboardManager {
 
         if (validAnalyses.length === 0) {
             container.innerHTML = `<div class="empty-state-comparison" data-i18n="comparison.noSamples"></div>`;
-            LanguageManager.applyTranslationsToElement(container);
+            LanguageManager.applyTranslations(container);
             return;
         }
 
@@ -874,7 +874,7 @@ class DashboardManager {
 
         if (!analyses || analyses.length === 0) { 
              tbody.innerHTML = `<tr><td colspan="6" data-i18n="comparison.selectSamples" class="empty-state-cell"></td></tr>`;
-             LanguageManager.applyTranslationsToElement(tbody);
+             LanguageManager.applyTranslations(tbody);
             return;
         }
 
@@ -1420,6 +1420,18 @@ class DashboardManager {
             
             Plotly.relayout(this.charts.distribution, distLayoutUpdate);
             Plotly.restyle(this.charts.distribution, distDataUpdate, [0]);
+        }
+
+        // --- 3. Actualizar Textos ---
+        const countDisplay = document.getElementById('selectedCountDisplay');
+        if (countDisplay) {
+            // Obtenemos el número actual de muestras seleccionadas
+            const count = this.selectedSamples ? this.selectedSamples.size : 0;
+            // Aplicamos la traducción con los parámetros correctos
+            countDisplay.textContent = LanguageManager.t('comparison.selected', { 
+                count: count, 
+                max: this.maxSelectedSamples 
+            });
         }
     }
 

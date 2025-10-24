@@ -90,7 +90,8 @@
     "connected": "Analisi zerbitzarira konektatuta",
     "connectionError": "Errorea zerbitzarira konektatzean",
     "exportSuccess": "Txostena ondo exportatu da",
-    "exportError": "Errorea txostena exportatzean: {error}"
+    "exportError": "Errorea txostena exportatzean: {error}",
+    "analysisLoaded": "Analisia kargatuta: {filename}"
   },
   "errors": {
     "backendUnavailable": "Zerbitzaria ez dago erabilgarri",
@@ -190,6 +191,7 @@
     "refreshError": "Errorea aginte-panela eguneratzean",
     "recentAnalyses": "Azken Analisiak",
     "allTime": "Denbora guztia",
+    "inSelectedRange": "Hautatutako tartean",
     "today": "Gaur",
     "thisWeek": "Aste honetan",
     "thisMonth": "Hilabete honetan",
@@ -215,7 +217,7 @@
     "qualityLabels": {                             
         "excellent": "Bikain (≥8)",
         "good": "Ona (6-8)",
-        "Regular": "Erregularra (4-6)",
+        "regular": "Erregularra (4-6)",
         "low": "Txarra (<4)"
     }
   },

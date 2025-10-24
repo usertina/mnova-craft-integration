@@ -93,7 +93,8 @@
     "connected": "Conectado al servidor de análisis",
     "connectionError": "Error conectando al servidor",
     "exportSuccess": "Reporte exportado exitosamente",
-    "exportError": "Error exportando el reporte: {error}"
+    "exportError": "Error exportando el reporte: {error}",
+    "analysisLoaded": "Análisis cargado: {filename}"
   },
   "errors": {
     "backendUnavailable": "Servidor no disponible",
@@ -145,7 +146,8 @@
     "clearError": "Error al limpiar el historial: {error}",
     "confirmDelete": "¿Seguro que quieres eliminar '{name}'?",
     "deleteSuccess": "Análisis '{name}' eliminado.",
-    "deleteError": "Error al eliminar el análisis: {error}"           
+    "deleteError": "Error al eliminar el análisis: {error}",
+    "search": "Buscar..."           
   },
   "methods": {
     "title": "Métodos de Análisis",
@@ -190,6 +192,7 @@
     "refreshError": "Error al actualizar el dashboard",
     "recentAnalyses": "Análisis Recientes",
     "allTime": "Todo el tiempo",
+    "inSelectedRange": "En el rango seleccionado",
     "today": "Hoy",
     "thisWeek": "Esta semana",
     "thisMonth": "Este mes",

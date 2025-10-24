@@ -90,7 +90,8 @@
     "connected": "Connected to analysis server",
     "connectionError": "Error connecting to server",
     "exportSuccess": "Report exported successfully",
-    "exportError": "Error exporting report: {error}"
+    "exportError": "Error exporting report: {error}",
+    "analysisLoaded": "Analysis loaded: {filename}"
   },
   "errors": {
     "backendUnavailable": "Server unavailable",
@@ -189,6 +190,7 @@
     "refreshSuccess": "Dashboard updated successfully",
     "refreshError": "Error updating dashboard",
     "recentAnalyses": "Recent Analyses",
+    "inSelectedRange": "In selected range",
     "allTime": "All time",
     "today": "Today",
     "thisWeek": "This week",
@@ -215,7 +217,7 @@
     "qualityLabels": {                             
         "excellent": "Excellent (≥8)",
         "good": "Good (6-8)",
-        "Regular": "Fair (4-6)",
+        "regular": "Fair (4-6)",
         "low": "Poor (<4)"
     }
   },
