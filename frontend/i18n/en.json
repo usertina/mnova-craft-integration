@@ -29,7 +29,13 @@
     "runAnalysis": "Run Analysis",
     "exportReport": "Export Report",
     "analyzing": "Analyzing...",
-    "fullscreen": "Fullscreen"
+    "fullscreen": "Fullscreen",
+    "showSpectrum": "Show NMR Spectrum",
+    "hideSpectrum": "Hide NMR Spectrum",
+    "showDetailedResults": "Show Detailed Results",
+    "hideDetailedResults": "Hide Detailed Results",
+    "showPeakDetails": "Show Peak Details",
+    "hidePeakDetails": "Hide Peak Details"
   },
   "batch": {
     "title": "Batch Processing",
@@ -70,7 +76,8 @@
     "noDetails": "No detailed data available",
     "max_signal_corr": "Max Signal (Corrected)",
     "mean_intensity_corr": "Mean Intensity (Corrected)",
-    "std_intensity_corr": "Standard Deviation (Corrected)"
+    "std_intensity_corr": "Standard Deviation (Corrected)",
+    "quickStats": "Quick Statistics"
   },
   "notifications": {
     "fileLoaded": "File loaded: {filename}",

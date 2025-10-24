@@ -116,6 +116,48 @@ class RMNAnalyzerApp {
                 this.filterHistory();
             });
         }
+
+        /* const toggleSpectrumBtn = document.getElementById('toggleSpectrumBtn');
+        if (toggleSpectrumBtn) {
+            toggleSpectrumBtn.addEventListener('click', () => {
+                this.toggleSpectrumVisibility();
+            });
+        } */
+
+        // 🆕 Toggle Spectrum Chart
+        const toggleSpectrumBtn = document.getElementById('toggleSpectrumBtn');
+        if (toggleSpectrumBtn) {
+            toggleSpectrumBtn.addEventListener('click', () => {
+                this.toggleSpectrumVisibility();
+            });
+        }
+
+        // 🆕 Toggle Detailed Results
+        const toggleDetailedResultsBtn = document.getElementById('toggleDetailedResultsBtn');
+        if (toggleDetailedResultsBtn) {
+            toggleDetailedResultsBtn.addEventListener('click', () => {
+                this.toggleSectionVisibility(
+                    'detailedResultsContainer',
+                    'toggleDetailedResultsBtn',
+                    'analyzer.showDetailedResults',
+                    'analyzer.hideDetailedResults'
+                );
+            });
+        }
+
+        // 🆕 Toggle Peak Details
+        const togglePeakDetailsBtn = document.getElementById('togglePeakDetailsBtn');
+        if (togglePeakDetailsBtn) {
+            togglePeakDetailsBtn.addEventListener('click', () => {
+                this.toggleSectionVisibility(
+                    'peakDetailsContainer',
+                    'togglePeakDetailsBtn',
+                    'analyzer.showPeakDetails',
+                    'analyzer.hidePeakDetails'
+                );
+            });
+        }
+
     }
 
     setupDragAndDrop(elementId, callback) {
@@ -173,6 +215,93 @@ class RMNAnalyzerApp {
         if (textElement) {
              textElement.setAttribute('data-i18n', texts[status]);
              LanguageManager.applyTranslations(); // Apply translation only to this element
+        }
+    }
+
+    toggleSectionVisibility(containerId, buttonId, showKey, hideKey) {
+        const container = document.getElementById(containerId);
+        const btn = document.getElementById(buttonId);
+        const icon = btn.querySelector('i');
+        const textSpan = btn.querySelector('span');
+        
+        if (!container || !btn) return;
+        
+        const isVisible = container.style.display !== 'none';
+        
+        if (isVisible) {
+            // Ocultar sección
+            container.classList.remove('show');
+            container.classList.add('hide');
+            
+            setTimeout(() => {
+                container.style.display = 'none';
+                container.classList.remove('hide');
+            }, 400);
+            
+            btn.classList.remove('active');
+            icon.className = 'fas fa-eye';
+            textSpan.setAttribute('data-i18n', showKey);
+            textSpan.textContent = LanguageManager.t(showKey);
+            
+            window.APP_LOGGER.debug(`Section ${containerId} hidden`);
+        } else {
+            // Mostrar sección
+            container.style.display = 'block';
+            container.classList.add('show');
+            
+            btn.classList.add('active');
+            icon.className = 'fas fa-eye-slash';
+            textSpan.setAttribute('data-i18n', hideKey);
+            textSpan.textContent = LanguageManager.t(hideKey);
+            
+            window.APP_LOGGER.debug(`Section ${containerId} shown`);
+        }
+    }
+
+    toggleSpectrumVisibility() {
+        const container = document.getElementById('spectrumChartContainer');
+        const btn = document.getElementById('toggleSpectrumBtn');
+        const icon = btn.querySelector('i');
+        const textSpan = btn.querySelector('span');
+        
+        if (!container || !btn) return;
+        
+        const isVisible = container.style.display !== 'none';
+        
+        if (isVisible) {
+            // Ocultar espectro
+            container.classList.remove('show');
+            container.classList.add('hide');
+            
+            setTimeout(() => {
+                container.style.display = 'none';
+                container.classList.remove('hide');
+            }, 400);
+            
+            btn.classList.remove('active');
+            icon.className = 'fas fa-eye';
+            textSpan.setAttribute('data-i18n', 'analyzer.showSpectrum');
+            textSpan.textContent = LanguageManager.t('analyzer.showSpectrum');
+            
+            window.APP_LOGGER.debug('Spectrum hidden');
+        } else {
+            // Mostrar espectro
+            container.style.display = 'block';
+            container.classList.add('show');
+            
+            btn.classList.add('active');
+            icon.className = 'fas fa-eye-slash';
+            textSpan.setAttribute('data-i18n', 'analyzer.hideSpectrum');
+            textSpan.textContent = LanguageManager.t('analyzer.hideSpectrum');
+            
+            // Redimensionar el gráfico después de mostrarlo
+            setTimeout(() => {
+                if (ChartManager.chart) {
+                    ChartManager.resizeChart();
+                }
+            }, 450);
+            
+            window.APP_LOGGER.debug('Spectrum shown');
         }
     }
 
@@ -256,6 +385,37 @@ class RMNAnalyzerApp {
             UIManager.updateElementText('pifasResult', '--');
             UIManager.updateElementText('qualityResult', '--');
         }
+
+        // 🆕 Asegurarse de que todas las secciones estén ocultas al cargar nuevos resultados
+        const sections = [
+            { container: 'spectrumChartContainer', button: 'toggleSpectrumBtn', showKey: 'analyzer.showSpectrum' },
+            { container: 'detailedResultsContainer', button: 'toggleDetailedResultsBtn', showKey: 'analyzer.showDetailedResults' },
+            { container: 'peakDetailsContainer', button: 'togglePeakDetailsBtn', showKey: 'analyzer.showPeakDetails' }
+        ];
+        
+        sections.forEach(section => {
+            const container = document.getElementById(section.container);
+            const btn = document.getElementById(section.button);
+            if (container && btn) {
+                container.style.display = 'none';
+                container.classList.remove('show', 'hide');
+                btn.classList.remove('active');
+                
+                const icon = btn.querySelector('i');
+                const textSpan = btn.querySelector('span');
+                if (icon) icon.className = 'fas fa-eye';
+                if (textSpan) {
+                    textSpan.setAttribute('data-i18n', section.showKey);
+                    textSpan.textContent = LanguageManager.t(section.showKey);
+                }
+            }
+        });
+
+        // Update chart
+        if (results.spectrum) {
+            ChartManager.updateSpectrumChart(results.spectrum, results.peaks || []);
+        }
+
 
         // ### CORRECCIÓN: Actualizar detalles básicos ###
         const peaksCount = results.peaks ? results.peaks.length : 0;
@@ -497,6 +657,29 @@ class RMNAnalyzerApp {
 
     onLanguageChanged(lang) {
         this.updateDynamicTexts();
+
+        // Actualizar el botón de toggle spectrum
+        const toggleButtons = [
+            { btn: 'toggleSpectrumBtn', container: 'spectrumChartContainer', showKey: 'analyzer.showSpectrum', hideKey: 'analyzer.hideSpectrum' },
+            { btn: 'toggleDetailedResultsBtn', container: 'detailedResultsContainer', showKey: 'analyzer.showDetailedResults', hideKey: 'analyzer.hideDetailedResults' },
+            { btn: 'togglePeakDetailsBtn', container: 'peakDetailsContainer', showKey: 'analyzer.showPeakDetails', hideKey: 'analyzer.hidePeakDetails' }
+        ];
+        
+        toggleButtons.forEach(({ btn, container, showKey, hideKey }) => {
+            const toggleBtn = document.getElementById(btn);
+            if (toggleBtn) {
+                const textSpan = toggleBtn.querySelector('span');
+                const containerEl = document.getElementById(container);
+                const isVisible = containerEl && containerEl.style.display !== 'none';
+                
+                if (textSpan) {
+                    const key = isVisible ? hideKey : showKey;
+                    textSpan.setAttribute('data-i18n', key);
+                    textSpan.textContent = LanguageManager.t(key);
+                }
+            }
+        });
+            
         setTimeout(() => {
             ChartManager.refreshTranslations(lang);
         }, 100);

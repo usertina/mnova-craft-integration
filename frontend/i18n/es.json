@@ -29,7 +29,13 @@
     "runAnalysis": "Ejecutar Análisis",
     "exportReport": "Exportar Reporte",
     "analyzing": "Analizando...",
-    "fullscreen": "Pantalla completa"
+    "fullscreen": "Pantalla completa",
+    "showSpectrum": "Mostrar Espectro RMN",
+    "hideSpectrum": "Ocultar Espectro RMN",
+    "showDetailedResults": "Mostrar Resultados Detallados",
+    "hideDetailedResults": "Ocultar Resultados Detallados",
+    "showPeakDetails": "Mostrar Detalles de Picos",
+    "hidePeakDetails": "Ocultar Detalles de Picos"
   },
   "batch": {
     "title": "Procesamiento por Lotes",
@@ -73,7 +79,8 @@
     "width": "Ancho (ppm)",
     "region": "Región",
     "noPeaksYet": "No hay picos analizados aún",
-    "noDetails": "No hay datos detallados disponibles"
+    "noDetails": "No hay datos detallados disponibles",
+    "quickStats": "Estadísticas Rápidas"
   },
   "notifications": {
     "fileLoaded": "Archivo cargado: {filename}",

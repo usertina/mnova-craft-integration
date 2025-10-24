@@ -185,6 +185,221 @@
         grid-template-columns: 1fr;
     }
 }
+/* ============================================================================
+   TOGGLE SPECTRUM BUTTON
+   ============================================================================ */
+
+.chart-section {
+    margin-bottom: 1.5rem;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: var(--border-radius);
+    color: white;
+}
+
+.chart-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chart-header h3 i {
+    font-size: 1.2rem;
+}
+
+.btn-toggle-spectrum {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: white;
+    color: var(--primary-color);
+    border: 2px solid white;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-toggle-spectrum:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-toggle-spectrum i {
+    transition: transform 0.3s ease;
+}
+
+.btn-toggle-spectrum.active {
+    background: var(--danger-color);
+    color: white;
+    border-color: var(--danger-color);
+}
+
+.btn-toggle-spectrum.active i {
+    transform: rotate(180deg);
+}
+
+#spectrumChartContainer {
+    transition: all 0.4s ease;
+    overflow: hidden;
+}
+
+#spectrumChartContainer.show {
+    display: block !important;
+    animation: slideDown 0.4s ease;
+}
+
+#spectrumChartContainer.hide {
+    animation: slideUp 0.4s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        max-height: 600px;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 1;
+        max-height: 600px;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        max-height: 0;
+        transform: translateY(-20px);
+    }
+}
+/* ============================================================================
+   COLLAPSIBLE SECTIONS (Detailed Results & Peak Details)
+   ============================================================================ */
+
+.collapsible-section {
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    background: white;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-header h3 i {
+    font-size: 1.2rem;
+}
+
+.btn-toggle-section {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: white;
+    color: var(--primary-color);
+    border: 2px solid white;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-toggle-section:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-toggle-section i {
+    transition: transform 0.3s ease;
+}
+
+.btn-toggle-section.active {
+    background: var(--danger-color);
+    color: white;
+    border-color: var(--danger-color);
+}
+
+.btn-toggle-section.active i {
+    transform: rotate(180deg);
+}
+
+.section-content {
+    transition: all 0.4s ease;
+    overflow: hidden;
+}
+
+.section-content.show {
+    display: block !important;
+    animation: slideDown 0.4s ease;
+}
+
+.section-content.hide {
+    animation: slideUp 0.4s ease;
+}
+
+/* Ajuste para el contenido de las secciones */
+.section-content .table-container {
+    padding: 1rem;
+}
+
+/* Quick Stats styling */
+.detailed-results h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .section-header {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+    
+    .btn-toggle-section {
+        width: 100%;
+        justify-content: center;
+    }
+}
 
 /* Modal */
 .modal {

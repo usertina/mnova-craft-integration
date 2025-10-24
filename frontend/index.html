@@ -76,29 +76,7 @@
                             <div class="file-list" id="fileList"></div>
                         </div>
 
-                        <div class="panel-section">
-                            <h3><i class="fas fa-sliders-h"></i> <span data-i18n="analyzer.analysisParams">Parámetros de Análisis</span></h3>
-                            <div class="param-group">
-                                <label for="fluorRange" data-i18n="analyzer.fluorRange">Rango Flúor (ppm):</label>
-                                <div class="range-inputs">
-                                    <input type="number" id="fluorMin" value="-150" step="0.1">
-                                    <span data-i18n="analyzer.to">a</span>
-                                    <input type="number" id="fluorMax" value="-50" step="0.1">
-                                </div>
-                            </div>
-                            <div class="param-group">
-                                <label for="pifasRange" data-i18n="analyzer.pifasRange">Rango PFAS (ppm):</label>
-                                <div class="range-inputs">
-                                    <input type="number" id="pifasMin" value="-130" step="0.1">
-                                    <span data-i18n="analyzer.to">a</span>
-                                    <input type="number" id="pifasMax" value="-60" step="0.1">
-                                </div>
-                            </div>
-                            <div class="param-group">
-                                <label for="concentration" data-i18n="analyzer.concentration">Concentración (mM):</label>
-                                <input type="number" id="concentration" value="1.0" step="0.1">
-                            </div>
-                        </div>
+                        <!-- 🆕 Parámetros de análisis ELIMINADOS -->
 
                         <div class="panel-section">
                             <h3><i class="fas fa-play-circle"></i> <span data-i18n="analyzer.actions">Acciones</span></h3>
@@ -128,12 +106,21 @@
                             </div>
                         </div>
 
-                        <!-- Spectrum Chart -->
-                        <div class="chart-container">
-                            <div id="spectrumChart" class="spectrum-chart"></div>
+                        <!-- Spectrum Chart with Toggle -->
+                        <div class="chart-section">
+                            <div class="chart-header">
+                                <h3><i class="fas fa-chart-area"></i> <span data-i18n="charts.spectrumTitle">Espectro RMN</span></h3>
+                                <button class="btn btn-outline btn-toggle-spectrum" id="toggleSpectrumBtn">
+                                    <i class="fas fa-eye"></i>
+                                    <span data-i18n="analyzer.showSpectrum">Mostrar Espectro RMN</span>
+                                </button>
+                            </div>
+                            <div class="chart-container" id="spectrumChartContainer" style="display: none;">
+                                <div id="spectrumChart" class="spectrum-chart"></div>
+                            </div>
                         </div>
 
-                        <!-- Analysis Results -->
+                        <!-- Analysis Results Cards -->
                         <div class="results-grid">
                             <div class="result-card">
                                 <div class="result-icon fluor">
@@ -169,9 +156,9 @@
                             </div>
                         </div>
 
-                        <!-- Detailed Results -->
+                        <!-- Quick Stats -->
                         <div class="detailed-results">
-                            <h3 data-i18n="results.detailedResults">Resultados Detallados</h3>
+                            <h3 data-i18n="results.quickStats">Estadísticas Rápidas</h3>
                             <div class="result-row">
                                 <span data-i18n="results.detectedPeaks">Picos Detectados:</span>
                                 <strong id="peaksCount">0</strong>
@@ -186,74 +173,73 @@
                             </div>
                         </div>
 
-                        <!-- Detailed Statistics Table -->
-                        <div class="detailed-results">
-                            <h3 data-i18n="results.detailedResults">Resultados Detallados</h3>
-                            <div class="table-container">
-                                <table id="resultsTable">
-                                    <thead>
-                                        <tr>
-                                            <th data-i18n="results.parameter">Parámetro</th>
-                                            <th data-i18n="results.value">Valor</th>
-                                            <th data-i18n="results.units">Unidades</th>
-                                            <th data-i18n="results.limits">Límites</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td colspan="4" class="empty-state">
-                                                <i class="fas fa-chart-line"></i>
-                                                <p data-i18n="results.noDetails">No hay datos detallados disponibles</p>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                        <!-- 🆕 Detailed Statistics Table with Toggle -->
+                        <div class="collapsible-section">
+                            <div class="section-header">
+                                <h3><i class="fas fa-table"></i> <span data-i18n="results.detailedResults">Resultados Detallados</span></h3>
+                                <button class="btn btn-outline btn-toggle-section" id="toggleDetailedResultsBtn">
+                                    <i class="fas fa-eye"></i>
+                                    <span data-i18n="analyzer.showDetailedResults">Mostrar Resultados Detallados</span>
+                                </button>
+                            </div>
+                            <div class="section-content" id="detailedResultsContainer" style="display: none;">
+                                <div class="table-container">
+                                    <table id="resultsTable">
+                                        <thead>
+                                            <tr>
+                                                <th data-i18n="results.parameter">Parámetro</th>
+                                                <th data-i18n="results.value">Valor</th>
+                                                <th data-i18n="results.units">Unidades</th>
+                                                <th data-i18n="results.limits">Límites</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="4" class="empty-state">
+                                                    <i class="fas fa-chart-line"></i>
+                                                    <p data-i18n="results.noDetails">No hay datos detallados disponibles</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                        <!-- Peak Details Table -->
-                        <div class="peak-details">
-                            <h3 data-i18n="results.peakDetails">Detalles de Picos</h3>
-                            <div class="table-container">
-                                <table id="peakTable">
-                                    <thead>
-                                        <tr>
-                                            <th data-i18n="results.position">Posición (ppm)</th>
-                                            <th data-i18n="results.height">Altura</th>
-                                            <th data-i18n="results.area">Área</th>
-                                            <th data-i18n="results.width">Ancho (Hz)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td colspan="4" class="empty-state">
-                                                <i class="fas fa-chart-line"></i>
-                                                <p data-i18n="results.noPeaksYet">No hay picos analizados aún</p>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Batch Processing Tab -->
-            <div id="batch-tab" class="tab-content">
-                <div class="batch-container">
-                    <h2><i class="fas fa-layer-group"></i> <span data-i18n="batch.title">Procesamiento por Lotes</span></h2>
-                    <div class="batch-upload">
-                        <div class="upload-zone" id="batchUploadZone">
-                            <i class="fas fa-upload upload-icon-large"></i>
-                            <h3 data-i18n="batch.uploadFiles">Arrastra múltiples archivos aquí</h3>
-                            <button class="btn btn-primary" id="browseBatchFiles">
-                                <i class="fas fa-folder-open"></i> 
-                                <span data-i18n="batch.browse">Seleccionar Archivos</span>
-                            </button>
-                            <input type="file" id="batchFileInput" accept=".csv,.txt,.json" multiple hidden>
+                        <!-- 🆕 Peak Details Table with Toggle -->
+                        <div class="collapsible-section">
+                            <div class="section-header">
+                                <h3><i class="fas fa-mountain"></i> <span data-i18n="results.peakDetails">Detalles de Picos</span></h3>
+                                <button class="btn btn-outline btn-toggle-section" id="togglePeakDetailsBtn">
+                                    <i class="fas fa-eye"></i>
+                                    <span data-i18n="analyzer.showPeakDetails">Mostrar Detalles de Picos</span>
+                                </button>
+                            </div>
+                            <div class="section-content" id="peakDetailsContainer" style="display: none;">
+                                <div class="table-container">
+                                    <table id="peakTable">
+                                        <thead>
+                                            <tr>
+                                                <th data-i18n="results.position">Posición (ppm)</th>
+                                                <th data-i18n="results.height">Altura</th>
+                                                <th data-i18n="results.area">Área</th>
+                                                <th data-i18n="results.width">Ancho (Hz)</th>
+                                                <th data-i18n="results.region">Región</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="5" class="empty-state">
+                                                    <i class="fas fa-chart-line"></i>
+                                                    <p data-i18n="results.noPeaksYet">No hay picos analizados aún</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="batch-queue" id="batchQueue"></div>
                 </div>
             </div>
 
@@ -278,30 +264,6 @@
                         <div class="empty-state">
                             <i class="fas fa-folder-open empty-icon"></i>
                             <p data-i18n="history.empty">No hay análisis guardados</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Methods Tab -->
-            <div id="methods-tab" class="tab-content">
-                <div class="methods-container">
-                    <h2><i class="fas fa-cog"></i> <span data-i18n="methods.title">Métodos de Análisis</span></h2>
-                    <div class="methods-grid">
-                        <div class="method-card">
-                            <h3 data-i18n="methods.standard">Método Estándar</h3>
-                            <p data-i18n="methods.standardDesc">Análisis rápido con parámetros predefinidos</p>
-                            <button class="btn btn-primary" data-i18n="methods.select">Seleccionar</button>
-                        </div>
-                        <div class="method-card">
-                            <h3 data-i18n="methods.advanced">Método Avanzado</h3>
-                            <p data-i18n="methods.advancedDesc">Análisis detallado con parámetros personalizables</p>
-                            <button class="btn btn-primary" data-i18n="methods.select">Seleccionar</button>
-                        </div>
-                        <div class="method-card">
-                            <h3 data-i18n="methods.custom">Método Personalizado</h3>
-                            <p data-i18n="methods.customDesc">Crea tu propio método de análisis</p>
-                            <button class="btn btn-primary" data-i18n="methods.create">Crear</button>
                         </div>
                     </div>
                 </div>

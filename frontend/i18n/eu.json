@@ -29,7 +29,13 @@
     "runAnalysis": "Exekutatu Analisia",
     "exportReport": "Exportatu Txostena",
     "analyzing": "Analizatzen...",
-    "fullscreen": "Pantaila osoa"
+    "fullscreen": "Pantaila osoa",
+    "showSpectrum": "Erakutsi RMN Espektroa",
+    "hideSpectrum": "Ezkutatu RMN Espektroa",
+    "showDetailedResults": "Erakutsi Emaitza Zehatzak",
+    "hideDetailedResults": "Ezkutatu Emaitza Zehatzak",
+    "showPeakDetails": "Erakutsi Pikoaren Xehetasunak",
+    "hidePeakDetails": "Ezkutatu Pikoaren Xehetasunak"
   },
   "batch": {
     "title": "Sailka Prozesatzea",
@@ -70,7 +76,8 @@
     "noDetails": "Ez dago datu xeherik eskuragarri",
     "max_signal_corr": "Seinale Maximoa (Zuzenduta)",
     "mean_intensity_corr": "Batez Besteko Intentsitatea (Zuzenduta)",
-    "std_intensity_corr": "Desbiderapen Estandarra (Zuzenduta)"
+    "std_intensity_corr": "Desbiderapen Estandarra (Zuzenduta)",
+    "quickStats": "Estatistika Azkarrak"
   },
   "notifications": {
     "fileLoaded": "Fitxategia kargatua: {filename}",
