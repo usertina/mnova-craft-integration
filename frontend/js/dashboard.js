@@ -18,6 +18,12 @@ class DashboardManager {
         
         this.statsCache = null;
         this.lastUpdate = null;
+
+        this.dateFilter = {
+            type: 'all', // 'all', 'today', 'week', 'month', 'custom'
+            customFrom: null,
+            customTo: null
+        };
     }
 
     // ========================================================================
@@ -54,6 +60,34 @@ class DashboardManager {
             exportDashBtn.addEventListener('click', () => this.exportDashboardData());
             window.APP_LOGGER.debug('Export dashboard listener attached');
         }
+
+        // 🆕 Selector de filtro rápido
+        const quickFilter = document.getElementById('dashboardQuickFilter');
+        if (quickFilter) {
+            quickFilter.addEventListener('change', (e) => this.handleQuickFilterChange(e.target.value));
+        }
+
+        // 🆕 Botón aplicar filtro personalizado
+        const applyBtn = document.getElementById('applyDateFilter');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', () => this.applyCustomDateFilter());
+        }
+
+        // 🆕 Botón limpiar filtro
+        const clearBtn = document.getElementById('clearDateFilter');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => this.clearCustomDateFilter());
+        }
+
+        // 🆕 Permitir aplicar con Enter en los inputs de fecha
+        const dateInputs = document.querySelectorAll('#dateFrom, #dateTo');
+        dateInputs.forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.applyCustomDateFilter();
+                }
+            });
+        });
         
         // Filtros de fecha en dashboard
         const dateFilterDash = document.getElementById('dashboardDateFilter');
@@ -61,6 +95,284 @@ class DashboardManager {
             dateFilterDash.addEventListener('change', () => this.filterDashboardData());
         }
     }
+
+    /**
+     * 🆕 Maneja el cambio en el selector de filtro rápido
+     */
+    handleQuickFilterChange(value) {
+        const customRange = document.getElementById('customDateRange');
+        
+        if (value === 'custom') {
+            // Mostrar selector de rango personalizado
+            customRange.style.display = 'flex';
+            this.dateFilter.type = 'custom';
+            
+            // Establecer fechas por defecto si no hay ninguna
+            const dateFrom = document.getElementById('dateFrom');
+            const dateTo = document.getElementById('dateTo');
+            
+            if (!dateFrom.value) {
+                // Por defecto: último mes
+                const today = new Date();
+                const monthAgo = new Date(today);
+                monthAgo.setMonth(monthAgo.getMonth() - 1);
+                
+                dateFrom.value = this.formatDateForInput(monthAgo);
+                dateTo.value = this.formatDateForInput(today);
+            }
+        } else {
+            // Ocultar selector personalizado
+            customRange.style.display = 'none';
+            this.dateFilter.type = value;
+            this.dateFilter.customFrom = null;
+            this.dateFilter.customTo = null;
+            
+            // Aplicar filtro predefinido
+            this.applyDateFilter();
+        }
+    }
+
+    /**
+     * 🆕 Aplica el filtro de fecha personalizado
+     */
+    applyCustomDateFilter() {
+        const dateFromInput = document.getElementById('dateFrom');
+        const dateToInput = document.getElementById('dateTo');
+        
+        if (!dateFromInput.value || !dateToInput.value) {
+            UIManager.showNotification(
+                LanguageManager.t('dashboard.invalidDateRange') || 'Por favor, selecciona ambas fechas',
+                'warning'
+            );
+            return;
+        }
+
+        const dateFrom = new Date(dateFromInput.value);
+        const dateTo = new Date(dateToInput.value);
+        
+        // Validar que la fecha inicial sea anterior a la final
+        if (dateFrom > dateTo) {
+            UIManager.showNotification(
+                LanguageManager.t('dashboard.invalidDateRange') || 'La fecha inicial debe ser anterior a la final',
+                'error'
+            );
+            return;
+        }
+
+        // Ajustar las fechas para incluir el día completo
+        dateFrom.setHours(0, 0, 0, 0);
+        dateTo.setHours(23, 59, 59, 999);
+
+        // Guardar en el estado
+        this.dateFilter.type = 'custom';
+        this.dateFilter.customFrom = dateFrom;
+        this.dateFilter.customTo = dateTo;
+
+        // Aplicar filtro
+        this.applyDateFilter();
+
+        // Marcar inputs como activos
+        dateFromInput.classList.add('active');
+        dateToInput.classList.add('active');
+
+        // Mostrar notificación
+        const fromStr = this.formatDateForDisplay(dateFrom);
+        const toStr = this.formatDateForDisplay(dateTo);
+        UIManager.showNotification(
+            LanguageManager.t('dashboard.dateRangeApplied', { from: fromStr, to: toStr }) ||
+            `Filtro aplicado: ${fromStr} - ${toStr}`,
+            'success'
+        );
+
+        window.APP_LOGGER.debug(`Custom date filter applied: ${dateFrom} to ${dateTo}`);
+    }
+
+    /**
+     * 🆕 Limpia el filtro de fecha personalizado
+     */
+    clearCustomDateFilter() {
+        // Limpiar inputs
+        const dateFromInput = document.getElementById('dateFrom');
+        const dateToInput = document.getElementById('dateTo');
+        const quickFilter = document.getElementById('dashboardQuickFilter');
+        
+        if (dateFromInput) {
+            dateFromInput.value = '';
+            dateFromInput.classList.remove('active');
+        }
+        if (dateToInput) {
+            dateToInput.value = '';
+            dateToInput.classList.remove('active');
+        }
+        
+        // Resetear a "Todos"
+        if (quickFilter) quickFilter.value = 'all';
+        
+        // Ocultar selector personalizado
+        const customRange = document.getElementById('customDateRange');
+        if (customRange) customRange.style.display = 'none';
+
+        // Resetear estado
+        this.dateFilter.type = 'all';
+        this.dateFilter.customFrom = null;
+        this.dateFilter.customTo = null;
+
+        // Aplicar filtro (mostrar todos)
+        this.applyDateFilter();
+
+        UIManager.showNotification(
+            LanguageManager.t('dashboard.filterCleared') || 'Filtro eliminado',
+            'info'
+        );
+
+        window.APP_LOGGER.debug('Date filter cleared');
+    }
+
+    /**
+     * 🆕 Aplica el filtro de fecha actual a los datos
+     */
+    applyDateFilter() {
+        if (!this.allAnalyses || this.allAnalyses.length === 0) {
+            window.APP_LOGGER.warn('No data to filter');
+            return;
+        }
+
+        // Guardar datos originales
+        const originalAnalyses = [...this.allAnalyses];
+        let filteredAnalyses = [...this.allAnalyses];
+
+        try {
+            // Aplicar filtro según el tipo
+            switch (this.dateFilter.type) {
+                case 'today':
+                    filteredAnalyses = this.filterByToday(filteredAnalyses);
+                    break;
+                case 'week':
+                    filteredAnalyses = this.filterByLastWeek(filteredAnalyses);
+                    break;
+                case 'month':
+                    filteredAnalyses = this.filterByLastMonth(filteredAnalyses);
+                    break;
+                case 'custom':
+                    if (this.dateFilter.customFrom && this.dateFilter.customTo) {
+                        filteredAnalyses = this.filterByCustomRange(
+                            filteredAnalyses,
+                            this.dateFilter.customFrom,
+                            this.dateFilter.customTo
+                        );
+                    }
+                    break;
+                case 'all':
+                default:
+                    // No filtrar, usar todos los datos
+                    break;
+            }
+
+            // Verificar si hay datos después del filtro
+            if (filteredAnalyses.length === 0) {
+                UIManager.showNotification(
+                    LanguageManager.t('dashboard.noDataInRange') || 'No hay datos en el rango seleccionado',
+                    'warning'
+                );
+            }
+
+            // Actualizar temporalmente allAnalyses con los datos filtrados
+            this.allAnalyses = filteredAnalyses;
+            
+            // Recalcular estadísticas y re-renderizar
+            this.calculateStats();
+            this.renderDashboard();
+
+            window.APP_LOGGER.debug(`Filtered ${originalAnalyses.length} -> ${filteredAnalyses.length} analyses`);
+
+        } catch (error) {
+            window.APP_LOGGER.error('Error applying date filter:', error);
+            UIManager.showNotification('Error al aplicar el filtro de fechas', 'error');
+        } finally {
+            // Restaurar datos originales (los filtrados se usan solo para visualización)
+            this.allAnalyses = originalAnalyses;
+        }
+    }
+
+    /**
+     * 🆕 Filtra análisis por hoy
+     */
+    filterByToday(analyses) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        return analyses.filter(a => {
+            if (!a.created) return false;
+            const created = new Date(a.created);
+            return created >= today && created < tomorrow;
+        });
+    }
+
+    /**
+     * 🆕 Filtra análisis por última semana
+     */
+    filterByLastWeek(analyses) {
+        const now = new Date();
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        weekAgo.setHours(0, 0, 0, 0);
+
+        return analyses.filter(a => {
+            if (!a.created) return false;
+            const created = new Date(a.created);
+            return created >= weekAgo;
+        });
+    }
+
+    /**
+     * 🆕 Filtra análisis por último mes
+     */
+    filterByLastMonth(analyses) {
+        const now = new Date();
+        const monthAgo = new Date(now);
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        monthAgo.setHours(0, 0, 0, 0);
+
+        return analyses.filter(a => {
+            if (!a.created) return false;
+            const created = new Date(a.created);
+            return created >= monthAgo;
+        });
+    }
+
+    /**
+     * 🆕 Filtra análisis por rango personalizado
+     */
+    filterByCustomRange(analyses, fromDate, toDate) {
+        return analyses.filter(a => {
+            if (!a.created) return false;
+            const created = new Date(a.created);
+            return created >= fromDate && created <= toDate;
+        });
+    }
+
+    /**
+     * 🆕 Formatea fecha para input HTML5 (YYYY-MM-DD)
+     */
+    formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    /**
+     * 🆕 Formatea fecha para visualización
+     */
+    formatDateForDisplay(date) {
+        return date.toLocaleDateString(LanguageManager.currentLang || 'es', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+
 
     // ========================================================================
     // CARGA DE DATOS
@@ -72,20 +384,23 @@ class DashboardManager {
             const data = await APIClient.getAnalysisList();
             this.allAnalyses = data.analyses || [];
             
-            // Calcular estadísticas
-            this.calculateStats();
-            
-            // Renderizar dashboard
-            this.renderDashboard();
+            // 🆕 Aplicar filtro de fecha si existe
+            if (this.dateFilter.type !== 'all') {
+                this.applyDateFilter();
+            } else {
+                // Calcular estadísticas normalmente
+                this.calculateStats();
+                this.renderDashboard();
+            }
             
             this.lastUpdate = new Date();
             window.APP_LOGGER.debug(`Dashboard data loaded: ${this.allAnalyses.length} analyses`);
             
         } catch (error) {
             window.APP_LOGGER.error('Failed to load dashboard data:', error);
-            throw error; // Re-throw error to be caught by refreshDashboard if called from there
+            throw error;
         }
-    }
+    } 
 
     async refreshDashboard() {
         const refreshBtn = document.getElementById('refreshDashboardBtn');
@@ -1072,6 +1387,18 @@ class DashboardManager {
             Plotly.restyle(this.charts.trend, trendDataUpdate, [0, 1, 2]);
         }
 
+        // 🆕 Actualizar traducciones de filtros
+        const quickFilter = document.getElementById('dashboardQuickFilter');
+        if (quickFilter) {
+            Array.from(quickFilter.options).forEach(option => {
+                const key = option.getAttribute('data-i18n');
+                if (key) {
+                    option.textContent = LanguageManager.t(key);
+                }
+            });
+        }
+
+
         // --- 2. Actualizar Gráfico de Distribución ---
         if (this.charts.distribution) {
             const distLayoutUpdate = {
@@ -1096,7 +1423,46 @@ class DashboardManager {
         }
     }
 
-} // <-- Fin de la clase DashboardManager
+    // ============================================================================
+// EXPORTAR INDICADOR VISUAL DE FILTRO ACTIVO (Opcional)
+// ============================================================================
+
+    showDateRangeIndicator(fromDate, toDate) {
+        // Buscar o crear contenedor para el indicador
+        let indicator = document.getElementById('dateRangeIndicator');
+        
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'dateRangeIndicator';
+            indicator.className = 'date-range-indicator';
+            
+            const dashboardHeader = document.querySelector('.dashboard-header');
+            if (dashboardHeader) {
+                dashboardHeader.appendChild(indicator);
+            }
+        }
+
+        const fromStr = fromDate.toLocaleDateString();
+        const toStr = toDate.toLocaleDateString();
+        
+        indicator.innerHTML = `
+            <i class="fas fa-filter"></i>
+            <span>Filtrado: ${fromStr} - ${toStr}</span>
+        `;
+        indicator.style.display = 'inline-flex';
+    }
+
+    /**
+     * 🆕 Función auxiliar para ocultar indicador
+     */
+    hideDateRangeIndicator() {
+        const indicator = document.getElementById('dateRangeIndicator');
+        if (indicator) {
+            indicator.style.display = 'none';
+        }
+    }
+
+    } // <-- Fin de la clase DashboardManager
 
 // Crear instancia global
 window.dashboardManager = new DashboardManager();
