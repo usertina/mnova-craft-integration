@@ -1,0 +1,74 @@
+{
+  "report": {
+    "title": "RMN Analisiaren Txostena",
+    "subtitle": "PFAS Detekzioa eta Kuantifikazioa",
+    "sample": "Lagina",
+    "date": "Data",
+    "spectrum": "RMN Espektroa",
+    "executive_summary": "Laburpen Exekutiboa",
+    "parameter": "Parametroa",
+    "value": "Balioa",
+    "unit": "Unitatea",
+    "quality_score": "Kalitate Puntuazioa",
+    "detailed_analysis": "Analisi Zehatza",
+    "chemical_composition": "Konposizio Kimikoa",
+    "detailed_statistics": "Estatistika Zehatzak",
+    "limits": "Mugak",
+    "detected_peaks": "Detektatutako Pikoak",
+    "quick_info": "Informazio Azkarra",
+    "metric": "Metrika",
+    "detected_peaks_count": "Detektatutako Pikoak",
+    "total_integral": "Integral Osoa",
+    "snr": "S/Z Ratioa"
+  },
+  "results": {
+    "fluor": "Fluor Osoa",
+    "pfas": "PFAS",
+    "concentration": "PFAS Kontzentrazioa",
+    "quality": "Kalitatea",
+    "total_area": "Integratutako Area Osoa",
+    "fluor_area": "Fluor Area",
+    "pfas_area": "PFAS Area",
+    "sample_concentration": "Laginaren Kontzentrazioa"
+  },
+  "peaks": {
+    "title": "Detektatutako Pikoak",
+    "ppm": "PPM",
+    "intensity": "Intentsitatea",
+    "relative_intensity": "Int. Erlatiboa (%)",
+    "width": "Zabalera (ppm)",
+    "region": "Eskualdea",
+    "none": "Ez da piko esanguratsurik detektatu."
+  },
+  "comparison": {
+    "title": "RMN Laginen Konparazioa",
+    "subtitle": "{count} Laginen Analisi Konparatiboa",
+    "samples_included": "Sartutako laginak:",
+    "chart": "Grafiko Konparatiboa",
+    "table": "Taula Konparatiboa"
+  },
+  "dashboard": {
+    "title": "Estatistiken Aginte-panela",
+    "subtitle": "RMN Laginen Analisi Agregatua",
+    "general_stats": "Estatistika Orokorrak",
+    "charts": "Grafiko Estatistikoak",
+    "trend": "Kontzentrazioaren Joera",
+    "distribution": "Kalitate Banaketa",
+    "total_analyses": "Analisi Guztira",
+    "avg_fluor": "Batez besteko Fluorra",
+    "avg_pfas": "Batez besteko PFAS",
+    "avg_concentration": "Batez besteko Kontzentrazioa",
+    "avg_quality": "Batez besteko Kalitatea",
+    "high_quality": "Kalitate Altuko Laginak (≥8)",
+    "last_week": "Analisiak (Azken Astea)",
+    "last_month": "Analisiak (Azken Hilabetea)",
+    "avg_snr": "Batez besteko SNR"
+  },
+  "units": {
+    "percentage": "%",
+    "percent_fluor": "% Fluorretik",
+    "millimolar": "mM",
+    "arbitrary": "a.u.",
+    "over_ten": "/10"
+  }
+}

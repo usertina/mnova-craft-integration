@@ -240,7 +240,8 @@ def export_report():
         data = request.get_json()
         format_type = data.get("format", "pdf").lower()
         export_type = data.get("type", "single")  # 'single', 'comparison', 'dashboard'
-        
+        lang = data.get("lang", "es")
+
         print(f"📤 Solicitud de exportación: Tipo={export_type}, Formato={format_type}")
 
         mime_types = {
@@ -280,9 +281,9 @@ def export_report():
             filename_prefix = f"dashboard_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             
             if format_type == "pdf":
-                output = ReportExporter.export_dashboard_pdf(stats, chart_images)
+                output = ReportExporter.export_dashboard_pdf(stats, chart_images, lang)
             elif format_type == "docx":
-                output = ReportExporter.export_dashboard_docx(stats, chart_images)
+                output = ReportExporter.export_dashboard_docx(stats, chart_images, lang)
             elif format_type == "csv":
                 # Para CSV, usar el método existente o crear uno nuevo
                 return jsonify({"error": "CSV export for dashboard should be handled in frontend"}), 400
@@ -304,11 +305,11 @@ def export_report():
             filename_prefix = f"rmn_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             
             if format_type == "pdf":
-                output = ReportExporter.export_comparison_pdf(samples, chart_image_bytes)
+                output = ReportExporter.export_comparison_pdf(samples, chart_image_bytes, lang)
             elif format_type == "docx":
-                output = ReportExporter.export_comparison_docx(samples, chart_image_bytes)
+                output = ReportExporter.export_comparison_docx(samples, chart_image_bytes, lang)
             elif format_type == "csv":
-                output = ReportExporter.export_comparison_csv(samples)
+                output = ReportExporter.export_comparison_csv(samples, lang)
             else:
                 output = ReportExporter.export_json(data)
         
@@ -327,13 +328,13 @@ def export_report():
             filename_prefix = f"rmn_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
             if format_type == "json":
-                output = ReportExporter.export_json(results)
+                output = ReportExporter.export_json(results, lang)
             elif format_type == "csv":
-                output = ReportExporter.export_csv(results)
+                output = ReportExporter.export_csv(results, lang)
             elif format_type == "pdf":
-                output = ReportExporter.export_pdf(results, chart_image_bytes)
+                output = ReportExporter.export_pdf(results, chart_image_bytes, lang)
             elif format_type == "docx":
-                output = ReportExporter.export_docx(results, chart_image_bytes)
+                output = ReportExporter.export_docx(results, chart_image_bytes, lang)
         
         if output is None:
              return jsonify({"error": f"No se pudo generar la exportación"}), 500

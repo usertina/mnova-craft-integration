@@ -1,0 +1,74 @@
+{
+  "report": {
+    "title": "NMR Analysis Report",
+    "subtitle": "PFAS Detection and Quantification",
+    "sample": "Sample",
+    "date": "Date",
+    "spectrum": "NMR Spectrum",
+    "executive_summary": "Executive Summary",
+    "parameter": "Parameter",
+    "value": "Value",
+    "unit": "Unit",
+    "quality_score": "Quality Score",
+    "detailed_analysis": "Detailed Analysis",
+    "chemical_composition": "Chemical Composition",
+    "detailed_statistics": "Detailed Statistics",
+    "limits": "Limits",
+    "detected_peaks": "Detected Peaks",
+    "quick_info": "Quick Info",
+    "metric": "Metric",
+    "detected_peaks_count": "Detected Peaks Count",
+    "total_integral": "Total Integral",
+    "snr": "S/N Ratio"
+  },
+  "results": {
+    "fluor": "Total Fluorine",
+    "pfas": "PFAS",
+    "concentration": "PFAS Concentration",
+    "quality": "Quality",
+    "total_area": "Total Integrated Area",
+    "fluor_area": "Fluorine Area",
+    "pfas_area": "PFAS Area",
+    "sample_concentration": "Sample Concentration"
+  },
+  "peaks": {
+    "title": "Detected Peaks",
+    "ppm": "PPM",
+    "intensity": "Intensity",
+    "relative_intensity": "Relative Int. (%)",
+    "width": "Width (ppm)",
+    "region": "Region",
+    "none": "No significant peaks detected."
+  },
+  "comparison": {
+    "title": "NMR Sample Comparison",
+    "subtitle": "Comparative Analysis of {count} Samples",
+    "samples_included": "Samples included:",
+    "chart": "Comparative Chart",
+    "table": "Comparative Table"
+  },
+  "dashboard": {
+    "title": "Statistics Dashboard",
+    "subtitle": "Aggregated NMR Sample Analysis",
+    "general_stats": "General Statistics",
+    "charts": "Statistical Charts",
+    "trend": "Concentration Trend",
+    "distribution": "Quality Distribution",
+    "total_analyses": "Total Analyses",
+    "avg_fluor": "Average Fluorine",
+    "avg_pfas": "Average PFAS",
+    "avg_concentration": "Average Concentration",
+    "avg_quality": "Average Quality",
+    "high_quality": "High-Quality Samples (≥8)",
+    "last_week": "Analyses (Last Week)",
+    "last_month": "Analyses (Last Month)",
+    "avg_snr": "Average SNR"
+  },
+  "units": {
+    "percentage": "%",
+    "percent_fluor": "% Fluorine",
+    "millimolar": "mM",
+    "arbitrary": "a.u.",
+    "over_ten": "/10"
+  }
+}

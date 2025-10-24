@@ -82,11 +82,18 @@ class APIClient {
 
     static async exportReport(results, format = 'pdf', chartImage = null) {
         try {
+            // 🆕 Obtener el idioma actual
+            const currentLang = LanguageManager.getCurrentLanguage();
+            
             // Preparar el payload
             const payload = {
                 results: results,
-                format: format
+                format: format,
+                lang: currentLang  // 🆕 Enviar idioma al backend
             };
+
+            window.APP_LOGGER.debug(`Exporting report in language: ${currentLang}`);
+
             
             // Añadir la imagen del gráfico si existe
             if (chartImage) {

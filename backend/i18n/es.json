@@ -1,0 +1,74 @@
+{
+  "report": {
+    "title": "Informe de Análisis RMN",
+    "subtitle": "Detección y Cuantificación de PFAS",
+    "sample": "Muestra",
+    "date": "Fecha",
+    "spectrum": "Espectro RMN",
+    "executive_summary": "Resumen Ejecutivo",
+    "parameter": "Parámetro",
+    "value": "Valor",
+    "unit": "Unidad",
+    "quality_score": "Puntuación de Calidad",
+    "detailed_analysis": "Análisis Detallado",
+    "chemical_composition": "Composición Química",
+    "detailed_statistics": "Estadísticas Detalladas",
+    "limits": "Límites",
+    "detected_peaks": "Picos Detectados",
+    "quick_info": "Información Rápida",
+    "metric": "Métrica",
+    "detected_peaks_count": "Número de Picos Detectados",
+    "total_integral": "Integral Total",
+    "snr": "Relación S/R"
+  },
+  "results": {
+    "fluor": "Flúor Total",
+    "pfas": "PFAS",
+    "concentration": "Concentración de PFAS",
+    "quality": "Calidad",
+    "total_area": "Área Total Integrada",
+    "fluor_area": "Área de Flúor",
+    "pfas_area": "Área de PFAS",
+    "sample_concentration": "Concentración de la Muestra"
+  },
+  "peaks": {
+    "title": "Picos Detectados",
+    "ppm": "PPM",
+    "intensity": "Intensidad",
+    "relative_intensity": "Int. Relativa (%)",
+    "width": "Anchura (ppm)",
+    "region": "Región",
+    "none": "No se han detectado picos significativos."
+  },
+  "comparison": {
+    "title": "Comparación de Muestras RMN",
+    "subtitle": "Análisis Comparativo de {count} Muestras",
+    "samples_included": "Muestras incluidas:",
+    "chart": "Gráfico Comparativo",
+    "table": "Tabla Comparativa"
+  },
+  "dashboard": {
+    "title": "Panel de Estadísticas",
+    "subtitle": "Análisis Agregado de Muestras RMN",
+    "general_stats": "Estadísticas Generales",
+    "charts": "Gráficos Estadísticos",
+    "trend": "Tendencia de Concentración",
+    "distribution": "Distribución de Calidad",
+    "total_analyses": "Análisis Totales",
+    "avg_fluor": "Flúor Medio",
+    "avg_pfas": "PFAS Medio",
+    "avg_concentration": "Concentración Media",
+    "avg_quality": "Calidad Media",
+    "high_quality": "Muestras de Alta Calidad (≥8)",
+    "last_week": "Análisis (Última Semana)",
+    "last_month": "Análisis (Último Mes)",
+    "avg_snr": "SNR Medio"
+  },
+  "units": {
+    "percentage": "%",
+    "percent_fluor": "% de Flúor",
+    "millimolar": "mM",
+    "arbitrary": "u.a.",
+    "over_ten": "/10"
+  }
+}

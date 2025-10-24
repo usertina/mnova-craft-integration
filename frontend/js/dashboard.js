@@ -1032,7 +1032,8 @@ class DashboardManager {
             
             const payload = {
                 type: 'comparison',
-                format: format, 
+                format: format,
+                lang: LanguageManager.getCurrentLanguage(), 
                 samples: samplesData,  // 🆕 Datos completos
                 count: samplesData.length,
                 chart_image: chartImage  // 🆕 Imagen del gráfico
@@ -1242,6 +1243,7 @@ class DashboardManager {
         const exportData = {
             type: 'dashboard',
             format: format,
+            lang: LanguageManager.getCurrentLanguage(),
             stats: this.statsCache,
             chart_images: chartImages,
             recent_analyses: this.allAnalyses
