@@ -594,6 +594,18 @@ class ReportExporter:
         
         info_style = ParagraphStyle('Info', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12)
         story.append(Paragraph(f"<b>Fecha:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", info_style))
+        
+        # 🆕 LISTA DE MUESTRAS COMPARADAS
+        story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph("<b>Muestras incluidas:</b>", info_style))
+        story.append(Spacer(1, 0.1*inch))
+        
+        for i, sample in enumerate(samples, 1):
+            sample_text = f"{i}. {sample.get('filename', sample.get('name', 'N/A'))} - {sample.get('date', 'N/A')}"
+            sample_para = Paragraph(sample_text, styles['Normal'])
+            sample_para.alignment = TA_CENTER
+            story.append(sample_para)
+        
         story.append(PageBreak())
         
         # GRÁFICO DE COMPARACIÓN
@@ -601,7 +613,7 @@ class ReportExporter:
             story.append(Paragraph("1. Gráfico Comparativo", styles['Heading1']))
             story.append(Spacer(1, 0.2*inch))
             
-            img = Image(io.BytesIO(chart_image), width=6*inch, height=3.5*inch)
+            img = Image(io.BytesIO(chart_image), width=6.5*inch, height=4*inch)
             story.append(img)
             story.append(Spacer(1, 0.3*inch))
             story.append(PageBreak())
@@ -610,9 +622,13 @@ class ReportExporter:
         story.append(Paragraph("2. Tabla Comparativa", styles['Heading1']))
         story.append(Spacer(1, 0.2*inch))
         
-        # Crear tabla
-        table_data = [['Parámetro'] + [s.get('filename', s.get('name', 'N/A'))[:15] for s in samples]]
+        # Crear tabla con nombres de archivo completos en header
+        table_data = [['Parámetro'] + [s.get('filename', s.get('name', 'N/A'))[:20] + '...' if len(s.get('filename', s.get('name', 'N/A'))) > 20 else s.get('filename', s.get('name', 'N/A')) for s in samples]]
         
+        # Añadir fila de fechas
+        table_data.append(['Fecha'] + [s.get('date', '--') for s in samples])
+        
+        # Parámetros
         params = [
             ('Flúor (%)', 'fluor', lambda x: f"{x:.2f}"),
             ('PFAS (%)', 'pfas', lambda x: f"{x:.2f}"),
@@ -627,9 +643,13 @@ class ReportExporter:
                 row.append(formatter(value) if value else '--')
             table_data.append(row)
         
-        # Calcular anchos de columna
-        col_width = min(1.2*inch, 6*inch / (len(samples) + 1))
-        col_widths = [1.5*inch] + [col_width] * len(samples)
+        # Calcular anchos de columna dinámicamente
+        num_samples = len(samples)
+        param_col_width = 1.5*inch
+        remaining_width = 6.5*inch - param_col_width
+        sample_col_width = remaining_width / max(num_samples, 1)
+        
+        col_widths = [param_col_width] + [sample_col_width] * num_samples
         
         comp_table = Table(table_data, colWidths=col_widths)
         comp_table.setStyle(TableStyle([
@@ -637,11 +657,12 @@ class ReportExporter:
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#ecf0f1')),  # Fila de fechas
+            ('BACKGROUND', (0, 2), (-1, -1), colors.beige),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
         ]))
         
         story.append(comp_table)
@@ -650,7 +671,7 @@ class ReportExporter:
         output.seek(0)
         
         return output
-    
+
     @staticmethod
     def export_comparison_docx(samples: List[Dict], chart_image: bytes = None) -> BinaryIO:
         """Exporta comparación de muestras como DOCX con gráfico"""
@@ -671,26 +692,50 @@ class ReportExporter:
         date_p = doc.add_paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
         date_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
+        # 🆕 LISTA DE MUESTRAS
+        doc.add_paragraph()
+        samples_title = doc.add_paragraph()
+        samples_title.add_run('Muestras incluidas:').bold = True
+        samples_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        for i, sample in enumerate(samples, 1):
+            sample_p = doc.add_paragraph(
+                f"{i}. {sample.get('filename', sample.get('name', 'N/A'))} - {sample.get('date', 'N/A')}"
+            )
+            sample_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
         doc.add_page_break()
         
         # GRÁFICO
         if chart_image:
             doc.add_heading('1. Gráfico Comparativo', level=1)
-            doc.add_picture(io.BytesIO(chart_image), width=Inches(6))
+            doc.add_picture(io.BytesIO(chart_image), width=Inches(6.5))
             doc.add_paragraph()
             doc.add_page_break()
         
         # TABLA COMPARATIVA
         doc.add_heading('2. Tabla Comparativa', level=1)
         
-        table = doc.add_table(rows=5, cols=len(samples)+1)
+        num_samples = len(samples)
+        table = doc.add_table(rows=6, cols=num_samples+1)
         table.style = 'Light Grid Accent 1'
         
-        # Encabezados
+        # Encabezados con nombres completos
         hdr_cells = table.rows[0].cells
         hdr_cells[0].text = 'Parámetro'
         for idx, sample in enumerate(samples, 1):
-            hdr_cells[idx].text = sample.get('filename', sample.get('name', 'N/A'))[:20]
+            hdr_cells[idx].text = sample.get('filename', sample.get('name', 'N/A'))[:25]  # Truncar si es muy largo
+            # Ajustar tamaño de fuente si hay muchas muestras
+            if num_samples > 3:
+                for paragraph in hdr_cells[idx].paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(9)
+        
+        # Fila de fechas
+        date_row = table.rows[1].cells
+        date_row[0].text = 'Fecha'
+        for idx, sample in enumerate(samples, 1):
+            date_row[idx].text = sample.get('date', '--')
         
         # Datos
         params = [
@@ -700,7 +745,7 @@ class ReportExporter:
             ('Calidad (/10)', 'quality')
         ]
         
-        for row_idx, (param_name, param_key) in enumerate(params, 1):
+        for row_idx, (param_name, param_key) in enumerate(params, 2):
             row_cells = table.rows[row_idx].cells
             row_cells[0].text = param_name
             for col_idx, sample in enumerate(samples, 1):
@@ -768,7 +813,7 @@ class ReportExporter:
     # ========================================================================
     
     @staticmethod
-    def export_dashboard_pdf(stats: Dict, chart_images: Dict[str, bytes]) -> BinaryIO:
+    def export_dashboard_pdf(stats: Dict, chart_images: Dict[str, bytes] = None) -> BinaryIO:
         """Exporta estadísticas del dashboard como PDF con gráficos"""
         output = io.BytesIO()
         
@@ -809,11 +854,12 @@ class ReportExporter:
         stats_data = [
             ['Métrica', 'Valor'],
             ['Total de Análisis', str(stats.get('totalAnalyses', 0))],
+            ['Flúor Promedio', f"{stats.get('avgFluor', 0)}%"],
+            ['PFAS Promedio', f"{stats.get('avgPfas', 0)}%"],
             ['Concentración Promedio', f"{stats.get('avgConcentration', 0)} mM"],
-            ['PFAS Promedio', f"{stats.get('avgPfas', 0)} %"],
-            ['Flúor Promedio', f"{stats.get('avgFluor', 0)} %"],
             ['Calidad Promedio', f"{stats.get('avgQuality', 0)}/10"],
-            ['Muestras Alta Calidad', str(stats.get('highQualitySamples', 0))],
+            ['Muestras Alta Calidad (≥8)', str(stats.get('highQualitySamples', 0))],
+            ['Análisis (Última Semana)', str(stats.get('lastWeek', 0))],
         ]
         
         stats_table = Table(stats_data, colWidths=[3*inch, 2*inch])
@@ -834,14 +880,14 @@ class ReportExporter:
             story.append(Paragraph("2. Gráficos Estadísticos", styles['Heading1']))
             story.append(Spacer(1, 0.2*inch))
             
-            if 'trend' in chart_images:
+            if 'trend' in chart_images and chart_images['trend']:
                 story.append(Paragraph("2.1 Tendencia de Concentración", styles['Heading2']))
                 story.append(Spacer(1, 0.1*inch))
                 img = Image(io.BytesIO(chart_images['trend']), width=6*inch, height=3.5*inch)
                 story.append(img)
                 story.append(Spacer(1, 0.3*inch))
             
-            if 'distribution' in chart_images:
+            if 'distribution' in chart_images and chart_images['distribution']:
                 story.append(Paragraph("2.2 Distribución de Calidad", styles['Heading2']))
                 story.append(Spacer(1, 0.1*inch))
                 img = Image(io.BytesIO(chart_images['distribution']), width=6*inch, height=3.5*inch)
@@ -851,9 +897,9 @@ class ReportExporter:
         output.seek(0)
         
         return output
-    
+
     @staticmethod
-    def export_dashboard_docx(stats: Dict, chart_images: Dict[str, bytes]) -> BinaryIO:
+    def export_dashboard_docx(stats: Dict, chart_images: Dict[str, bytes] = None) -> BinaryIO:
         """Exporta estadísticas del dashboard como DOCX con gráficos"""
         doc = Document()
         
@@ -877,7 +923,7 @@ class ReportExporter:
         # ESTADÍSTICAS GENERALES
         doc.add_heading('1. Estadísticas Generales', level=1)
         
-        table = doc.add_table(rows=8, cols=2)
+        table = doc.add_table(rows=9, cols=2)
         table.style = 'Light Grid Accent 1'
         
         hdr_cells = table.rows[0].cells
@@ -886,11 +932,12 @@ class ReportExporter:
         
         stats_data = [
             ('Total de Análisis', str(stats.get('totalAnalyses', 0))),
+            ('Flúor Promedio', f"{stats.get('avgFluor', 0)}%"),
+            ('PFAS Promedio', f"{stats.get('avgPfas', 0)}%"),
             ('Concentración Promedio', f"{stats.get('avgConcentration', 0)} mM"),
-            ('PFAS Promedio', f"{stats.get('avgPfas', 0)} %"),
-            ('Flúor Promedio', f"{stats.get('avgFluor', 0)} %"),
             ('Calidad Promedio', f"{stats.get('avgQuality', 0)}/10"),
-            ('Muestras Alta Calidad', str(stats.get('highQualitySamples', 0))),
+            ('Muestras Alta Calidad (≥8)', str(stats.get('highQualitySamples', 0))),
+            ('Análisis (Última Semana)', str(stats.get('lastWeek', 0))),
             ('SNR Promedio', str(stats.get('avgSNR', 'N/A')))
         ]
         
@@ -905,12 +952,12 @@ class ReportExporter:
         if chart_images:
             doc.add_heading('2. Gráficos Estadísticos', level=1)
             
-            if 'trend' in chart_images:
+            if 'trend' in chart_images and chart_images['trend']:
                 doc.add_heading('2.1 Tendencia de Concentración', level=2)
                 doc.add_picture(io.BytesIO(chart_images['trend']), width=Inches(6))
                 doc.add_paragraph()
             
-            if 'distribution' in chart_images:
+            if 'distribution' in chart_images and chart_images['distribution']:
                 doc.add_heading('2.2 Distribución de Calidad', level=2)
                 doc.add_picture(io.BytesIO(chart_images['distribution']), width=Inches(6))
         
@@ -918,4 +965,4 @@ class ReportExporter:
         doc.save(output)
         output.seek(0)
         
-        return output
+        return output   

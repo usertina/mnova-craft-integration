@@ -229,31 +229,19 @@ def batch_analyze():
 # ============================================================================
 # API - Exportar Reportes (ENDPOINT MODIFICADO)
 # ============================================================================
+
 @app.route("/api/export", methods=["POST"])
 def export_report():
     """
     Exportar reporte en PDF, DOCX, CSV o JSON.
-    Maneja tanto análisis únicos como comparaciones.
+    Maneja análisis únicos, comparaciones y dashboard.
     """
     try:
         data = request.get_json()
         format_type = data.get("format", "pdf").lower()
-        export_type = data.get("type", "single")
+        export_type = data.get("type", "single")  # 'single', 'comparison', 'dashboard'
         
-        # 🆕 OBTENER LA IMAGEN DEL GRÁFICO (si existe)
-        chart_image_base64 = data.get("chart_image")
-        chart_image_bytes = None
-        
-        if chart_image_base64:
-            try:
-                # Convertir base64 a bytes
-                chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64)
-                print(f"📊 Imagen del gráfico recibida y decodificada ({len(chart_image_bytes)} bytes)")
-            except Exception as e:
-                print(f"⚠️ Error decodificando imagen del gráfico: {e}")
-                chart_image_bytes = None
-
-        print(f"📤 Solicitud de exportación: Tipo={export_type}, Formato={format_type}, Con gráfico={chart_image_bytes is not None}")
+        print(f"📤 Solicitud de exportación: Tipo={export_type}, Formato={format_type}")
 
         mime_types = {
             "json": "application/json",
@@ -274,8 +262,45 @@ def export_report():
         output = None
         filename_prefix = ""
 
-        if export_type == "comparison":
+        # 🆕 EXPORTACIÓN DE DASHBOARD
+        if export_type == "dashboard":
+            stats = data.get("stats", {})
+            chart_images_base64 = data.get("chart_images", {})
+            recent_analyses = data.get("recent_analyses", [])
+            
+            # Convertir imágenes base64 a bytes
+            chart_images = {}
+            for chart_name, base64_str in chart_images_base64.items():
+                try:
+                    chart_images[chart_name] = ReportExporter.base64_to_bytes(base64_str)
+                    print(f"📊 Gráfico '{chart_name}' decodificado")
+                except Exception as e:
+                    print(f"⚠️ Error decodificando gráfico '{chart_name}': {e}")
+            
+            filename_prefix = f"dashboard_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            if format_type == "pdf":
+                output = ReportExporter.export_dashboard_pdf(stats, chart_images)
+            elif format_type == "docx":
+                output = ReportExporter.export_dashboard_docx(stats, chart_images)
+            elif format_type == "csv":
+                # Para CSV, usar el método existente o crear uno nuevo
+                return jsonify({"error": "CSV export for dashboard should be handled in frontend"}), 400
+            else:
+                output = ReportExporter.export_json(data)
+        
+        # EXPORTACIÓN DE COMPARACIÓN
+        elif export_type == "comparison":
             samples = data.get("samples", [])
+            chart_image_base64 = data.get("chart_image")
+            chart_image_bytes = None
+            
+            if chart_image_base64:
+                try:
+                    chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64)
+                except Exception as e:
+                    print(f"⚠️ Error decodificando imagen: {e}")
+            
             filename_prefix = f"rmn_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             
             if format_type == "pdf":
@@ -286,9 +311,18 @@ def export_report():
                 output = ReportExporter.export_comparison_csv(samples)
             else:
                 output = ReportExporter.export_json(data)
-                
+        
+        # EXPORTACIÓN DE ANÁLISIS ÚNICO
         else:
-            # 🆕 PASAR LA IMAGEN AL EXPORTADOR
+            chart_image_base64 = data.get("chart_image")
+            chart_image_bytes = None
+            
+            if chart_image_base64:
+                try:
+                    chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64)
+                except Exception as e:
+                    print(f"⚠️ Error decodificando imagen: {e}")
+            
             results = data.get("results", {})
             filename_prefix = f"rmn_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
@@ -297,12 +331,12 @@ def export_report():
             elif format_type == "csv":
                 output = ReportExporter.export_csv(results)
             elif format_type == "pdf":
-                output = ReportExporter.export_pdf(results, chart_image_bytes)  # 🆕 CON IMAGEN
+                output = ReportExporter.export_pdf(results, chart_image_bytes)
             elif format_type == "docx":
-                output = ReportExporter.export_docx(results, chart_image_bytes)  # 🆕 CON IMAGEN
+                output = ReportExporter.export_docx(results, chart_image_bytes)
         
         if output is None:
-             return jsonify({"error": f"No se pudo generar la exportación para {export_type} en {format_type}"}), 500
+             return jsonify({"error": f"No se pudo generar la exportación"}), 500
 
         filename = f"{filename_prefix}.{extensions[format_type]}"
 
@@ -317,6 +351,7 @@ def export_report():
         print(f"❌ Error exportando: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": f"Export failed: {str(e)}"}), 500
+
 # ============================================================================
 # API - Gestión de Archivos (endpoints originales)
 # ============================================================================

@@ -665,7 +665,6 @@ class DashboardManager {
         window.APP_LOGGER.debug('Comparison view cleared.');
     }
 
-
     async exportComparison() {
         if (this.selectedSamples.size === 0) {
             if (typeof UIManager !== 'undefined') {
@@ -684,16 +683,53 @@ class DashboardManager {
             UIManager.updateButtonState(exportBtn, 'loading');
 
         try {
+            // 🆕 CAPTURAR EL GRÁFICO DE COMPARACIÓN
+            let chartImage = null;
+            try {
+                const comparisonChart = document.getElementById('comparisonChart');
+                if (comparisonChart && comparisonChart.data) {
+                    chartImage = await Plotly.toImage(comparisonChart, {
+                        format: 'png',
+                        width: 800,
+                        height: 500,
+                        scale: 2
+                    });
+                    window.APP_LOGGER.debug('Comparison chart captured successfully');
+                }
+            } catch (error) {
+                window.APP_LOGGER.error('Error capturing comparison chart:', error);
+                // Continuar sin gráfico si hay error
+            }
+            
+            // Obtener las muestras seleccionadas con todos sus datos
             const selectedAnalyses = this.allAnalyses.filter(a => this.selectedSamples.has(a.name));
+            
+            // Preparar datos completos para el reporte
+            const samplesData = selectedAnalyses.map(analysis => ({
+                filename: analysis.filename || analysis.name,
+                name: analysis.name,
+                date: analysis.created ? new Date(analysis.created).toLocaleDateString(LanguageManager.currentLang) : '--',
+                fluor: analysis.fluor || 0,
+                pfas: analysis.pfas || 0,
+                concentration: analysis.concentration || 0,
+                quality: analysis.quality || 0
+            }));
             
             const payload = {
                 type: 'comparison',
                 format: format, 
-                samples: selectedAnalyses,
-                count: selectedAnalyses.length
+                samples: samplesData,  // 🆕 Datos completos
+                count: samplesData.length,
+                chart_image: chartImage  // 🆕 Imagen del gráfico
             };
             
-            await APIClient.exportReport(payload);
+            window.APP_LOGGER.debug('Exporting comparison with chart:', {
+                samples: samplesData.length,
+                hasChart: !!chartImage
+            });
+            
+            // Enviar al backend usando el método de APIClient
+            await this.sendComparisonExport(payload);
             
             if (typeof UIManager !== 'undefined') {
                 UIManager.showNotification(LanguageManager.t('comparison.exportSuccess'), 'success');
@@ -706,6 +742,33 @@ class DashboardManager {
                 if(exportBtn) UIManager.updateButtonState(exportBtn, 'error');
             }
         }
+    }
+
+    // 🆕 Método auxiliar para enviar la exportación
+    async sendComparisonExport(payload) {
+        const response = await fetch(`${APIClient.baseURL}/export`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Export failed');
+        }
+        
+        // Descargar archivo
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `comparison_${new Date().toISOString().split('T')[0]}.${payload.format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
     }
 
     showFormatSelector() {
@@ -751,53 +814,23 @@ class DashboardManager {
             return;
         }
 
+        // 🆕 Mostrar selector de formato
+        const format = await this.showDashboardFormatSelector();
+        if (!format) return; // Usuario canceló
+
         const exportBtn = document.getElementById('exportDashboardBtn');
         if(exportBtn) UIManager.updateButtonState(exportBtn, 'loading');
 
         try {
-            const stats = this.statsCache;
-            let csvContent = "data:text/csv;charset=utf-8,";
-            
-            csvContent += "Metrica,Valor\n";
-            csvContent += `Total Analisis,${stats.totalAnalyses}\n`;
-            csvContent += `Concentracion Promedio (mM),${stats.avgConcentration}\n`;
-            csvContent += `PFAS Promedio (%),${stats.avgPfas}\n`;
-            csvContent += `Fluor Promedio (%),${stats.avgFluor}\n`;
-            csvContent += `Calidad Promedio,${stats.avgQuality}\n`;
-            csvContent += `Fuera de Limites,${stats.outOfLimits}\n`;
-            csvContent += `Analisis (Ultima Semana),${stats.lastWeek}\n`;
-            csvContent += `Analisis (Ultimo Mes),${stats.lastMonth}\n`;
-            csvContent += `Muestras Alta Calidad,${stats.highQualitySamples}\n`;
-            csvContent += `SNR Promedio,${stats.avgSNR}\n`;
-            
-            csvContent += "\nAnalisis (Todos)\n";
-            
-            const allAnalyses = [...this.allAnalyses]
-                .filter(a => a && !a.error && a.created)
-                .sort((a, b) => new Date(b.created) - new Date(a.created));
+            if (format === 'csv') {
+                // Exportación CSV existente (mantener como está)
+                await this.exportDashboardCSV();
+            } else {
+                // 🆕 Exportación PDF/DOCX con gráficos
+                await this.exportDashboardWithCharts(format);
+            }
 
-            csvContent += "Muestra,Fecha,Fluor (%),PFAS (%),Concentracion (mM),Calidad\n";
-
-            allAnalyses.forEach(analysis => {
-                const date = analysis.created ? new Date(analysis.created).toISOString().split('T')[0] : '--';
-                const fileName = this.escapeCsv(analysis.filename || analysis.name);
-                const fluor = UIManager.formatNumber(analysis.fluor, 2);
-                const pfas = UIManager.formatNumber(analysis.pfas, 2);
-                const concentration = UIManager.formatNumber(analysis.concentration, 4);
-                const quality = UIManager.formatNumber(analysis.quality, 1);
-                
-                csvContent += `${fileName},${date},${fluor},${pfas},${concentration},${quality}\n`;
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `dashboard_export_${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link); 
-            link.click();
-            document.body.removeChild(link);
-
-            UIManager.showNotification('Datos del dashboard exportados como CSV', 'success');
+            UIManager.showNotification(`Dashboard exportado como ${format.toUpperCase()}`, 'success');
             if(exportBtn) UIManager.updateButtonState(exportBtn, 'success');
 
         } catch (error) {
@@ -807,15 +840,161 @@ class DashboardManager {
         }
     }
 
-    escapeCsv(text) {
-        if (text === null || text === undefined) return '';
-        let str = String(text);
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-            return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
+    // 🆕 Método para exportar CSV (código existente extraído)
+    async exportDashboardCSV() {
+        const stats = this.statsCache;
+        let csvContent = "data:text/csv;charset=utf-8,";
+        
+        csvContent += "Metrica,Valor\n";
+        csvContent += `Total Analisis,${stats.totalAnalyses}\n`;
+        csvContent += `Concentracion Promedio (mM),${stats.avgConcentration}\n`;
+        csvContent += `PFAS Promedio (%),${stats.avgPfas}\n`;
+        csvContent += `Fluor Promedio (%),${stats.avgFluor}\n`;
+        csvContent += `Calidad Promedio,${stats.avgQuality}\n`;
+        csvContent += `Fuera de Limites,${stats.outOfLimits}\n`;
+        csvContent += `Analisis (Ultima Semana),${stats.lastWeek}\n`;
+        csvContent += `Analisis (Ultimo Mes),${stats.lastMonth}\n`;
+        csvContent += `Muestras Alta Calidad,${stats.highQualitySamples}\n`;
+        csvContent += `SNR Promedio,${stats.avgSNR}\n`;
+        
+        csvContent += "\nAnalisis (Todos)\n";
+        
+        const allAnalyses = [...this.allAnalyses]
+            .filter(a => a && !a.error && a.created)
+            .sort((a, b) => new Date(b.created) - new Date(a.created));
+
+        csvContent += "Muestra,Fecha,Fluor (%),PFAS (%),Concentracion (mM),Calidad\n";
+
+        allAnalyses.forEach(analysis => {
+            const date = analysis.created ? new Date(analysis.created).toISOString().split('T')[0] : '--';
+            const fileName = this.escapeCsv(analysis.filename || analysis.name);
+            const fluor = UIManager.formatNumber(analysis.fluor, 2);
+            const pfas = UIManager.formatNumber(analysis.pfas, 2);
+            const concentration = UIManager.formatNumber(analysis.concentration, 4);
+            const quality = UIManager.formatNumber(analysis.quality, 1);
+            
+            csvContent += `${fileName},${date},${fluor},${pfas},${concentration},${quality}\n`;
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `dashboard_export_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link); 
+        link.click();
+        document.body.removeChild(link);
     }
 
+    // 🆕 Método para exportar con gráficos (PDF/DOCX)
+    async exportDashboardWithCharts(format) {
+        window.APP_LOGGER.debug(`Exporting dashboard as ${format} with charts...`);
+        
+        // 1. Capturar los gráficos
+        const chartImages = {};
+        
+        try {
+            // Capturar gráfico de tendencia
+            const trendChart = document.getElementById('trendChart');
+            if (trendChart && trendChart.data) {
+                const trendImage = await Plotly.toImage(trendChart, {
+                    format: 'png',
+                    width: 800,
+                    height: 500,
+                    scale: 2
+                });
+                chartImages.trend = trendImage;
+                window.APP_LOGGER.debug('Trend chart captured');
+            }
+            
+            // Capturar gráfico de distribución
+            const distributionChart = document.getElementById('distributionChart');
+            if (distributionChart && distributionChart.data) {
+                const distImage = await Plotly.toImage(distributionChart, {
+                    format: 'png',
+                    width: 800,
+                    height: 500,
+                    scale: 2
+                });
+                chartImages.distribution = distImage;
+                window.APP_LOGGER.debug('Distribution chart captured');
+            }
+        } catch (error) {
+            window.APP_LOGGER.error('Error capturing dashboard charts:', error);
+            // Continuar sin gráficos si hay error
+        }
+        
+        // 2. Preparar datos para el backend
+        const exportData = {
+            type: 'dashboard',
+            format: format,
+            stats: this.statsCache,
+            chart_images: chartImages,
+            recent_analyses: this.allAnalyses
+                .filter(a => a && !a.error && a.created)
+                .sort((a, b) => new Date(b.created) - new Date(a.created))
+                .slice(0, 10) // Solo las 10 más recientes
+        };
+        
+        // 3. Enviar al backend
+        const response = await fetch(`${APIClient.baseURL}/export`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(exportData)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Export failed');
+        }
+        
+        // 4. Descargar archivo
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dashboard_export_${new Date().toISOString().split('T')[0]}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+
+    // 🆕 Selector de formato para dashboard
+    showDashboardFormatSelector() {
+        return new Promise((resolve) => {
+            const formats = [
+                { value: 'pdf', icon: 'file-pdf', label: 'PDF', color: 'danger' },
+                { value: 'docx', icon: 'file-word', label: 'Word', color: 'primary' },
+                { value: 'csv', icon: 'file-csv', label: 'CSV', color: 'success' }
+            ];
+            
+            const buttonsHTML = formats.map(f => 
+                `<button class="btn btn-${f.color} format-selector-btn" data-format="${f.value}">
+                    <i class="fas fa-${f.icon}"></i> ${f.label}
+                </button>`
+            ).join('');
+            
+            const content = `
+                <div class="format-selector">
+                    <p>Selecciona el formato de exportación del dashboard:</p>
+                    <div class="format-buttons">${buttonsHTML}</div>
+                </div>
+            `;
+            
+            UIManager.showModal('Exportar Dashboard', content, [
+                { text: 'Cancelar', type: 'outline', action: 'close' }
+            ]);
+            
+            document.querySelectorAll('.format-selector-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    UIManager.hideModal();
+                    resolve(btn.dataset.format);
+                });
+            });
+        });
+    }
 
     // ========================================================================
     // FILTROS DASHBOARD
