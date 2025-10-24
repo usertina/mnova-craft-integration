@@ -398,11 +398,11 @@ class SpectrumAnalyzer:
         
         # Regiones definidas con nombres más descriptivos
         regions = {
-            "CF3_terminal_PFOA_like": {"range": (-85, -75), "name": "CF₃ Terminal (Tipo PFOA)"},
-            "CF2_internal_far": {"range": (-110, -100), "name": "CF₂ Interno (Lejano)"},
-            "CF2_internal": {"range": (-120, -110), "name": "CF₂ Interno"},
-            "CF2_near_polar_PFOA_like": {"range": (-128, -120), "name": "CF₂ Próximo Polar (Tipo PFOA)"},
-            "CF2_other_long_chain": {"range": (-150, -128), "name": "CF₂ Otros / Cadena Larga"}
+            "CF₃_terminal_PFOA_like": {"range": (-85, -75), "name": "CF₃ Terminal (Tipo PFOA)"},
+            "CF₂_internal_far": {"range": (-110, -100), "name": "CF₂ Interno (Lejano)"},
+            "CF₂_internal": {"range": (-120, -110), "name": "CF₂ Interno"},
+            "CF₂_near_polar_PFOA_like": {"range": (-128, -120), "name": "CF₂ Próximo Polar (Tipo PFOA)"},
+            "CF₂_other_long_chain": {"range": (-150, -128), "name": "CF₂ Otros / Cadena Larga"}
             # Añadir más si es necesario
         }
         

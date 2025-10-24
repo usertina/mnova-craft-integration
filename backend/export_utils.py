@@ -31,6 +31,37 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 
+
+# ============================================================================
+# FUNCIÓN AUXILIAR PARA NORMALIZAR UNICODE
+# ============================================================================
+
+def normalize_region_text(text: str) -> str:
+    """
+    Convierte caracteres Unicode de subíndices/superíndices a texto normal
+    para compatibilidad con fuentes PDF estándar.
+    
+    CF₂ -> CF2
+    CF₃ -> CF3
+    COO⁻ -> COO-
+    """
+    replacements = {
+        '\u2082': '2',  # ₂ -> 2
+        '\u2083': '3',  # ₃ -> 3
+        '\u207b': '-',  # ⁻ -> -
+        '₂': '2',
+        '₃': '3',
+        '⁻': '-',
+        'ó': 'o',
+    }
+    
+    result = text
+    for unicode_char, replacement in replacements.items():
+        result = result.replace(unicode_char, replacement)
+    
+    return result
+
+
 class ReportExporter:
     """Clase mejorada para exportar análisis RMN con gráficos"""
     
@@ -246,21 +277,23 @@ class ReportExporter:
             
             for peak in peaks:
                 peaks_data.append([
-                    f"{peak.get('position', 0):.2f}",
+                    f"{peak.get('ppm', 0):.2f}",
                     f"{peak.get('intensity', 0):,.0f}",
                     f"{peak.get('relative_intensity', 0):.1f}{t('units.percentage')}",
-                    f"{peak.get('width', 0):.3f}",
-                    peak.get('region', 'N/A')
+                    f"{peak.get('width_ppm', 0):.3f}",
+                    normalize_region_text(peak.get('region', 'N/A'))
                 ])
             
-            peaks_table = Table(peaks_data, colWidths=[1*inch, 1.2*inch, 1.3*inch, 1*inch, 1.5*inch])
+            peaks_table = Table(peaks_data, colWidths=[0.9*inch, 1.0*inch, 1.1*inch, 0.9*inch, 2.9*inch])
             peaks_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f39c12')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('WORDWRAP', (0, 0), (-1, -1), True),
             ]))
             
             story.append(peaks_table)
@@ -425,6 +458,14 @@ class ReportExporter:
             peaks_table = doc.add_table(rows=len(peaks)+1, cols=5)
             peaks_table.style = 'Light Grid Accent 1'
             
+            # Ajustar anchos de columna para mejor visualización
+            for row in peaks_table.rows:
+                row.cells[0].width = Inches(0.9)  # PPM
+                row.cells[1].width = Inches(1.0)  # Intensity
+                row.cells[2].width = Inches(1.1)  # Relative Int
+                row.cells[3].width = Inches(0.9)  # Width
+                row.cells[4].width = Inches(3.0)  # Region (más ancha)
+            
             hdr_cells = peaks_table.rows[0].cells
             hdr_cells[0].text = t('peaks.ppm')
             hdr_cells[1].text = t('peaks.intensity')
@@ -434,11 +475,11 @@ class ReportExporter:
             
             for idx, peak in enumerate(peaks, 1):
                 row_cells = peaks_table.rows[idx].cells
-                row_cells[0].text = f"{peak.get('position', 0):.2f}"
+                row_cells[0].text = f"{peak.get('ppm', 0):.2f}"
                 row_cells[1].text = f"{peak.get('intensity', 0):,.0f}"
                 row_cells[2].text = f"{peak.get('relative_intensity', 0):.1f}{t('units.percentage')}"
-                row_cells[3].text = f"{peak.get('width', 0):.3f}"
-                row_cells[4].text = peak.get('region', 'N/A')
+                row_cells[3].text = f"{peak.get('width_ppm', 0):.3f}"
+                row_cells[4].text = normalize_region_text(peak.get('region', 'N/A'))
         else:
             doc.add_paragraph(t('peaks.none'))
         
@@ -483,11 +524,11 @@ class ReportExporter:
             
             for peak in peaks:
                 writer.writerow([
-                    f"{peak.get('position', 0):.2f}",
+                    f"{peak.get('ppm', 0):.2f}",
                     f"{peak.get('intensity', 0):,.0f}",
                     f"{peak.get('relative_intensity', 0):.1f}",
-                    f"{peak.get('width', 0):.3f}",
-                    peak.get('region', 'N/A')
+                    f"{peak.get('width_ppm', 0):.3f}",
+                    normalize_region_text(peak.get('region', 'N/A'))
                 ])
         
         byte_buffer = io.BytesIO()

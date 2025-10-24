@@ -130,8 +130,8 @@ def analyze_spectrum():
         result_path = ANALYSIS_DIR / result_filename
 
         # 4. Usar el codificador al guardar en el archivo
-        with open(result_path, "w") as f:
-            json.dump(results, f, indent=2, cls=NumpyJSONEncoder)
+        with open(result_path, "w", encoding='utf-8') as f:
+            json.dump(results, f, indent=2, ensure_ascii=False, cls=NumpyJSONEncoder)
 
         print(f"✅ Análisis completado: {result_filename}")
 
@@ -211,8 +211,8 @@ def batch_analyze():
         }
 
         # 4b. Usar el codificador también al guardar el lote
-        with open(batch_result_path, "w") as f:
-            json.dump(batch_summary, f, indent=2, cls=NumpyJSONEncoder)
+        with open(batch_result_path, "w", encoding='utf-8') as f:
+            json.dump(batch_summary, f, indent=2, ensure_ascii=False, cls=NumpyJSONEncoder)
 
         print(f"✅ Lote completado: {batch_summary['successful']}/{len(files)} exitosos")
 
@@ -382,7 +382,7 @@ def list_analysis():
     for f in ANALYSIS_DIR.glob("*.json"):
         try:
             # Leer el contenido del archivo JSON
-            with open(f, 'r') as file:
+            with open(f, 'r', encoding='utf-8') as file:
                 data = json.load(file)
 
             # Extraer datos clave para el historial
@@ -492,7 +492,7 @@ def get_analysis(filename):
     if not file_path.exists():
         return jsonify({"error": "Analysis not found"}), 404
 
-    with open(file_path, "r") as f:
+    with open(file_path, "r", encoding='utf-8') as f:
         data = json.load(f)
 
     return jsonify(data)
