@@ -35,7 +35,8 @@
     "showDetailedResults": "Mostrar Resultados Detallados",
     "hideDetailedResults": "Ocultar Resultados Detallados",
     "showPeakDetails": "Mostrar Detalles de Picos",
-    "hidePeakDetails": "Ocultar Detalles de Picos"
+    "hidePeakDetails": "Ocultar Detalles de Picos",
+    "peak_region_polar_proximal": "Próximo al grupo polar"
   },
   "batch": {
     "title": "Procesamiento por Lotes",
@@ -80,7 +81,22 @@
     "region": "Región",
     "noPeaksYet": "No hay picos analizados aún",
     "noDetails": "No hay datos detallados disponibles",
-    "quickStats": "Estadísticas Rápidas"
+    "quickStats": "Estadísticas Rápidas",
+    "snr": "Relación Señal/Ruido (SNR)",
+    "baseline_noise": "Ruido de Línea Base",
+    "data_density": "Densidad de Datos",
+    "resolution": "Resolución Espectral",
+    "total_points": "Puntos Totales",
+    "dynamic_range": "Rango Dinámico",
+    "spacing_uniformity": "Uniformidad de Espaciado"
+  },
+  "units": {
+    "ratio": "ratio",
+    "percent_signal": "% señal",
+    "pts_per_ppm": "pts/ppm",
+    "ppm_per_point": "ppm/punto",
+    "points": "puntos",
+    "ppm": "ppm"
   },
   "notifications": {
     "fileLoaded": "Archivo cargado: {filename}",

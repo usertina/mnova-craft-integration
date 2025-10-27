@@ -872,9 +872,10 @@ class DashboardManager {
         thead.innerHTML = '';
         tbody.innerHTML = '';
 
-        if (!analyses || analyses.length === 0) { 
+        if (!analyses || analyses.length === 0) {
+             tbody.querySelector('td[data-i18n="comparison.selectSamples"]').textContent = LanguageManager.t('comparison.selectSamples'); 
              tbody.innerHTML = `<tr><td colspan="6" data-i18n="comparison.selectSamples" class="empty-state-cell"></td></tr>`;
-             LanguageManager.applyTranslations(tbody);
+             
             return;
         }
 
@@ -888,6 +889,8 @@ class DashboardManager {
         });
         headerHtml += '</tr>';
         thead.innerHTML = headerHtml;
+        thead.querySelector('th[data-i18n="results.parameter"]').textContent = LanguageManager.t('results.parameter');
+        LanguageManager.applyTranslations(thead);
 
         const parameters = [
             { key: 'fluor', labelKey: 'results.fluor', unit: '%', decimals: 2 },
@@ -914,9 +917,18 @@ class DashboardManager {
             });
             rowHtml += '</tr>';
             tbody.innerHTML += rowHtml;
+            // Find the last added row and translate its first cell
+            const lastRow = tbody.rows[tbody.rows.length - 1];
+            if (lastRow) {
+                const firstCell = lastRow.cells[0];
+                const key = firstCell.getAttribute('data-i18n');
+                if (key) {
+                    firstCell.textContent = LanguageManager.t(key);
+                }
+            }
         });
 
-        LanguageManager.applyTranslations(); 
+        LanguageManager.applyTranslations(tbody);
 
         window.APP_LOGGER.debug('Comparison table rendered');
     }
@@ -946,6 +958,7 @@ class DashboardManager {
                         <th data-i18n="results.parameter"></th>
                    </tr>
               `;
+              LanguageManager.applyTranslations(thead);
          }
 
         if (tbody) {
@@ -957,6 +970,7 @@ class DashboardManager {
                     </td>
                 </tr>
             `;
+            LanguageManager.applyTranslations(tbody);
         }
 
         const exportBtn = document.getElementById('exportComparisonBtn');
@@ -975,7 +989,7 @@ class DashboardManager {
              countDisplay.textContent = LanguageManager.t('comparison.selected', { count: 0, max: this.maxSelectedSamples });
          }
 
-        if (table) LanguageManager.applyTranslations(); 
+         
 
         window.APP_LOGGER.debug('Comparison view cleared.');
     }

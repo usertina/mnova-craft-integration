@@ -35,7 +35,8 @@
     "showDetailedResults": "Show Detailed Results",
     "hideDetailedResults": "Hide Detailed Results",
     "showPeakDetails": "Show Peak Details",
-    "hidePeakDetails": "Hide Peak Details"
+    "hidePeakDetails": "Hide Peak Details",
+    "peak_region_polar_proximal": "Near polar group"
   },
   "batch": {
     "title": "Batch Processing",
@@ -77,7 +78,22 @@
     "max_signal_corr": "Max Signal (Corrected)",
     "mean_intensity_corr": "Mean Intensity (Corrected)",
     "std_intensity_corr": "Standard Deviation (Corrected)",
-    "quickStats": "Quick Statistics"
+    "quickStats": "Quick Statistics",
+    "snr": "Signal-to-Noise Ratio (SNR)",
+    "baseline_noise": "Baseline Noise",
+    "data_density": "Data Density",
+    "resolution": "Spectral Resolution",
+    "total_points": "Total Points",
+    "dynamic_range": "Dynamic Range",
+    "spacing_uniformity": "Spacing Uniformity"
+  },
+  "units": {
+    "ratio": "ratio",
+    "percent_signal": "% signal",
+    "pts_per_ppm": "pts/ppm",
+    "ppm_per_point": "ppm/point",
+    "points": "points",
+    "ppm": "ppm"
   },
   "notifications": {
     "fileLoaded": "File loaded: {filename}",

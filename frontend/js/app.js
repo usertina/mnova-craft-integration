@@ -457,46 +457,64 @@ class RMNAnalyzerApp {
     // ### MODIFICADO: Updated updateResultsTable function ###
     updateResultsTable(detailedResults) {
         const tbody = document.querySelector('#resultsTable tbody');
-        if (!tbody) return; // Exit if table body not found
-        tbody.innerHTML = ''; // Clear previous results
+        if (!tbody) return;
+        tbody.innerHTML = '';
 
-        // Check if detailedResults is an object and not empty
+        // Check if detailedResults is valid
         if (typeof detailedResults !== 'object' || detailedResults === null || Object.keys(detailedResults).length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" data-i18n="results.noDetails">No hay datos detallados disponibles.</td></tr>';
-             LanguageManager.applyTranslations(); // Translate the message
+            LanguageManager.applyTranslations();
             return;
         }
 
+        // 🆕 MAPEO DE CAMPOS DEL ANALYZER V3 A CLAVES DE TRADUCCIÓN
+        const fieldMapping = {
+            // Campos del analyzer v3 -> claves de traducción
+            'snr': 'results.snr',
+            'baseline_noise_percent': 'results.baseline_noise',
+            'data_density_pts_ppm': 'results.data_density',
+            'spectral_resolution_ppm_pt': 'results.resolution',
+            'total_points': 'results.total_points',
+            'ppm_range': 'results.ppm_range',
+            'dynamic_range': 'results.dynamic_range',
+            'spacing_uniformity': 'results.spacing_uniformity'
+        };
+
         // Iterate through the detailed results object
         Object.entries(detailedResults).forEach(([key, data]) => {
-            if (!data || typeof data !== 'object') return; // Skip invalid entries
+            if (!data || typeof data !== 'object') return;
 
             // Determine status class
             let statusClass = '';
             if (data.status === 'OK') statusClass = 'status-ok';
             else if (data.status === 'WARN') statusClass = 'status-warn';
             else if (data.status === 'FAIL') statusClass = 'status-fail';
-            else statusClass = 'status-info'; // Default for INFO or undefined
+            else statusClass = 'status-info';
 
-            // Use provided parameter name, fallback to key, then translate
-            const paramName = data.parameter || key;
-            // ### CORRECCIÓN: Usar la clave original 'key' para buscar traducción primero ###
-            const translatedParam = LanguageManager.t(`results.${key}`) || LanguageManager.t(paramName) || paramName;
+            // 🆕 Usar el mapeo para obtener la clave de traducción correcta
+            const translationKey = fieldMapping[key] || `results.${key}`;
+            let translatedParam = LanguageManager.t(translationKey);
+            
+            // Si la traducción devuelve la misma clave (no encontrada), usar el parameter name del data
+            if (translatedParam === translationKey || translatedParam.startsWith('[') || translatedParam.includes('undefined')) {
+                translatedParam = data.parameter || key;
+            }
 
-            const displayValue = data.value ?? '--'; // Use nullish coalescing
+            const displayValue = data.value ?? '--';
             const displayUnit = data.unit || '--';
-            const displayLimits = data.limits || '—'; // Use em dash for consistency
+            const displayLimits = data.limits || '—';
 
             const row = document.createElement('tr');
-            row.className = statusClass; // Apply status class to the row
+            row.className = statusClass;
             row.innerHTML = `
-                <td>${translatedParam}</td>
-                <td>${displayValue}</td>
-                <td>${displayUnit}</td>
-                <td>${displayLimits}</td>
+                <td>${UIManager.escapeHtml(translatedParam)}</td>
+                <td>${UIManager.escapeHtml(String(displayValue))}</td>
+                <td>${UIManager.escapeHtml(displayUnit)}</td>
+                <td>${UIManager.escapeHtml(displayLimits)}</td>
             `;
             tbody.appendChild(row);
         });
+    
          // ### CAMBIO AQUÍ ###
          LanguageManager.applyTranslations(); // Use the general function
     }

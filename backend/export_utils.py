@@ -111,8 +111,8 @@ class ReportExporter:
     
     @staticmethod
     def export_pdf(results: Dict, chart_image: bytes = None, lang: str = 'es') -> BinaryIO:
-        """Exporta análisis individual como PDF con gráfico"""
-        # 🆕 Crear traductor
+        """Exporta análisis individual como PDF con gráfico (VERSIÓN CORREGIDA)"""
+        # Crear traductor
         t = TranslationManager(lang)
         
         output = io.BytesIO()
@@ -190,126 +190,170 @@ class ReportExporter:
         story.append(Paragraph(quality_text, styles['Normal']))
         story.append(PageBreak())
 
-        # ===== INFORMACIÓN RÁPIDA ===== 
-        story.append(Spacer(1, 0.3*inch))
+        # ===== INFORMACIÓN RÁPIDA (Quick Info) =====
         story.append(Paragraph(f"3. {t('report.quick_info')}", styles['Heading1']))
-        story.append(Spacer(1, 0.1*inch))
-
-        quick_info_data = [
-            [t('report.metric'), t('report.value')],
-            [t('peaks.title'), str(len(results.get('peaks', [])))],
-            [t('results.total_area'), f"{analysis.get('total_area', 0):,.2f}"],
-            ['SNR', f"{results.get('quality_metrics', {}).get('snr', 0):.2f}"]
-        ]
-
-        quick_table = Table(quick_info_data, colWidths=[2.5*inch, 2*inch])
-        quick_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9b59b6')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ]))
-
-        story.append(quick_table)
-        story.append(PageBreak())
-        
-        # ===== ANÁLISIS DETALLADO =====
-        story.append(Paragraph(f"4. {t('report.detailed_analysis')}", styles['Heading1']))
         story.append(Spacer(1, 0.2*inch))
         
-        story.append(Paragraph(f"4.1 {t('report.chemical_composition')}", styles['Heading2']))
-        story.append(Spacer(1, 0.1*inch))
+        peaks = results.get('peaks', [])
+        # Usar 'total_area' de 'analysis' y 'snr' de 'quality_metrics'
+        total_area = analysis.get('total_area', 0) 
+        snr = results.get('quality_metrics', {}).get('snr', 0)
         
-        detailed_data = [
-            [t('report.parameter'), t('report.value'), t('report.unit')],
-            [t('results.total_area'), f"{analysis.get('total_area', 0):,.2f}", t('units.arbitrary')],
-            [t('results.fluor_area'), f"{analysis.get('fluor_area', 0):,.2f}", t('units.arbitrary')],
-            [t('results.pfas_area'), f"{analysis.get('pifas_area', 0):,.2f}", t('units.arbitrary')],
-            [t('results.sample_concentration'), f"{results.get('sample_concentration', 0):.2f}", t('units.millimolar')],
+        quick_info_data = [
+            [t('report.metric'), t('report.value')],
+            [t('peaks.title'), str(len(peaks))],
+            [t('results.total_area'), f"{total_area:,.2f}"],
+            ["SNR", f"{snr:.2f}"]
         ]
         
-        detailed_table = Table(detailed_data, colWidths=[3*inch, 1.5*inch, 1*inch])
-        detailed_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e74c3c')),
+        quick_table = Table(quick_info_data, colWidths=[3*inch, 2*inch])
+        quick_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
         
-        story.append(detailed_table)
-        story.append(Spacer(1, 0.3*inch))
+        story.append(quick_table)
+        story.append(PageBreak())
         
-        # ===== ESTADÍSTICAS DETALLADAS =====
-        story.append(Paragraph(f"4.2 {t('report.detailed_statistics')}", styles['Heading2']))
+        # ===== ANÁLISIS DETALLADO (Detailed Analysis) =====
+        story.append(Paragraph(f"4. {t('report.detailed_analysis')}", styles['Heading1']))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # 4.1 Composición Química
+        story.append(Paragraph(f"4.1 {t('report.chemical_composition')}", styles['Heading2']))
         story.append(Spacer(1, 0.1*inch))
         
-        qm = results.get("quality_metrics", {})
-        
-        stats_data = [
-            [t('report.parameter'), t('report.value')],
-            ['SNR', f"{qm.get('snr', 0):.2f}"],
-            [t('report.limits'), f"{qm.get('resolution', 0):.2f} ppm"],
+        chemistry_data = [
+            [t('report.parameter'), t('report.value'), t('report.unit')],
+            [t('results.total_area'), f"{analysis.get('total_area', 0):,.2f}", t('units.arbitrary')],
+            [t('results.fluor_area'), f"{analysis.get('fluor_area', 0):,.2f}", t('units.arbitrary')],
+            [t('results.pfas_area'), f"{analysis.get('pifas_area', 0):,.2f}", t('units.arbitrary')],
+            [t('results.sample_concentration'), f"{analysis.get('concentration', 0):.2f}", t('units.millimolar')]
         ]
         
-        stats_table = Table(stats_data, colWidths=[3*inch, 2*inch])
-        stats_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#16a085')),
+        chemistry_table = Table(chemistry_data, colWidths=[3*inch, 1.5*inch, 1*inch])
+        chemistry_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
         
-        story.append(stats_table)
+        story.append(chemistry_table)
+        story.append(Spacer(1, 0.3*inch))
+        
+        # 4.2 Estadísticas Detalladas
+        story.append(Paragraph(f"4.2 {t('report.detailed_statistics')}", styles['Heading2']))
+        story.append(Spacer(1, 0.1*inch))
+        
+        quality_metrics = results.get('quality_metrics', {})
+        spectrum = results.get('spectrum', {})
+        
+        detailed_stats_data = [
+            [t('report.parameter'), t('report.value'), t('report.unit')],
+            [t('results.baseline_noise'),
+            f"{quality_metrics.get('baseline_noise_percent', 0):.2f}",
+            t('units.percent_signal')],
+            [t('results.data_density'),
+            f"{quality_metrics.get('data_density_pts_ppm', 0):.1f}",
+            t('units.pts_per_ppm')],
+            [t('results.ppm_range'),
+            f"{spectrum.get('ppm_min', 0):.2f} a {spectrum.get('ppm_max', 0):.2f}",
+            "ppm"],
+            [t('results.resolution'),
+            f"{quality_metrics.get('spectral_resolution_ppm_pt', 0):.4f}",
+            t('units.ppm_per_point')],
+            [t('results.snr'),
+            f"{quality_metrics.get('snr', 0):.2f}",
+            t('units.ratio')],
+            [t('results.total_points'),
+            f"{spectrum.get('data_points', 0)}",
+            t('units.points')],
+            [t('results.dynamic_range'),
+            f"{quality_metrics.get('dynamic_range', 0):.2f}",
+            t('units.ratio')],
+            [t('results.spacing_uniformity'),
+            f"{quality_metrics.get('spacing_uniformity', 0):.2f}",
+            t('units.percentage')]
+        ]
+        
+        detailed_table = Table(detailed_stats_data, colWidths=[3*inch, 1.5*inch, 1*inch])
+        detailed_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ]))
+        
+        story.append(detailed_table)
         story.append(PageBreak())
         
-        # ===== PICOS DETECTADOS =====
-        peaks = results.get("peaks", [])
-        if peaks:
-            story.append(Paragraph(f"5. {t('report.detected_peaks')}", styles['Heading1']))
-            story.append(Spacer(1, 0.2*inch))
-            
-            peaks_data = [
-                [t('peaks.ppm'), t('peaks.intensity'), t('peaks.relative_intensity'), t('peaks.width'), t('peaks.region')]
-            ]
+        # ===== PICOS DETECTADOS (Detected Peaks) =====
+        story.append(Paragraph(f"5. {t('report.detected_peaks')}", styles['Heading1']))
+        story.append(Spacer(1, 0.2*inch))
+        
+        if peaks and len(peaks) > 0:
+            peaks_data = [[
+                t('peaks.ppm'),
+                t('peaks.intensity'),
+                t('peaks.relative_intensity'),
+                t('peaks.width'),
+                t('peaks.region')
+            ]]
             
             for peak in peaks:
+                ppm = peak.get('ppm', peak.get('position', 0))
+                intensity = peak.get('intensity', peak.get('height', 0))
+                rel_intensity = peak.get('relative_intensity', 0)
+                width = peak.get('width_ppm', 0)
+                region = normalize_region_text(peak.get('region', ''))
+                
                 peaks_data.append([
-                    f"{peak.get('ppm', 0):.2f}",
-                    f"{peak.get('intensity', 0):,.0f}",
-                    f"{peak.get('relative_intensity', 0):.1f}{t('units.percentage')}",
-                    f"{peak.get('width_ppm', 0):.3f}",
-                    normalize_region_text(peak.get('region', 'N/A'))
+                    f"{ppm:.2f}",
+                    f"{intensity:.0f}",
+                    f"{rel_intensity:.1f}{t('units.percentage')}",
+                    f"{width:.3f}",
+                    region
                 ])
             
-            peaks_table = Table(peaks_data, colWidths=[0.9*inch, 1.0*inch, 1.1*inch, 0.9*inch, 2.9*inch])
+            peaks_table = Table(peaks_data, colWidths=[1*inch, 1*inch, 1.2*inch, 1*inch, 2.3*inch])
             peaks_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f39c12')),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('WORDWRAP', (0, 0), (-1, -1), True),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('ALIGN', (0, 1), (3, -1), 'CENTER'),
+                ('ALIGN', (4, 1), (4, -1), 'LEFT'),
             ]))
             
             story.append(peaks_table)
         else:
-            story.append(Paragraph(f"5. {t('report.detected_peaks')}", styles['Heading1']))
             story.append(Paragraph(t('peaks.none'), styles['Normal']))
         
         doc.build(story)
         output.seek(0)
         
         return output
+
     
     @staticmethod
     def export_docx(results: Dict, chart_image: bytes = None, lang: str = 'es') -> BinaryIO:
-        """Exporta análisis individual como DOCX con gráfico"""
-        # 🆕 Crear traductor
+        """Exporta análisis individual como DOCX con gráfico (VERSIÓN CORREGIDA)"""
+        # Crear traductor
         t = TranslationManager(lang)
         
         doc = Document()
@@ -387,6 +431,7 @@ class ReportExporter:
         quick_hdr[0].text = t('report.metric')
         quick_hdr[1].text = t('report.value')
         
+        # Usar 'total_area' de 'analysis' y 'snr' de 'quality_metrics'
         quick_rows = [
             (t('peaks.title'), str(len(results.get('peaks', [])))),
             (t('results.total_area'), f"{analysis.get('total_area', 0):,.2f}"),
@@ -412,11 +457,12 @@ class ReportExporter:
         hdr_cells[1].text = t('report.value')
         hdr_cells[2].text = t('report.unit')
         
+        # Usar las claves correctas de 'analysis'
         detailed_rows = [
             (t('results.total_area'), f"{analysis.get('total_area', 0):,.2f}", t('units.arbitrary')),
             (t('results.fluor_area'), f"{analysis.get('fluor_area', 0):,.2f}", t('units.arbitrary')),
             (t('results.pfas_area'), f"{analysis.get('pifas_area', 0):,.2f}", t('units.arbitrary')),
-            (t('results.sample_concentration'), f"{results.get('sample_concentration', 0):.2f}", t('units.millimolar')),
+            (t('results.sample_concentration'), f"{analysis.get('concentration', 0):.2f}", t('units.millimolar')),
         ]
         
         for idx, (param, value, unit) in enumerate(detailed_rows, 1):
@@ -430,23 +476,33 @@ class ReportExporter:
         # ESTADÍSTICAS DETALLADAS
         doc.add_heading(f"4.2 {t('report.detailed_statistics')}", level=2)
         
-        qm = results.get("quality_metrics", {})
-        stats_table = doc.add_table(rows=3, cols=2)
+        quality_metrics = results.get('quality_metrics', {})
+        spectrum = results.get('spectrum', {})
+        
+        stats_rows = [
+            (t('results.baseline_noise'), f"{quality_metrics.get('baseline_noise_percent', 0):.2f}", t('units.percent_signal')),
+            (t('results.data_density'), f"{quality_metrics.get('data_density_pts_ppm', 0):.1f}", t('units.pts_per_ppm')),
+            (t('results.ppm_range'), f"{spectrum.get('ppm_min', 0):.2f} a {spectrum.get('ppm_max', 0):.2f}", "ppm"),
+            (t('results.resolution'), f"{quality_metrics.get('spectral_resolution_ppm_pt', 0):.4f}", t('units.ppm_per_point')),
+            (t('results.snr'), f"{quality_metrics.get('snr', 0):.2f}", t('units.ratio')),
+            (t('results.total_points'), f"{spectrum.get('data_points', 0)}", t('units.points')),
+            (t('results.dynamic_range'), f"{quality_metrics.get('dynamic_range', 0):.2f}", t('units.ratio')),
+            (t('results.spacing_uniformity'), f"{quality_metrics.get('spacing_uniformity', 0):.2f}", t('units.percentage')),
+        ]
+        
+        stats_table = doc.add_table(rows=len(stats_rows) + 1, cols=3)
         stats_table.style = 'Light Grid Accent 1'
         
         stats_hdr = stats_table.rows[0].cells
         stats_hdr[0].text = t('report.parameter')
         stats_hdr[1].text = t('report.value')
+        stats_hdr[2].text = t('report.unit')
         
-        stats_rows = [
-            ('SNR', f"{qm.get('snr', 0):.2f}"),
-            (t('report.limits'), f"{qm.get('resolution', 0):.2f} ppm"),
-        ]
-        
-        for idx, (param, value) in enumerate(stats_rows, 1):
+        for idx, (param, value, unit) in enumerate(stats_rows, 1):
             row_cells = stats_table.rows[idx].cells
             row_cells[0].text = param
             row_cells[1].text = value
+            row_cells[2].text = unit
         
         doc.add_page_break()
         
@@ -458,13 +514,12 @@ class ReportExporter:
             peaks_table = doc.add_table(rows=len(peaks)+1, cols=5)
             peaks_table.style = 'Light Grid Accent 1'
             
-            # Ajustar anchos de columna para mejor visualización
             for row in peaks_table.rows:
-                row.cells[0].width = Inches(0.9)  # PPM
-                row.cells[1].width = Inches(1.0)  # Intensity
-                row.cells[2].width = Inches(1.1)  # Relative Int
-                row.cells[3].width = Inches(0.9)  # Width
-                row.cells[4].width = Inches(3.0)  # Region (más ancha)
+                row.cells[0].width = Inches(0.9)
+                row.cells[1].width = Inches(1.0)
+                row.cells[2].width = Inches(1.1)
+                row.cells[3].width = Inches(0.9)
+                row.cells[4].width = Inches(3.0)
             
             hdr_cells = peaks_table.rows[0].cells
             hdr_cells[0].text = t('peaks.ppm')
@@ -488,6 +543,7 @@ class ReportExporter:
         output.seek(0)
         
         return output
+
     
     @staticmethod
     def export_csv(results: Dict, lang: str = 'es') -> BinaryIO:

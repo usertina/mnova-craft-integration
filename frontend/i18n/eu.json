@@ -35,7 +35,8 @@
     "showDetailedResults": "Erakutsi Emaitza Zehatzak",
     "hideDetailedResults": "Ezkutatu Emaitza Zehatzak",
     "showPeakDetails": "Erakutsi Pikoaren Xehetasunak",
-    "hidePeakDetails": "Ezkutatu Pikoaren Xehetasunak"
+    "hidePeakDetails": "Ezkutatu Pikoaren Xehetasunak",
+    "peak_region_polar_proximal": "Talde polarretik hurbil"
   },
   "batch": {
     "title": "Sailka Prozesatzea",
@@ -77,7 +78,22 @@
     "max_signal_corr": "Seinale Maximoa (Zuzenduta)",
     "mean_intensity_corr": "Batez Besteko Intentsitatea (Zuzenduta)",
     "std_intensity_corr": "Desbiderapen Estandarra (Zuzenduta)",
-    "quickStats": "Estatistika Azkarrak"
+    "quickStats": "Estatistika Azkarrak",
+    "snr": "Seinalea-Zarata Ratioa (SNR)",
+    "baseline_noise": "Oinarri-lerroko Zarata",
+    "data_density": "Datu Dentsitatea",
+    "resolution": "Bereizmen Espektrala",
+    "total_points": "Puntu Totalak",
+    "dynamic_range": "Barruti Dinamikoa",
+    "spacing_uniformity": "Tartearen Uniformitatea"
+  },
+  "units": {
+    "ratio": "ratioa",
+    "percent_signal": "% seinalea",
+    "pts_per_ppm": "puntu/ppm",
+    "ppm_per_point": "ppm/puntu",
+    "points": "puntuak",
+    "ppm": "ppm"
   },
   "notifications": {
     "fileLoaded": "Fitxategia kargatua: {filename}",

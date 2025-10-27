@@ -29,7 +29,15 @@
     "total_area": "Total Integrated Area",
     "fluor_area": "Fluorine Area",
     "pfas_area": "PFAS Area",
-    "sample_concentration": "Sample Concentration"
+    "sample_concentration": "Sample Concentration",
+    "baseline_noise":"Baseline Noise",
+    "data_density":"data_density",
+    "ppm_range":"ppm_range",
+    "resolution":"spectral resolution",
+    "snr":"signal-to-noise ratio (SNR)",
+    "total_points":"Total Points",
+    "dynamic_range":"Dynamic Range",
+    "spacing_uniformity":"Spacing Uniformity"
   },
   "peaks": {
     "title": "Detected Peaks",
@@ -69,6 +77,11 @@
     "percent_fluor": "% Fluorine",
     "millimolar": "mM",
     "arbitrary": "a.u.",
-    "over_ten": "/10"
+    "over_ten": "/10",
+    "percent_signal":"% signal",
+    "pts_per_ppm":"pts/ppm",
+    "ppm_per_point":"ppm/point",
+    "points":"points",
+    "ratio":"ratio"
   }
 }
