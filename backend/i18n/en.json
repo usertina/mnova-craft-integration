@@ -83,5 +83,17 @@
     "ppm_per_point":"ppm/point",
     "points":"points",
     "ratio":"ratio"
+  },
+  "regions": {
+    "cf3_terminal_pfoa_like": "CF₃ Terminal (PFOA-like)",
+    "cf3_terminal_pfoa": "CF₃ Terminal (PFOA)",
+    "cf3_terminal_pfos": "CF₃ Terminal (PFOS)",
+    "cf2_alpha_coo": "CF₂ α (near COO⁻)",
+    "cf2_alpha_so3": "CF₂ α (near SO₃⁻)",
+    "cf2_internal_main": "CF₂ Internal (Main chain)",
+    "cf2_internal_near_cf3": "CF₂ Internal (Near CF₃)",
+    "cf2_other_long_chain": "CF₂ Other / Long chain",
+    "cf_branched_isomers": "CF Branched / CFH / Isomers",
+    "out_of_range": "Outside typical PFAS range ({value})"
   }
 }
