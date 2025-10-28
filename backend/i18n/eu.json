@@ -83,5 +83,17 @@
     "ppm_per_point": "ppm/puntu",
     "points": "puntu",
     "ratio": "erlazioa"
+  },
+  "regions": {
+    "cf3_terminal_pfoa_like": "CF₃ Terminala (PFOA antzekoa)",
+    "cf3_terminal_pfoa": "CF₃ Terminala (PFOA)",
+    "cf3_terminal_pfos": "CF₃ Terminala (PFOS)",
+    "cf2_alpha_coo": "CF₂ α (COO⁻-tik hurbil)",
+    "cf2_alpha_so3": "CF₂ α (SO₃⁻-tik hurbil)",
+    "cf2_internal_main": "Barneko CF₂ (Kate nagusia)",
+    "cf2_internal_near_cf3": "Barneko CF₂ (CF₃-tik hurbil)",
+    "cf2_other_long_chain": "CF₂ Besteak / Kate luzea",
+    "cf_branched_isomers": "CF Adarkatua / CFH / Isomeroak",
+    "out_of_range": "PFAS tarte tipikotik kanpo ({value})"
   }
 }

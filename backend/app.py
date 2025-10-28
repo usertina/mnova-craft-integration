@@ -1,4 +1,5 @@
 import csv
+from fileinput import filename
 from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 from pathlib import Path
@@ -9,46 +10,42 @@ from datetime import datetime
 from io import BytesIO, StringIO
 import traceback
 from export_utils import ReportExporter
-import numpy as np # <-- 1. Importar numpy
+import numpy as np
+import logging 
+
+from database import get_db
+from config_manager import get_config_manager, LicenseValidator
+from company_data import COMPANY_PROFILES
+
+logging.getLogger().setLevel(logging.DEBUG)
+
+# Inicializar
+db = get_db()
+config = get_config_manager()
 
 # Importar el analizador
+# Asumimos que la carpeta 'worker' está al mismo nivel que 'backend'
 sys.path.append(str(Path(__file__).parent.parent / "worker"))
 from analyzer import SpectrumAnalyzer
 
-# ============================================================================
-# 2. AÑADIR CLASE DE CODIFICADOR JSON
-# ============================================================================
 class NumpyJSONEncoder(json.JSONEncoder):
-    """
-    Codificador JSON personalizado para manejar tipos de datos de NumPy
-    que aparecen durante el análisis científico.
-    """
     def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif isinstance(obj, np.bool_):
-            return bool(obj)
-        else:
-            return super(NumpyJSONEncoder, self).default(obj)
-
-# ============================================================================
+        if isinstance(obj, np.integer): return int(obj)
+        elif isinstance(obj, np.floating): return float(obj)
+        elif isinstance(obj, np.ndarray): return obj.tolist()
+        elif isinstance(obj, np.bool_): return bool(obj)
+        else: return super(NumpyJSONEncoder, self).default(obj)
 
 app = Flask(__name__, static_folder="../frontend")
-CORS(app)  # Permitir CORS para desarrollo
-
-# 3. Asignar el codificador personalizado a Flask
+CORS(app)
 app.json_encoder = NumpyJSONEncoder 
 
-# Directorios
-OUTPUT_DIR = Path("storage/output").resolve()
-ANALYSIS_DIR = Path("storage/analysis").resolve()
-CRAFT_EXPORTS_DIR = Path("storage/craft_exports").resolve()
+# Anclar las rutas al directorio de este script
+SCRIPT_DIR = Path(__file__).parent.resolve()
+OUTPUT_DIR = SCRIPT_DIR / "storage" / "output"
+ANALYSIS_DIR = SCRIPT_DIR / "storage" / "analysis"
+CRAFT_EXPORTS_DIR = SCRIPT_DIR / "storage" / "craft_exports"
 
-# Crear directorios si no existen
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
 CRAFT_EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -64,6 +61,7 @@ print(f"   Craft Exports: {CRAFT_EXPORTS_DIR}")
 
 @app.route('/')
 def home():
+    # Asumimos que el frontend está en la carpeta ../frontend/
     return send_from_directory(app.static_folder, "index.html")
 
 @app.route('/<path:path>')
@@ -74,69 +72,74 @@ def static_proxy(path):
         return send_from_directory(app.static_folder, "index.html")
 
 # ============================================================================
-# API - Health Check
-# ============================================================================
-
-@app.route("/api/health", methods=["GET"])
-def health_check():
-    """Verificar estado del servidor"""
-    return jsonify({
-        "status": "ok",
-        "message": "CraftRMN Analysis Server Running",
-        "version": "1.0.0",
-        "timestamp": datetime.now().isoformat()
-    })
-
-# ============================================================================
 # API - Análisis de Espectros
 # ============================================================================
 
 @app.route("/api/analyze", methods=["POST"])
 def analyze_spectrum():
-    """Analizar un único espectro"""
+    """
+    Analizar un único espectro.
+    REQUIERE: un 'company_id' en el formulario.
+    """
     try:
-        # Verificar que se recibió un archivo
         if "file" not in request.files:
             return jsonify({"error": "No file provided"}), 400
+        
+        company_id = request.form.get("company_id")
+        if not company_id:
+            return jsonify({"error": "No company_id provided with the analysis request"}), 400
+        if company_id not in COMPANY_PROFILES:
+             return jsonify({"error": f"Invalid company_id: {company_id}"}), 400
 
         file = request.files["file"]
-
         if file.filename == "":
             return jsonify({"error": "Empty filename"}), 400
 
-        # Obtener parámetros de análisis
         parameters = {}
         if "parameters" in request.form:
             parameters = json.loads(request.form["parameters"])
 
-        # Guardar archivo temporalmente
         file_path = OUTPUT_DIR / file.filename
         file.save(file_path)
 
-        print(f"📊 Analizando: {file.filename}")
+        print(f"📊 Analizando: {file.filename} para la empresa {company_id}")
 
-        # Realizar análisis
         analyzer = SpectrumAnalyzer()
+        analysis_params = config.get_analysis_params()
+        
         results = analyzer.analyze_file(
             file_path,
-            fluor_range=parameters.get("fluor_range", {"min": -150, "max": -50}),
-            pifas_range=parameters.get("pifas_range", {"min": -60, "max": -130}),
-            concentration=parameters.get("concentration", 1.0)
+            fluor_range=parameters.get("fluor_range", analysis_params['fluor_range']),
+            pifas_range=parameters.get("pifas_range", analysis_params['pifas_range']),
+            concentration=parameters.get("concentration", analysis_params['default_concentration'])
         )
 
-        # Guardar resultados
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         result_filename = f"{Path(file.filename).stem}_analysis_{timestamp}.json"
         result_path = ANALYSIS_DIR / result_filename
-
-        # 4. Usar el codificador al guardar en el archivo
+        
         with open(result_path, "w", encoding='utf-8') as f:
-            json.dump(results, f, indent=2, ensure_ascii=False, cls=NumpyJSONEncoder)
+            json.dump(results, f, indent=2, cls=NumpyJSONEncoder)
+        
+        print(f"  💾 Guardado: {result_filename}")
 
-        print(f"✅ Análisis completado: {result_filename}")
+        measurement_data = {
+            'device_id': config.get_device_id(),
+            'company_id': company_id, # Usar el company_id de la petición
+            'filename': file.filename,
+            'timestamp': datetime.now().isoformat(),
+            'analysis': results.get('analysis', {}),
+            'quality_score': results.get('quality_score'),
+            'spectrum': results.get('spectrum', {}),
+            'peaks': results.get('peaks', [])
+        }
+        
+        measurement_id = db.save_measurement(measurement_data)
+        print(f"  📊 SQLite ID: {measurement_id}")
+        
+        results['measurement_id'] = measurement_id
+        results['result_file'] = result_filename
 
-        # 5. Flask usará automáticamente el app.json_encoder
-        #    para convertir 'results' al enviarlo
         return jsonify(results)
 
     except Exception as e:
@@ -148,205 +151,257 @@ def analyze_spectrum():
         }), 500
 
 # ============================================================================
-# API - Procesamiento por Lotes
+# API - Activación y Configuración del Dispositivo
 # ============================================================================
 
-@app.route("/api/batch", methods=["POST"])
-def batch_analyze():
-    """Analizar múltiples espectros"""
+@app.route("/api/activate", methods=["POST"])
+def activate_device():
+    """
+    Activa el dispositivo para el ADMIN, no para una empresa.
+    """
     try:
-        files = request.files.getlist("files")
+        data = request.json
+        license_key = data.get("license_key", "").strip()
 
-        if not files:
-            return jsonify({"error": "No files provided"}), 400
+        if not license_key:
+            return jsonify({"error": "No license key provided"}), 400
 
-        # Obtener parámetros
-        parameters = {}
-        if "parameters" in request.form:
-            parameters = json.loads(request.form["parameters"])
+        validator = LicenseValidator()
+        device_id = config.get_device_id()
 
-        print(f"📦 Procesamiento por lotes: {len(files)} archivos")
+        if validator.validate_license(license_key, device_id):
+            
+            success = config.activate_device(license_key)
 
-        results = []
-        analyzer = SpectrumAnalyzer()
-
-        for file in files:
-            try:
-                # Guardar archivo
-                file_path = OUTPUT_DIR / file.filename
-                file.save(file_path)
-
-                # Analizar
-                result = analyzer.analyze_file(
-                    file_path,
-                    fluor_range=parameters.get("fluor_range", {"min": -150, "max": -50}),
-                    pifas_range=parameters.get("pifas_range", {"min": -60, "max": -130}),
-                    concentration=parameters.get("concentration", 1.0)
-                )
-
-                result["filename"] = file.filename
-                result["status"] = "success"
-                results.append(result)
-
-                print(f"  ✅ {file.filename}")
-
-            except Exception as e:
-                print(f"  ❌ {file.filename}: {str(e)}")
-                results.append({
-                    "filename": file.filename,
-                    "status": "error",
-                    "error": str(e)
+            if success:
+                return jsonify({
+                    "message": "Device activated successfully (Admin Mode)",
+                    "device_id": device_id
                 })
-
-        # Guardar resultados del lote
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        batch_result_path = ANALYSIS_DIR / f"batch_analysis_{timestamp}.json"
-
-        batch_summary = {
-            "total_files": len(files),
-            "successful": sum(1 for r in results if r.get("status") == "success"),
-            "failed": sum(1 for r in results if r.get("status") == "error"),
-            "timestamp": datetime.now().isoformat(),
-            "results": results
-        }
-
-        # 4b. Usar el codificador también al guardar el lote
-        with open(batch_result_path, "w", encoding='utf-8') as f:
-            json.dump(batch_summary, f, indent=2, ensure_ascii=False, cls=NumpyJSONEncoder)
-
-        print(f"✅ Lote completado: {batch_summary['successful']}/{len(files)} exitosos")
-
-        # 5b. Flask usará automáticamente el app.json_encoder
-        return jsonify(batch_summary)
+            else:
+                return jsonify({"error": "Failed to save activation"}), 500
+        
+        else:
+            return jsonify({"error": "Invalid or incorrect admin license key"}), 403
 
     except Exception as e:
-        print(f"❌ Error en procesamiento por lotes: {str(e)}")
+        print(f"❌ Error en activación: {str(e)}")
         traceback.print_exc()
+        return jsonify({"error": f"Activation failed: {str(e)}"}), 500
+    
+@app.route("/api/config", methods=["GET"])
+def get_config():
+    """
+    Obtener configuración del dispositivo.
+    Devuelve el estado de activación y la LISTA de empresas.
+    """
+    try:
+        # Extraer solo los perfiles públicos (sin admin) para la lista de login
+        login_companies = {
+            cid: prof for cid, prof in COMPANY_PROFILES.items() 
+            if cid != 'admin'
+        }
+
         return jsonify({
-            "error": f"Batch analysis failed: {str(e)}"
-        }), 500
+            "device_id": config.get_device_id(),
+            "activated": config.is_activated(),
+            "analysis_params": config.get_analysis_params(),
+            "available_companies": login_companies # Lista para la pantalla de login
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ENDPOINT NUEVO: Obtener perfil de empresa
+@app.route("/api/company_profile", methods=["GET"])
+def get_company_profile():
+    """
+    Obtiene el perfil (branding) de una empresa específica
+    para que el frontend pueda "loguearse" y cambiar su apariencia.
+    """
+    company_id = request.args.get('id')
+    if not company_id:
+        return jsonify({"error": "No company 'id' provided"}), 400
+        
+    profile = COMPANY_PROFILES.get(company_id)
+    
+    if not profile:
+        return jsonify({"error": "Company profile not found"}), 404
+        
+    return jsonify(profile)
+
+
+@app.route("/api/config", methods=["POST"])
+def update_config():
+    """
+    Actualizar configuración del dispositivo (solo admin).
+    """
+    # TODO: Añadir aquí una comprobación de seguridad (ej. un token de admin)
+    
+    try:
+        data = request.json
+        
+        if 'sync_enabled' in data:
+            config.set_sync_enabled(data['sync_enabled'])
+        if 'sync_interval' in data:
+            config.set_sync_interval(data['sync_interval'])
+        if 'analysis_params' in data:
+            config.update_analysis_params(data['analysis_params'])
+        
+        return jsonify({
+            "message": "Configuration updated",
+            "config": {
+                "sync_enabled": config.get_sync_enabled(),
+                "sync_interval": config.get_sync_interval(),
+                "analysis_params": config.get_analysis_params()
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ============================================================================
-# API - Exportar Reportes (ENDPOINT MODIFICADO)
+# LISTAR MEDICIONES DESDE SQLITE
+# ============================================================================
+
+@app.route("/api/measurements", methods=["GET"])
+def get_measurements():
+    """
+    Obtener mediciones de SQLite.
+    REQUIERE: un parámetro 'company' en la URL.
+    ej: /api/measurements?company=BIDATEK
+    ej: /api/measurements?company=admin (para ver todo)
+    """
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        company_id = request.args.get('company')
+        
+        if not company_id:
+             return jsonify({"error": "No 'company' parameter provided in URL"}), 400
+        
+        if company_id not in COMPANY_PROFILES:
+            return jsonify({"error": f"Invalid company ID: {company_id}"}), 404
+
+        # La lógica de 'admin' se maneja dentro de db.get_measurements
+        measurements = db.get_measurements(
+            company_id=company_id,
+            limit=per_page,
+            offset=(page - 1) * per_page
+        )
+        
+        return jsonify({
+            "measurements": measurements,
+            "page": page,
+            "per_page": per_page,
+            "company_id_requested": company_id
+        })
+    
+    except Exception as e:
+        print(f"❌ Error obteniendo mediciones: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/measurements/<int:measurement_id>", methods=["GET"])
+def get_measurement(measurement_id):
+    """
+    Obtener una medición específica de SQLite.
+    REQUIERE: 'company' en la URL para seguridad.
+    """
+    try:
+        measurement = db.get_measurement(measurement_id)
+        if not measurement:
+            return jsonify({"error": "Measurement not found"}), 404
+        
+        company_id = request.args.get('company')
+        if not company_id:
+            return jsonify({"error": "No 'company' parameter provided for security check"}), 400
+
+        # Si no eres admin Y la medición no es tuya, denegar acceso.
+        if company_id != 'admin' and measurement.get('company_id') != company_id:
+             return jsonify({"error": "Access denied. This measurement belongs to another company."}), 403
+            
+        return jsonify(measurement)
+    
+    except Exception as e:
+        print(f"❌ Error obteniendo medición: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+   
+# ============================================================================
+# API - Exportar Reportes
 # ============================================================================
 
 @app.route("/api/export", methods=["POST"])
 def export_report():
     """
-    Exportar reporte en PDF, DOCX, CSV o JSON.
-    Maneja análisis únicos, comparaciones y dashboard.
+    Exportar reporte.
+    El frontend DEBE enviar el branding (logo, nombre) en la petición.
     """
     try:
         data = request.get_json()
         format_type = data.get("format", "pdf").lower()
-        export_type = data.get("type", "single")  # 'single', 'comparison', 'dashboard'
-        lang = data.get("lang", "es")
+        export_type = data.get("type", "single")
+        lang = data.get("lang", 'es')
+        
+        # El frontend obtiene esto de /api/company_profile
+        company_name = data.get("company_name", "CraftRMN Pro")
+        branding_info = data.get("branding_info", {})
 
-        print(f"📤 Solicitud de exportación: Tipo={export_type}, Formato={format_type}")
-
+        print(f"📤 Solicitud de exportación: Tipo={export_type}, Formato={format_type} para {company_name}")
+        
         mime_types = {
-            "json": "application/json",
-            "csv": "text/csv",
-            "pdf": "application/pdf",
-            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            "json": "application/json", "csv": "text/csv",
+            "pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         }
         extensions = {
-            "json": "json",
-            "csv": "csv",
-            "pdf": "pdf",
-            "docx": "docx"
+            "json": "json", "csv": "csv", "pdf": "pdf", "docx": "docx"
         }
-
         if format_type not in mime_types:
             return jsonify({"error": f"Formato '{format_type}' no soportado"}), 400
-
         output = None
         filename_prefix = ""
-
-        # 🆕 EXPORTACIÓN DE DASHBOARD
+        
         if export_type == "dashboard":
             stats = data.get("stats", {})
             chart_images_base64 = data.get("chart_images", {})
-            recent_analyses = data.get("recent_analyses", [])
-            
-            # Convertir imágenes base64 a bytes
-            chart_images = {}
-            for chart_name, base64_str in chart_images_base64.items():
-                try:
-                    chart_images[chart_name] = ReportExporter.base64_to_bytes(base64_str)
-                    print(f"📊 Gráfico '{chart_name}' decodificado")
-                except Exception as e:
-                    print(f"⚠️ Error decodificando gráfico '{chart_name}': {e}")
-            
+            chart_images = {k: ReportExporter.base64_to_bytes(v) for k, v in chart_images_base64.items()}
             filename_prefix = f"dashboard_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            
             if format_type == "pdf":
-                output = ReportExporter.export_dashboard_pdf(stats, chart_images, lang)
+                output = ReportExporter.export_dashboard_pdf(stats, chart_images, lang, company_name, branding_info)
             elif format_type == "docx":
-                output = ReportExporter.export_dashboard_docx(stats, chart_images, lang)
-            elif format_type == "csv":
-                # Para CSV, usar el método existente o crear uno nuevo
-                return jsonify({"error": "CSV export for dashboard should be handled in frontend"}), 400
+                output = ReportExporter.export_dashboard_docx(stats, chart_images, lang, company_name, branding_info)
             else:
                 output = ReportExporter.export_json(data)
-        
-        # EXPORTACIÓN DE COMPARACIÓN
         elif export_type == "comparison":
             samples = data.get("samples", [])
             chart_image_base64 = data.get("chart_image")
-            chart_image_bytes = None
-            
-            if chart_image_base64:
-                try:
-                    chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64)
-                except Exception as e:
-                    print(f"⚠️ Error decodificando imagen: {e}")
-            
+            chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64) if chart_image_base64 else None
             filename_prefix = f"rmn_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            
             if format_type == "pdf":
-                output = ReportExporter.export_comparison_pdf(samples, chart_image_bytes, lang)
+                output = ReportExporter.export_comparison_pdf(samples, chart_image_bytes, lang, company_name, branding_info)
             elif format_type == "docx":
-                output = ReportExporter.export_comparison_docx(samples, chart_image_bytes, lang)
+                output = ReportExporter.export_comparison_docx(samples, chart_image_bytes, lang, company_name, branding_info)
             elif format_type == "csv":
                 output = ReportExporter.export_comparison_csv(samples, lang)
             else:
                 output = ReportExporter.export_json(data)
-        
-        # EXPORTACIÓN DE ANÁLISIS ÚNICO
-        else:
+        else: # single
             chart_image_base64 = data.get("chart_image")
-            chart_image_bytes = None
-            
-            if chart_image_base64:
-                try:
-                    chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64)
-                except Exception as e:
-                    print(f"⚠️ Error decodificando imagen: {e}")
-            
+            chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64) if chart_image_base64 else None
             results = data.get("results", {})
             filename_prefix = f"rmn_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
             if format_type == "json":
                 output = ReportExporter.export_json(results, lang)
             elif format_type == "csv":
                 output = ReportExporter.export_csv(results, lang)
             elif format_type == "pdf":
-                output = ReportExporter.export_pdf(results, chart_image_bytes, lang)
+                output = ReportExporter.export_pdf(results, chart_image_bytes, lang, company_name, branding_info)
             elif format_type == "docx":
-                output = ReportExporter.export_docx(results, chart_image_bytes, lang)
+                output = ReportExporter.export_docx(results, chart_image_bytes, lang, company_name, branding_info)
         
         if output is None:
              return jsonify({"error": f"No se pudo generar la exportación"}), 500
 
         filename = f"{filename_prefix}.{extensions[format_type]}"
-
-        return send_file(
-            output,
-            mimetype=mime_types[format_type],
-            as_attachment=True,
-            download_name=filename
-        )
+        return send_file(output, mimetype=mime_types[format_type], as_attachment=True, download_name=filename)
 
     except Exception as e:
         print(f"❌ Error exportando: {str(e)}")
@@ -354,12 +409,11 @@ def export_report():
         return jsonify({"error": f"Export failed: {str(e)}"}), 500
 
 # ============================================================================
-# API - Gestión de Archivos (endpoints originales)
+# API - Gestión de Archivos (sin cambios)
 # ============================================================================
 
 @app.route("/api/files", methods=["GET"])
 def list_files():
-    """Listar archivos en OUTPUT_DIR"""
     files = []
     for f in OUTPUT_DIR.glob("*"):
         if f.is_file():
@@ -370,150 +424,77 @@ def list_files():
             })
     return jsonify({"files": files})
 
-# ============================================================================
-# API - Gestión de Archivos - ENDPOINT ACTUALIZADO
-# ============================================================================
-
 @app.route("/api/analysis", methods=["GET"])
 def list_analysis():
-    """Listar análisis disponibles con resumen de datos"""
     analyses = []
-
     for f in ANALYSIS_DIR.glob("*.json"):
         try:
-            # Leer el contenido del archivo JSON
             with open(f, 'r', encoding='utf-8') as file:
                 data = json.load(file)
-
-            # Extraer datos clave para el historial
-            # Asegurarse de que los datos clave existen
             analysis_data = data.get("analysis", {})
             analysis_summary = {
-                "name": f.name,
-                "size": f.stat().st_size,
+                "name": f.name, "size": f.stat().st_size,
                 "created": datetime.fromtimestamp(f.stat().st_ctime).isoformat(),
                 "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
-                # Datos del análisis
                 "fluor": analysis_data.get("fluor_percentage"),
                 "pfas": analysis_data.get("pifas_percentage"),
                 "concentration": analysis_data.get("pifas_concentration"),
                 "quality": data.get("quality_score"),
                 "filename": data.get("filename", f.name)
             }
-
             analyses.append(analysis_summary)
-
         except Exception as e:
-            # Si hay error leyendo el archivo, incluirlo con datos limitados
             print(f"⚠️  Error leyendo {f.name}: {str(e)}")
-            analyses.append({
-                "name": f.name,
-                "size": f.stat().st_size,
-                "created": datetime.fromtimestamp(f.stat().st_ctime).isoformat(),
-                "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
-                "error": str(e)
-            })
-
-    # Ordenar por fecha de creación (más reciente primero)
     analyses.sort(key=lambda x: x.get("created", ""), reverse=True)
-
     return jsonify({"analyses": analyses, "total": len(analyses)})
-
-# ============================================================================
-# API - Eliminar Análisis Individual
-# ============================================================================
 
 @app.route("/api/analysis/<path:filename>", methods=["DELETE"])
 def delete_analysis(filename):
-    """Eliminar un análisis específico"""
     try:
         file_path = ANALYSIS_DIR / filename
-
-        # Verificar que el archivo existe
         if not file_path.exists():
-            return jsonify({
-                "error": "Analysis not found",
-                "filename": filename
-            }), 404
-
-        # Verificar que está dentro del directorio permitido (seguridad)
+            return jsonify({"error": "Analysis not found"}), 404
         if not str(file_path.resolve()).startswith(str(ANALYSIS_DIR.resolve())):
-            return jsonify({
-                "error": "Invalid file path"
-            }), 403
-
-        # Eliminar el archivo
+            return jsonify({"error": "Invalid file path"}), 403
         file_path.unlink()
-
         print(f"🗑️  Análisis eliminado: {filename}")
-
-        return jsonify({
-            "message": "Analysis deleted successfully",
-            "filename": filename
-        }), 200
-
+        return jsonify({"message": "Analysis deleted successfully"}), 200
     except Exception as e:
         print(f"❌ Error eliminando análisis: {str(e)}")
-        traceback.print_exc()
-        return jsonify({
-            "error": f"Failed to delete analysis: {str(e)}"
-        }), 500
+        return jsonify({"error": f"Failed to delete analysis: {str(e)}"}), 500
 
 @app.route("/api/upload", methods=["POST"])
 def upload_file():
-    """Subir archivo manualmente"""
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
-
     file = request.files["file"]
-
     if file.filename == "":
         return jsonify({"error": "No file selected"}), 400
-
     file_path = OUTPUT_DIR / file.filename
     file.save(file_path)
-
-    return jsonify({
-        "message": "File uploaded successfully",
-        "filename": file.filename,
-        "size": file_path.stat().st_size
-    })
+    return jsonify({"message": "File uploaded successfully", "filename": file.filename})
 
 @app.route("/api/download/<path:filename>", methods=["GET"])
 def download_file(filename):
-    """Descargar archivo original"""
     return send_from_directory(OUTPUT_DIR, filename, as_attachment=True)
 
 @app.route("/api/result/<path:filename>", methods=["GET"])
 def get_analysis(filename):
-    """Obtener resultado de análisis específico"""
     file_path = ANALYSIS_DIR / filename
-
     if not file_path.exists():
         return jsonify({"error": "Analysis not found"}), 404
-
     with open(file_path, "r", encoding='utf-8') as f:
         data = json.load(f)
-
     return jsonify(data)
 
 @app.route("/api/analysis/clear-all", methods=["DELETE"])
 def clear_all_analysis():
-    """Eliminar TODOS los análisis del sistema"""
     try:
         deleted_count = 0
         errors = []
-
-        # Obtener todos los archivos JSON en ANALYSIS_DIR
         analysis_files = list(ANALYSIS_DIR.glob("*.json"))
-
         if not analysis_files:
-            return jsonify({
-                "message": "No hay análisis para eliminar",
-                "deleted_count": 0
-            }), 200
-
-        # Eliminar cada archivo
+            return jsonify({"message": "No hay análisis para eliminar", "deleted_count": 0}), 200
         for file_path in analysis_files:
             try:
                 file_path.unlink()
@@ -521,29 +502,14 @@ def clear_all_analysis():
                 print(f"🗑️  Eliminado: {file_path.name}")
             except Exception as e:
                 errors.append(f"{file_path.name}: {str(e)}")
-                print(f"❌ Error eliminando {file_path.name}: {str(e)}")
-
-        # Preparar respuesta
-        response = {
-            "message": f"Eliminados {deleted_count} análisis",
-            "deleted_count": deleted_count,
-            "total_files": len(analysis_files)
-        }
-
+        response = {"message": f"Eliminados {deleted_count} análisis", "deleted_count": deleted_count}
         if errors:
             response["errors"] = errors
-            response["warning"] = f"Se encontraron {len(errors)} errores durante la eliminación"
-
         print(f"✅ Limpieza completada: {deleted_count}/{len(analysis_files)} archivos eliminados")
-
         return jsonify(response), 200
-
     except Exception as e:
         print(f"❌ Error en limpieza masiva: {str(e)}")
-        traceback.print_exc()
-        return jsonify({
-            "error": f"Failed to clear all analyses: {str(e)}"
-        }), 500
+        return jsonify({"error": f"Failed to clear all analyses: {str(e)}"}), 500
 
 # ============================================================================
 # Ejecutar servidor
@@ -551,9 +517,9 @@ def clear_all_analysis():
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("🚀 CraftRMN Analysis Server")
+    print("🚀 CraftRMN Analysis Server (Multi-Empresa)")
     print("=" * 60)
-    print(f"📊 Version: 1.0.0")
+    print(f"📊 Version: 2.0.0")
     print(f"🌐 Running on: http://localhost:5000")
     print(f"📁 Storage: {OUTPUT_DIR}")
     print("=" * 60)

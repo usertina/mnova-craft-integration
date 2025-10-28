@@ -280,6 +280,18 @@
     "baseline_stability": "Estabilidad de Línea Base",
     "peak_detection": "Detección de Picos"
   },
+  "regions": {
+    "cf3_terminal_pfoa_like": "CF₃ Terminal (Tipo PFOA)",
+    "cf3_terminal_pfoa": "CF₃ Terminal (PFOA)",
+    "cf3_terminal_pfos": "CF₃ Terminal (PFOS)",
+    "cf2_alpha_coo": "CF₂ α (próximo a COO⁻)",
+    "cf2_alpha_so3": "CF₂ α (próximo a SO₃⁻)",
+    "cf2_internal_main": "CF₂ Interno (Cadena principal)",
+    "cf2_internal_near_cf3": "CF₂ Interno (Próximo a CF₃)",
+    "cf2_other_long_chain": "CF₂ Otros / Cadena larga",
+    "cf_branched_isomers": "CF Ramificado / CFH / Isómeros",
+    "out_of_range": "Fuera de rango PFAS típico ({value})"
+  },
   "languages": {
     "es": "Español",
     "en": "English",
