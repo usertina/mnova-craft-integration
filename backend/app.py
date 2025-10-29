@@ -11,23 +11,35 @@ from io import BytesIO, StringIO
 import traceback
 from export_utils import ReportExporter
 import numpy as np
-import logging 
+import logging
 
+# Importar dependencias locales
 from database import get_db
 from config_manager import get_config_manager, LicenseValidator
-from company_data import COMPANY_PROFILES
+from company_data import COMPANY_PROFILES # Importar perfiles de empresa
 
+# Configurar logging (activar DEBUG para ver todo)
 logging.getLogger().setLevel(logging.DEBUG)
 
-# Inicializar
+# Inicializar componentes
 db = get_db()
 config = get_config_manager()
 
-# Importar el analizador
-# Asumimos que la carpeta 'worker' está al mismo nivel que 'backend'
-sys.path.append(str(Path(__file__).parent.parent / "worker"))
-from analyzer import SpectrumAnalyzer
+# Importar el analizador (asumiendo que está en ../worker)
+try:
+    sys.path.append(str(Path(__file__).parent.parent / "worker"))
+    from analyzer import SpectrumAnalyzer
+except ImportError:
+    logging.error("No se pudo importar SpectrumAnalyzer desde ../worker. Asegúrate de que la ruta es correcta.")
+    # Podrías definir una clase 'dummy' o salir si es crítico
+    class SpectrumAnalyzer: # Dummy class para evitar errores si no se encuentra
+        def analyze_file(self, *args, **kwargs):
+            logging.error("SpectrumAnalyzer real no encontrado.")
+            return {"error": "Analyzer module not found"}
 
+# ============================================================================
+# Codificador JSON para NumPy
+# ============================================================================
 class NumpyJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer): return int(obj)
@@ -36,492 +48,1013 @@ class NumpyJSONEncoder(json.JSONEncoder):
         elif isinstance(obj, np.bool_): return bool(obj)
         else: return super(NumpyJSONEncoder, self).default(obj)
 
+# ============================================================================
+# Configuración de Flask
+# ============================================================================
 app = Flask(__name__, static_folder="../frontend")
 CORS(app)
-app.json_encoder = NumpyJSONEncoder 
+app.json_encoder = NumpyJSONEncoder
 
-# Anclar las rutas al directorio de este script
+# Anclar las rutas de almacenamiento al directorio de este script
 SCRIPT_DIR = Path(__file__).parent.resolve()
 OUTPUT_DIR = SCRIPT_DIR / "storage" / "output"
 ANALYSIS_DIR = SCRIPT_DIR / "storage" / "analysis"
 CRAFT_EXPORTS_DIR = SCRIPT_DIR / "storage" / "craft_exports"
 
+# Crear directorios si no existen
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
 CRAFT_EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-print(f"📁 Directorios configurados:")
+# Mensaje de inicio
+print("=" * 60)
+print("🚀 CraftRMN Analysis Server (Multi-Empresa)")
+print("=" * 60)
+print(f"📊 Version: 2.0.0") # Versión actualizada
+print(f"🌐 Running on: http://localhost:5000")
+print(f"📁 Storage Base: {SCRIPT_DIR / 'storage'}")
 print(f"   Output: {OUTPUT_DIR}")
 print(f"   Analysis: {ANALYSIS_DIR}")
 print(f"   Craft Exports: {CRAFT_EXPORTS_DIR}")
+print("=" * 60)
 
 # ============================================================================
-# FRONTEND - Servir archivos estáticos
+# FRONTEND - Servir archivos estáticos (index.html, app.html, js/, styles/, etc.)
 # ============================================================================
 
 @app.route('/')
 def home():
-    # Asumimos que el frontend está en la carpeta ../frontend/
+    # Servir index.html (Portal de Activación/Login)
     return send_from_directory(app.static_folder, "index.html")
+
+@app.route('/app.html') # Ruta específica para la app principal
+def main_app():
+     return send_from_directory(app.static_folder, "app.html")
 
 @app.route('/<path:path>')
 def static_proxy(path):
+    # Servir cualquier otro archivo estático (JS, CSS, imágenes)
+    # Evitar que sirva index.html en rutas desconocidas si queremos separar app.html
+    if path == "index.html" or path == "app.html":
+        # Redirigir a la raíz si intentan acceder directamente
+        # o manejar según prefieras
+        return home() # Opcional: redirigir a '/' siempre
     try:
+        # Servir el archivo solicitado (ej: styles/main.css, js/app.js)
         return send_from_directory(app.static_folder, path)
-    except:
-        return send_from_directory(app.static_folder, "index.html")
+    except FileNotFoundError:
+         # Si no se encuentra, podrías devolver un 404 o redirigir
+         # Devolver 404 es más estándar para APIs RESTful
+         return jsonify({"error": "File not found"}), 404
+         # O redirigir a home si prefieres comportamiento SPA tradicional
+         # return home()
+
+# ============================================================================
+# API - Health Check
+# ============================================================================
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    """Verificar estado del servidor"""
+    return jsonify({
+        "status": "ok",
+        "message": "CraftRMN Analysis Server Running (Multi-Empresa)",
+        "version": "2.0.0",
+        "timestamp": datetime.now().isoformat()
+    })
 
 # ============================================================================
 # API - Análisis de Espectros
 # ============================================================================
-
 @app.route("/api/analyze", methods=["POST"])
 def analyze_spectrum():
     """
     Analizar un único espectro.
-    REQUIERE: un 'company_id' en el formulario.
+    REQUIERE: 'file' y 'company_id' en el formulario multipart/form-data.
     """
     try:
+        # Verificar archivo
         if "file" not in request.files:
-            return jsonify({"error": "No file provided"}), 400
-        
-        company_id = request.form.get("company_id")
-        if not company_id:
-            return jsonify({"error": "No company_id provided with the analysis request"}), 400
-        if company_id not in COMPANY_PROFILES:
-             return jsonify({"error": f"Invalid company_id: {company_id}"}), 400
-
+            return jsonify({"error": "No 'file' provided in the request"}), 400
         file = request.files["file"]
         if file.filename == "":
             return jsonify({"error": "Empty filename"}), 400
 
-        parameters = {}
-        if "parameters" in request.form:
-            parameters = json.loads(request.form["parameters"])
+        # Verificar company_id
+        company_id = request.form.get("company_id")
+        if not company_id:
+            return jsonify({"error": "No 'company_id' provided in the form data"}), 400
+        if company_id not in COMPANY_PROFILES:
+            return jsonify({"error": f"Invalid company_id: '{company_id}'"}), 400
 
+        logging.debug(f"Received analysis request for company: {company_id}, file: {file.filename}")
+
+        # Guardar archivo temporalmente
+        # Es mejor usar un nombre temporal único para evitar colisiones
+        # temp_filename = f"{uuid.uuid4()}_{file.filename}"
+        # file_path = OUTPUT_DIR / temp_filename
+        # Por simplicidad mantenemos el original, pero considera lo anterior
         file_path = OUTPUT_DIR / file.filename
         file.save(file_path)
+        logging.debug(f"File saved temporarily to: {file_path}")
 
-        print(f"📊 Analizando: {file.filename} para la empresa {company_id}")
+        # Obtener parámetros opcionales
+        parameters = {}
+        if "parameters" in request.form:
+            try:
+                parameters = json.loads(request.form["parameters"])
+            except json.JSONDecodeError:
+                logging.warning("Invalid JSON in 'parameters' field.")
+                # Seguir con parámetros por defecto
 
+        # Realizar análisis
         analyzer = SpectrumAnalyzer()
-        analysis_params = config.get_analysis_params()
-        
+        analysis_params = config.get_analysis_params() # Obtener defaults del ConfigManager
+
+        logging.info(f"📊 Analyzing: {file.filename} for company {company_id}")
         results = analyzer.analyze_file(
             file_path,
-            fluor_range=parameters.get("fluor_range", analysis_params['fluor_range']),
-            pifas_range=parameters.get("pifas_range", analysis_params['pifas_range']),
-            concentration=parameters.get("concentration", analysis_params['default_concentration'])
+            fluor_range=parameters.get("fluor_range", analysis_params.get('fluor_range')),
+            pifas_range=parameters.get("pifas_range", analysis_params.get('pifas_range')),
+            concentration=parameters.get("concentration", analysis_params.get('default_concentration'))
         )
+        logging.debug("Analysis raw results:", results)
 
+        # GUARDAR EN JSON (Opcional, pero útil para debug)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        result_filename = f"{Path(file.filename).stem}_analysis_{timestamp}.json"
+        # Incluir company_id en el nombre del archivo podría ser útil
+        result_filename = f"{Path(file.filename).stem}_{company_id}_analysis_{timestamp}.json"
         result_path = ANALYSIS_DIR / result_filename
-        
-        with open(result_path, "w", encoding='utf-8') as f:
-            json.dump(results, f, indent=2, cls=NumpyJSONEncoder)
-        
-        print(f"  💾 Guardado: {result_filename}")
+        try:
+            with open(result_path, "w", encoding='utf-8') as f:
+                json.dump(results, f, indent=2, cls=NumpyJSONEncoder, ensure_ascii=False)
+            logging.info(f"  💾 Analysis JSON saved: {result_filename}")
+        except Exception as json_err:
+            logging.error(f"Failed to save analysis JSON {result_filename}: {json_err}")
+            # Continuar igualmente, el guardado en BD es más importante
 
+        # GUARDAR EN SQLITE
         measurement_data = {
             'device_id': config.get_device_id(),
-            'company_id': company_id, # Usar el company_id de la petición
+            'company_id': company_id,
             'filename': file.filename,
             'timestamp': datetime.now().isoformat(),
-            'analysis': results.get('analysis', {}),
+            'analysis': results.get('analysis', {}), # Asegurar que sea un dict
             'quality_score': results.get('quality_score'),
-            'spectrum': results.get('spectrum', {}),
-            'peaks': results.get('peaks', [])
+            'spectrum': results.get('spectrum', {}), # Asegurar que sea un dict
+            'peaks': results.get('peaks', []) # Asegurar que sea una lista
         }
-        
-        measurement_id = db.save_measurement(measurement_data)
-        print(f"  📊 SQLite ID: {measurement_id}")
-        
+        measurement_id = db.save_measurement(measurement_data) # save_measurement ahora recibe el dict
+        logging.info(f"  📊 Measurement saved to DB. ID: {measurement_id} for Company: {company_id}")
+
+        # Devolver resultados al frontend
+        # Añadir ID de la medición y nombre del archivo JSON a la respuesta
         results['measurement_id'] = measurement_id
-        results['result_file'] = result_filename
+        results['result_file'] = result_filename # Nombre del archivo JSON por si el frontend lo necesita
+        results['saved_company_id'] = company_id # Confirmar empresa guardada
 
         return jsonify(results)
 
     except Exception as e:
-        print(f"❌ Error en análisis: {str(e)}")
-        traceback.print_exc()
+        logging.error(f"❌ Error during analysis: {str(e)}", exc_info=True) # Log completo del traceback
+        # Devolver un error JSON genérico pero informativo
         return jsonify({
             "error": f"Analysis failed: {str(e)}",
-            "details": traceback.format_exc()
+            # "details": traceback.format_exc() # Evitar enviar traceback completo al cliente
         }), 500
+    finally:
+        # Limpiar archivo temporal si existe (opcional)
+        if 'file_path' in locals() and file_path.exists():
+             try:
+                 # os.remove(file_path)
+                 # logging.debug(f"Temporary file removed: {file_path}")
+                 pass # Decidir si borrar o no
+             except Exception as rm_err:
+                 logging.error(f"Failed to remove temporary file {file_path}: {rm_err}")
 
 # ============================================================================
 # API - Activación y Configuración del Dispositivo
 # ============================================================================
-
 @app.route("/api/activate", methods=["POST"])
 def activate_device():
     """
-    Activa el dispositivo para el ADMIN, no para una empresa.
+    Activa el dispositivo (modo Admin) usando la licencia de ADMIN.
     """
     try:
         data = request.json
-        license_key = data.get("license_key", "").strip()
+        if not data or 'license_key' not in data:
+             return jsonify({"error": "Request body must be JSON with 'license_key'"}), 400
 
+        license_key = data.get("license_key", "").strip()
         if not license_key:
             return jsonify({"error": "No license key provided"}), 400
+
+        logging.debug(f"Received activation request with key: {license_key[:15]}...") # No loguear clave completa
 
         validator = LicenseValidator()
         device_id = config.get_device_id()
 
+        # Validar la licencia (debe ser la de ADMIN)
         if validator.validate_license(license_key, device_id):
-            
-            success = config.activate_device(license_key)
+            logging.info("Admin license validated successfully.")
+            # Llamar a la función de activación en ConfigManager
+            success = config.activate_device(license_key) # activate_device ahora solo marca como activado
 
             if success:
+                logging.info(f"Device {device_id} activated successfully (Admin Mode).")
                 return jsonify({
                     "message": "Device activated successfully (Admin Mode)",
                     "device_id": device_id
                 })
             else:
-                return jsonify({"error": "Failed to save activation"}), 500
-        
+                logging.error("Failed to save activation state in database.")
+                return jsonify({"error": "Failed to save activation state"}), 500
         else:
+            # La licencia no es válida o no es la de ADMIN
+            logging.warning(f"Invalid or incorrect admin license key provided for device {device_id}.")
             return jsonify({"error": "Invalid or incorrect admin license key"}), 403
 
     except Exception as e:
-        print(f"❌ Error en activación: {str(e)}")
-        traceback.print_exc()
+        logging.error(f"❌ Error during activation: {str(e)}", exc_info=True)
         return jsonify({"error": f"Activation failed: {str(e)}"}), 500
-    
+
 @app.route("/api/config", methods=["GET"])
-def get_config():
+def get_config_endpoint(): # Renombrado para evitar conflicto con variable 'config'
     """
-    Obtener configuración del dispositivo.
-    Devuelve el estado de activación y la LISTA de empresas.
+    Obtener configuración del dispositivo para el frontend.
+    Devuelve estado de activación, device_id y LISTA de empresas disponibles (sin admin).
     """
     try:
-        # Extraer solo los perfiles públicos (sin admin) para la lista de login
-        login_companies = {
-            cid: prof for cid, prof in COMPANY_PROFILES.items() 
-            if cid != 'admin'
-        }
+        # Crear la lista de empresas VISIBLES (excluyendo 'admin')
+        visible_companies = [ # <--- !!! CORRECCIÓN: Usar [] para crear LISTA !!!
+            profile for key, profile in COMPANY_PROFILES.items() if key != 'admin'
+        ]
+
+        # Comprobar si realmente es una lista (para depuración extra)
+        if not isinstance(visible_companies, list):
+             logging.error(f"CRITICAL: visible_companies is NOT a list! Type: {type(visible_companies)}")
+             # Forzar una lista vacía o devolver error
+             visible_companies = []
+             # Considerar devolver un error 500 aquí si esto no debería pasar nunca
+
+        logging.debug(f"Sending config: activated={config.is_activated()}, companies={len(visible_companies)}")
 
         return jsonify({
             "device_id": config.get_device_id(),
             "activated": config.is_activated(),
             "analysis_params": config.get_analysis_params(),
-            "available_companies": login_companies # Lista para la pantalla de login
+            "available_companies": visible_companies # <-- Devolver la LISTA
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"❌ Error getting config: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Failed to get configuration: {str(e)}"}), 500
 
-# ENDPOINT NUEVO: Obtener perfil de empresa
+# ============================================================================
+# API - Historial de Análisis (usado por el frontend)
+# ============================================================================
+@app.route("/api/history", methods=["GET"])
+def get_history():
+    """
+    Obtener historial de mediciones para una empresa específica.
+    Compatible con el frontend que usa 'company_id' en los parámetros.
+    
+    Query Parameters:
+        - company_id (required): ID de la empresa
+        - page (optional): Número de página (default: 1)
+        - page_size (optional): Elementos por página (default: 50)
+        - search (optional): Término de búsqueda
+    """
+    try:
+        # Obtener parámetros de la URL
+        company_id = request.args.get('company_id')
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 50, type=int)
+        search_term = request.args.get('search', '').strip()
+
+        # Validar company_id (requerido)
+        if not company_id:
+            logging.warning("get_history called without 'company_id' parameter.")
+            return jsonify({
+                "error": "Missing 'company_id' parameter",
+                "measurements": [],
+                "page": 1,
+                "total_pages": 0,
+                "total_items": 0
+            }), 400
+
+        # Validar que la empresa existe
+        if company_id not in COMPANY_PROFILES:
+            logging.warning(f"get_history called with invalid company_id: {company_id}")
+            return jsonify({
+                "error": f"Invalid company_id: '{company_id}'",
+                "measurements": [],
+                "page": 1,
+                "total_pages": 0,
+                "total_items": 0
+            }), 404
+
+        # Validar paginación
+        if page < 1:
+            page = 1
+        if page_size < 1 or page_size > 100:
+            page_size = 50
+
+        logging.debug(
+            f"Fetching history for company '{company_id}', "
+            f"page {page}, page_size {page_size}, search: '{search_term}'"
+        )
+
+        # Consultar la base de datos
+        try:
+            # Calcular offset
+            offset = (page - 1) * page_size
+
+            # Obtener mediciones (con o sin búsqueda)
+            if search_term:
+                # Si hay búsqueda, filtrar por filename o sample_name
+                measurement_data = db.get_measurements_with_search(
+                    company_id=company_id,
+                    search_term=search_term,
+                    limit=page_size,
+                    offset=offset
+                )
+                total_count = db.count_measurements_with_search(
+                    company_id=company_id,
+                    search_term=search_term
+                )
+            else:
+                # Sin búsqueda, obtener todos
+                measurement_data = db.get_measurements(
+                    company_id=company_id,
+                    limit=page_size,
+                    offset=offset
+                )
+                total_count = db.count_measurements(company_id=company_id)
+
+            # Calcular total de páginas
+            total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 0
+
+            # Obtener las mediciones del resultado
+            measurements = measurement_data.get('measurements', [])
+
+            logging.info(
+                f"Returning {len(measurements)} measurements for company '{company_id}' "
+                f"(page {page}/{total_pages}, total: {total_count})"
+            )
+
+            # Devolver respuesta exitosa
+            return jsonify({
+                "measurements": measurements,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "total_items": total_count,
+                "company_id": company_id
+            }), 200
+
+        except Exception as db_err:
+            # Error de base de datos
+            logging.error(
+                f"Database error in get_history for {company_id}: {db_err}",
+                exc_info=True
+            )
+            # Devolver respuesta con arrays vacíos en lugar de error 500
+            return jsonify({
+                "error": "Database error occurred",
+                "measurements": [],
+                "page": page,
+                "page_size": page_size,
+                "total_pages": 0,
+                "total_items": 0,
+                "company_id": company_id
+            }), 200  # ✅ Usar 200 para no bloquear la app
+
+    except Exception as e:
+        # Error inesperado del endpoint
+        logging.error(f"❌ Unexpected error in get_history: {str(e)}", exc_info=True)
+        return jsonify({
+            "error": "An unexpected server error occurred",
+            "measurements": [],
+            "page": 1,
+            "total_pages": 0,
+            "total_items": 0
+        }), 200  # ✅ Usar 200 para no bloquear la app
+
+
+# ENDPOINT NUEVO: Obtener perfil de empresa específico
 @app.route("/api/company_profile", methods=["GET"])
 def get_company_profile():
     """
-    Obtiene el perfil (branding) de una empresa específica
-    para que el frontend pueda "loguearse" y cambiar su apariencia.
+    Obtiene el perfil (branding) de una empresa específica por su ID.
+    Usado por el frontend después de la selección para aplicar branding.
     """
     company_id = request.args.get('id')
     if not company_id:
-        return jsonify({"error": "No company 'id' provided"}), 400
-        
+        logging.warning("get_company_profile called without 'id' parameter.")
+        return jsonify({"error": "Missing 'id' parameter in query string"}), 400
+
     profile = COMPANY_PROFILES.get(company_id)
-    
+
     if not profile:
+        logging.warning(f"Company profile not found for id: {company_id}")
         return jsonify({"error": "Company profile not found"}), 404
-        
+
+    logging.debug(f"Returning profile for company: {company_id}")
+    # Devolver el perfil completo
     return jsonify(profile)
 
 
 @app.route("/api/config", methods=["POST"])
 def update_config():
     """
-    Actualizar configuración del dispositivo (solo admin).
+    Actualizar parámetros de configuración del dispositivo (ej. análisis).
+    Debería requerir autenticación de admin en un futuro.
     """
-    # TODO: Añadir aquí una comprobación de seguridad (ej. un token de admin)
-    
+    # TODO: Implementar seguridad/autenticación para este endpoint.
+    # Por ahora, cualquiera puede cambiar la configuración.
+
     try:
         data = request.json
-        
-        if 'sync_enabled' in data:
-            config.set_sync_enabled(data['sync_enabled'])
-        if 'sync_interval' in data:
-            config.set_sync_interval(data['sync_interval'])
-        if 'analysis_params' in data:
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        updated_any = False
+        response_config = {}
+
+        # Actualizar solo los parámetros permitidos
+        if 'analysis_params' in data and isinstance(data['analysis_params'], dict):
+            # Podrías añadir validación aquí (ej. rangos numéricos)
             config.update_analysis_params(data['analysis_params'])
-        
+            logging.info(f"Analysis parameters updated: {data['analysis_params']}")
+            response_config['analysis_params'] = config.get_analysis_params() # Devolver valor actualizado
+            updated_any = True
+
+        # Podrías añadir otros parámetros configurables aquí (ej. sync)
+        # if 'sync_enabled' in data: ...
+        # if 'sync_interval' in data: ...
+
+        if not updated_any:
+            return jsonify({"message": "No valid parameters provided to update"}), 400
+
         return jsonify({
-            "message": "Configuration updated",
-            "config": {
-                "sync_enabled": config.get_sync_enabled(),
-                "sync_interval": config.get_sync_interval(),
-                "analysis_params": config.get_analysis_params()
-            }
+            "message": "Configuration updated successfully",
+            "updated_config": response_config
         })
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"❌ Error updating config: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Failed to update configuration: {str(e)}"}), 500
 
 # ============================================================================
-# LISTAR MEDICIONES DESDE SQLITE
+# API - Gestión de Mediciones (Historial)
 # ============================================================================
 
 @app.route("/api/measurements", methods=["GET"])
 def get_measurements():
     """
-    Obtener mediciones de SQLite.
-    REQUIERE: un parámetro 'company' en la URL.
-    ej: /api/measurements?company=BIDATEK
-    ej: /api/measurements?company=admin (para ver todo)
+    Obtener lista de mediciones de SQLite, filtrada por empresa.
+    REQUIERE: parámetro 'company' en la URL (puede ser 'admin').
     """
     try:
+        # Obtener parámetros de paginación y filtro
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
-        
+        per_page = request.args.get('per_page', 50, type=int) # Aumentado por defecto
         company_id = request.args.get('company')
-        
-        if not company_id:
-             return jsonify({"error": "No 'company' parameter provided in URL"}), 400
-        
-        if company_id not in COMPANY_PROFILES:
-            return jsonify({"error": f"Invalid company ID: {company_id}"}), 404
 
-        # La lógica de 'admin' se maneja dentro de db.get_measurements
-        measurements = db.get_measurements(
-            company_id=company_id,
-            limit=per_page,
-            offset=(page - 1) * per_page
-        )
-        
+        # Validar company_id
+        if not company_id:
+             logging.warning("get_measurements called without 'company' parameter.")
+             return jsonify({"error": "Missing 'company' parameter in query string"}), 400
+        if company_id not in COMPANY_PROFILES:
+             logging.warning(f"get_measurements called with invalid company_id: {company_id}")
+             return jsonify({"error": f"Invalid company ID: '{company_id}'"}), 404 # 404 Not Found es más apropiado
+
+        logging.debug(f"Fetching measurements for company '{company_id}', page {page}, per_page {per_page}")
+
+        # Llamar a la base de datos (get_measurements maneja el caso 'admin')
+        # Añadir manejo de errores por si la BD falla
+        try:
+             measurement_data = db.get_measurements(
+                company_id=company_id,
+                limit=per_page,
+                offset=(page - 1) * per_page
+            )
+             total_count = db.count_measurements(company_id=company_id) # Necesitas añadir count_measurements a Database
+             total_pages = (total_count + per_page - 1) // per_page
+
+        except Exception as db_err:
+             logging.error(f"Database error in get_measurements for {company_id}: {db_err}", exc_info=True)
+             return jsonify({"error": "Database query failed"}), 500
+
+
+        logging.info(f"Returning {len(measurement_data.get('measurements',[]))} measurements for company '{company_id}'")
+
+        # Devolver resultados con metadatos de paginación
         return jsonify({
-            "measurements": measurements,
+            "measurements": measurement_data.get('measurements', []), # Asegurar lista
             "page": page,
             "per_page": per_page,
+            "total_items": measurement_data.get('total', 0), # Incluir total de la BD
+            "total_pages": measurement_data.get('total_pages', 0),# Incluir total páginas
             "company_id_requested": company_id
         })
-    
+
     except Exception as e:
-        print(f"❌ Error obteniendo mediciones: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        # Captura errores inesperados en el endpoint mismo
+        logging.error(f"❌ Unexpected error in get_measurements endpoint: {str(e)}", exc_info=True)
+        return jsonify({"error": "An unexpected server error occurred"}), 500
+
 
 @app.route("/api/measurements/<int:measurement_id>", methods=["GET"])
 def get_measurement(measurement_id):
     """
-    Obtener una medición específica de SQLite.
-    REQUIERE: 'company' en la URL para seguridad.
+    Obtener una medición específica por ID.
+    Incluye chequeo de seguridad por 'company' en la URL.
     """
     try:
-        measurement = db.get_measurement(measurement_id)
-        if not measurement:
-            return jsonify({"error": "Measurement not found"}), 404
-        
-        company_id = request.args.get('company')
-        if not company_id:
-            return jsonify({"error": "No 'company' parameter provided for security check"}), 400
+        # Obtener company_id de la URL para chequeo de seguridad
+        requesting_company_id = request.args.get('company')
+        if not requesting_company_id:
+            logging.warning(f"get_measurement {measurement_id} called without 'company' parameter.")
+            return jsonify({"error": "Missing 'company' parameter for security check"}), 400
+        if requesting_company_id not in COMPANY_PROFILES:
+             logging.warning(f"get_measurement {measurement_id} called with invalid company_id: {requesting_company_id}")
+             return jsonify({"error": f"Invalid company ID: '{requesting_company_id}'"}), 404
 
-        # Si no eres admin Y la medición no es tuya, denegar acceso.
-        if company_id != 'admin' and measurement.get('company_id') != company_id:
+        logging.debug(f"Fetching measurement ID {measurement_id} requested by company '{requesting_company_id}'")
+
+        # Obtener la medición de la BD
+        try:
+             measurement = db.get_measurement(measurement_id)
+        except Exception as db_err:
+             logging.error(f"Database error fetching measurement {measurement_id}: {db_err}", exc_info=True)
+             return jsonify({"error": "Database query failed"}), 500
+
+
+        if not measurement:
+            logging.warning(f"Measurement ID {measurement_id} not found.")
+            return jsonify({"error": "Measurement not found"}), 404
+
+        # Chequeo de seguridad: ¿Puede esta empresa ver esta medición?
+        actual_company_id = measurement.get('company_id')
+        if requesting_company_id != 'admin' and actual_company_id != requesting_company_id:
+             logging.warning(f"Access denied: Company '{requesting_company_id}' tried to access measurement {measurement_id} belonging to '{actual_company_id}'.")
              return jsonify({"error": "Access denied. This measurement belongs to another company."}), 403
-            
+
+        logging.info(f"Returning measurement ID {measurement_id} to company '{requesting_company_id}'")
         return jsonify(measurement)
-    
+
     except Exception as e:
-        print(f"❌ Error obteniendo medición: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-   
+        logging.error(f"❌ Unexpected error in get_measurement endpoint: {str(e)}", exc_info=True)
+        return jsonify({"error": "An unexpected server error occurred"}), 500
+
 # ============================================================================
 # API - Exportar Reportes
 # ============================================================================
-
+# ============================================================================
+# API - Exportar Reportes
+# ============================================================================
 @app.route("/api/export", methods=["POST"])
 def export_report():
     """
-    Exportar reporte.
-    El frontend DEBE enviar el branding (logo, nombre) en la petición.
+    Exportar reporte (single, comparison, dashboard).
+    El frontend envía los datos a incluir en el formato correcto.
     """
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        # Validar parámetros básicos
         format_type = data.get("format", "pdf").lower()
         export_type = data.get("type", "single")
         lang = data.get("lang", 'es')
-        
-        # El frontend obtiene esto de /api/company_profile
-        company_name = data.get("company_name", "CraftRMN Pro")
-        branding_info = data.get("branding_info", {})
 
-        print(f"📤 Solicitud de exportación: Tipo={export_type}, Formato={format_type} para {company_name}")
-        
+        logging.info(f"📤 Export request: Type={export_type}, Format={format_type}, Lang={lang}")
+
         mime_types = {
-            "json": "application/json", "csv": "text/csv",
-            "pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            "json": "application/json", 
+            "csv": "text/csv",
+            "pdf": "application/pdf", 
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         }
-        extensions = {
-            "json": "json", "csv": "csv", "pdf": "pdf", "docx": "docx"
-        }
-        if format_type not in mime_types:
-            return jsonify({"error": f"Formato '{format_type}' no soportado"}), 400
-        output = None
-        filename_prefix = ""
         
+        extensions = {
+            "json": "json", 
+            "csv": "csv", 
+            "pdf": "pdf", 
+            "docx": "docx"
+        }
+        
+        if format_type not in mime_types:
+            logging.warning(f"Unsupported export format requested: {format_type}")
+            return jsonify({
+                "error": f"Unsupported format: '{format_type}'. Supported: {', '.join(extensions.keys())}"
+            }), 400
+
+        output = None
+        filename_prefix = f"CraftRMN_{export_type}_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+        # =====================================================================
+        # DASHBOARD EXPORT
+        # =====================================================================
         if export_type == "dashboard":
             stats = data.get("stats", {})
             chart_images_base64 = data.get("chart_images", {})
-            chart_images = {k: ReportExporter.base64_to_bytes(v) for k, v in chart_images_base64.items()}
-            filename_prefix = f"dashboard_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            # Convertir imágenes base64 a bytes
+            chart_images = {}
+            for key, base64_str in chart_images_base64.items():
+                if base64_str:
+                    img_bytes = ReportExporter.base64_to_bytes(base64_str)
+                    if img_bytes:
+                        chart_images[key] = img_bytes
+            
+            # ✅ CORREGIDO: Solo 3 parámetros
             if format_type == "pdf":
-                output = ReportExporter.export_dashboard_pdf(stats, chart_images, lang, company_name, branding_info)
+                output = ReportExporter.export_dashboard_pdf(stats, chart_images, lang)
             elif format_type == "docx":
-                output = ReportExporter.export_dashboard_docx(stats, chart_images, lang, company_name, branding_info)
-            else:
+                output = ReportExporter.export_dashboard_docx(stats, chart_images, lang)
+            elif format_type == "json":
                 output = ReportExporter.export_json(data)
+            else:  # csv
+                return jsonify({
+                    "error": "CSV export for dashboard is not implemented server-side."
+                }), 400
+
+        # =====================================================================
+        # COMPARISON EXPORT
+        # =====================================================================
         elif export_type == "comparison":
             samples = data.get("samples", [])
             chart_image_base64 = data.get("chart_image")
-            chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64) if chart_image_base64 else None
-            filename_prefix = f"rmn_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            # Convertir imagen base64 a bytes
+            chart_image_bytes = None
+            if chart_image_base64:
+                chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64)
+            
+            # ✅ CORREGIDO: Solo 3 parámetros
             if format_type == "pdf":
-                output = ReportExporter.export_comparison_pdf(samples, chart_image_bytes, lang, company_name, branding_info)
+                output = ReportExporter.export_comparison_pdf(samples, chart_image_bytes, lang)
             elif format_type == "docx":
-                output = ReportExporter.export_comparison_docx(samples, chart_image_bytes, lang, company_name, branding_info)
+                output = ReportExporter.export_comparison_docx(samples, chart_image_bytes, lang)
             elif format_type == "csv":
                 output = ReportExporter.export_comparison_csv(samples, lang)
-            else:
+            else:  # json
                 output = ReportExporter.export_json(data)
-        else: # single
-            chart_image_base64 = data.get("chart_image")
-            chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64) if chart_image_base64 else None
+
+        # =====================================================================
+        # SINGLE ANALYSIS EXPORT
+        # =====================================================================
+        elif export_type == "single":
             results = data.get("results", {})
-            filename_prefix = f"rmn_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            if format_type == "json":
-                output = ReportExporter.export_json(results, lang)
+            chart_image_base64 = data.get("chart_image")
+            
+            # Convertir imagen base64 a bytes
+            chart_image_bytes = None
+            if chart_image_base64:
+                chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64)
+            
+            # ✅ CORREGIDO: Solo 3 parámetros
+            if format_type == "pdf":
+                output = ReportExporter.export_pdf(results, chart_image_bytes, lang)
+            elif format_type == "docx":
+                output = ReportExporter.export_docx(results, chart_image_bytes, lang)
             elif format_type == "csv":
                 output = ReportExporter.export_csv(results, lang)
-            elif format_type == "pdf":
-                output = ReportExporter.export_pdf(results, chart_image_bytes, lang, company_name, branding_info)
-            elif format_type == "docx":
-                output = ReportExporter.export_docx(results, chart_image_bytes, lang, company_name, branding_info)
+            else:  # json
+                output = ReportExporter.export_json(results)
         
-        if output is None:
-             return jsonify({"error": f"No se pudo generar la exportación"}), 500
+        else:
+            logging.warning(f"Unsupported export type requested: {export_type}")
+            return jsonify({
+                "error": f"Unsupported export type: '{export_type}'. Supported: single, comparison, dashboard"
+            }), 400
 
+        # Verificar si se generó salida
+        if output is None:
+            logging.error(f"Export generation failed for type={export_type}, format={format_type}. Output was None.")
+            return jsonify({
+                "error": f"Failed to generate export file for the requested format '{format_type}'."
+            }), 500
+
+        # Enviar archivo generado
         filename = f"{filename_prefix}.{extensions[format_type]}"
-        return send_file(output, mimetype=mime_types[format_type], as_attachment=True, download_name=filename)
+        logging.info(f"✅ Sending export file: {filename} (MIME: {mime_types[format_type]})")
+        
+        return send_file(
+            output,
+            mimetype=mime_types[format_type],
+            as_attachment=True,
+            download_name=filename
+        )
 
     except Exception as e:
-        print(f"❌ Error exportando: {str(e)}")
-        traceback.print_exc()
+        logging.error(f"❌ Error during export: {str(e)}", exc_info=True)
         return jsonify({"error": f"Export failed: {str(e)}"}), 500
-
 # ============================================================================
-# API - Gestión de Archivos (sin cambios)
+# API - Gestión de Archivos de Análisis (JSONs)
 # ============================================================================
-
-@app.route("/api/files", methods=["GET"])
-def list_files():
-    files = []
-    for f in OUTPUT_DIR.glob("*"):
-        if f.is_file():
-            files.append({
-                "name": f.name,
-                "size": f.stat().st_size,
-                "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat()
-            })
-    return jsonify({"files": files})
+# NOTA: Estos endpoints operan sobre los archivos JSON en /storage/analysis.
+# Son menos relevantes ahora que usamos la BD, pero pueden ser útiles para debug o migración.
 
 @app.route("/api/analysis", methods=["GET"])
-def list_analysis():
-    analyses = []
-    for f in ANALYSIS_DIR.glob("*.json"):
-        try:
-            with open(f, 'r', encoding='utf-8') as file:
-                data = json.load(file)
-            analysis_data = data.get("analysis", {})
-            analysis_summary = {
-                "name": f.name, "size": f.stat().st_size,
-                "created": datetime.fromtimestamp(f.stat().st_ctime).isoformat(),
-                "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
-                "fluor": analysis_data.get("fluor_percentage"),
-                "pfas": analysis_data.get("pifas_percentage"),
-                "concentration": analysis_data.get("pifas_concentration"),
-                "quality": data.get("quality_score"),
-                "filename": data.get("filename", f.name)
-            }
-            analyses.append(analysis_summary)
-        except Exception as e:
-            print(f"⚠️  Error leyendo {f.name}: {str(e)}")
-    analyses.sort(key=lambda x: x.get("created", ""), reverse=True)
-    return jsonify({"analyses": analyses, "total": len(analyses)})
-
-@app.route("/api/analysis/<path:filename>", methods=["DELETE"])
-def delete_analysis(filename):
+def list_analysis_files():
+    """Listar archivos JSON de análisis disponibles."""
+    # TODO: Considerar si este endpoint sigue siendo necesario o si /api/measurements lo reemplaza.
+    # Podría requerir filtro por compañía si los nombres de archivo no son únicos globalmente.
     try:
-        file_path = ANALYSIS_DIR / filename
-        if not file_path.exists():
-            return jsonify({"error": "Analysis not found"}), 404
-        if not str(file_path.resolve()).startswith(str(ANALYSIS_DIR.resolve())):
-            return jsonify({"error": "Invalid file path"}), 403
-        file_path.unlink()
-        print(f"🗑️  Análisis eliminado: {filename}")
-        return jsonify({"message": "Analysis deleted successfully"}), 200
+        analyses = []
+        for f in ANALYSIS_DIR.glob("*.json"):
+            try:
+                # Leer solo metadatos básicos para eficiencia
+                stat = f.stat()
+                # Intentar leer datos clave si es necesario (puede ralentizar)
+                # with open(f, 'r', encoding='utf-8') as file: data = json.load(file) ...
+                analyses.append({
+                    "name": f.name,
+                    "size": stat.st_size,
+                    "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    # Añadir company_id si está en el nombre del archivo
+                })
+            except Exception as e:
+                logging.warning(f"⚠️ Error reading metadata for {f.name}: {str(e)}")
+                # Incluir archivo con error para saber que existe
+                analyses.append({"name": f.name, "error": str(e)})
+
+        analyses.sort(key=lambda x: x.get("created", ""), reverse=True)
+        return jsonify({"analyses": analyses, "total": len(analyses)})
     except Exception as e:
-        print(f"❌ Error eliminando análisis: {str(e)}")
-        return jsonify({"error": f"Failed to delete analysis: {str(e)}"}), 500
-
-@app.route("/api/upload", methods=["POST"])
-def upload_file():
-    if "file" not in request.files:
-        return jsonify({"error": "No file part"}), 400
-    file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"error": "No file selected"}), 400
-    file_path = OUTPUT_DIR / file.filename
-    file.save(file_path)
-    return jsonify({"message": "File uploaded successfully", "filename": file.filename})
-
-@app.route("/api/download/<path:filename>", methods=["GET"])
-def download_file(filename):
-    return send_from_directory(OUTPUT_DIR, filename, as_attachment=True)
+         logging.error(f"❌ Error listing analysis files: {str(e)}", exc_info=True)
+         return jsonify({"error": "Failed to list analysis files"}), 500
 
 @app.route("/api/result/<path:filename>", methods=["GET"])
-def get_analysis(filename):
-    file_path = ANALYSIS_DIR / filename
-    if not file_path.exists():
-        return jsonify({"error": "Analysis not found"}), 404
-    with open(file_path, "r", encoding='utf-8') as f:
-        data = json.load(f)
-    return jsonify(data)
+def get_analysis_file(filename):
+    """Obtener el contenido de un archivo JSON de análisis específico."""
+    # TODO: Añadir chequeo de seguridad por compañía si es necesario.
+    try:
+        # Validar y limpiar filename para evitar Path Traversal
+        if ".." in filename or filename.startswith("/"):
+             return jsonify({"error": "Invalid filename"}), 400
+
+        file_path = (ANALYSIS_DIR / filename).resolve()
+
+        # Doble chequeo de seguridad
+        if not str(file_path).startswith(str(ANALYSIS_DIR.resolve())):
+             return jsonify({"error": "Access denied"}), 403
+
+        if not file_path.is_file():
+            return jsonify({"error": "Analysis file not found"}), 404
+
+        # Devolver el contenido JSON
+        with open(file_path, "r", encoding='utf-8') as f:
+            data = json.load(f)
+        return jsonify(data)
+
+    except FileNotFoundError:
+         return jsonify({"error": "Analysis file not found"}), 404
+    except json.JSONDecodeError:
+         logging.error(f"Error decoding JSON file: {filename}")
+         return jsonify({"error": "Invalid JSON format in analysis file"}), 500
+    except Exception as e:
+        logging.error(f"❌ Error getting analysis file {filename}: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to retrieve analysis file"}), 500
+
+@app.route("/api/analysis/<path:filename>", methods=["DELETE"])
+def delete_analysis_file(filename):
+    """Eliminar un archivo JSON de análisis específico."""
+    # TODO: Añadir chequeo de seguridad por compañía.
+    try:
+         # Validar y limpiar filename
+        if ".." in filename or filename.startswith("/"):
+             return jsonify({"error": "Invalid filename"}), 400
+
+        file_path = (ANALYSIS_DIR / filename).resolve()
+
+        # Seguridad
+        if not str(file_path).startswith(str(ANALYSIS_DIR.resolve())):
+             return jsonify({"error": "Access denied"}), 403
+
+        if not file_path.is_file():
+            return jsonify({"error": "Analysis file not found"}), 404
+
+        # Eliminar el archivo
+        file_path.unlink()
+        logging.info(f"🗑️ Analysis file deleted: {filename}")
+        return jsonify({"message": f"Analysis file '{filename}' deleted successfully"}), 200
+
+    except FileNotFoundError:
+         return jsonify({"error": "Analysis file not found"}), 404
+    except Exception as e:
+        logging.error(f"❌ Error deleting analysis file {filename}: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Failed to delete analysis file: {str(e)}"}), 500
 
 @app.route("/api/analysis/clear-all", methods=["DELETE"])
-def clear_all_analysis():
+def clear_all_analysis_files():
+    """Eliminar TODOS los archivos JSON de análisis."""
+    # TODO: Añadir chequeo de seguridad por compañía (admin?).
+    # La versión actual borra TODO, lo cual puede no ser deseado en multi-empresa.
+    # Necesitaría un parámetro ?company=... y lógica para borrar solo esos.
+    company_id = request.args.get('company') # Leer company si se envía
+
+    # !!! --- AÑADIR LÓGICA DE FILTRADO AQUÍ --- !!!
+    # Si company_id es None o 'admin', borrar todo (comportamiento actual)
+    # Si company_id es específico, buscar archivos que coincidan (ej. por nombre) y borrarlos.
+    # Esto requiere una convención en los nombres de archivo JSON o leer cada JSON.
+    if company_id and company_id != 'admin':
+         logging.warning(f"Clear-all called for specific company '{company_id}', but filtering is NOT YET IMPLEMENTED. Aborting.")
+         return jsonify({"error": f"Clearing history for a specific company ('{company_id}') is not yet implemented. Only 'admin' can clear all."}), 400
+         # Si lo implementas, ajusta la lógica de abajo.
+
+    # Comportamiento actual (borrar todo si es admin o no se especifica)
+    logging.warning("Executing CLEAR ALL analysis files request.")
     try:
         deleted_count = 0
         errors = []
         analysis_files = list(ANALYSIS_DIR.glob("*.json"))
+
         if not analysis_files:
-            return jsonify({"message": "No hay análisis para eliminar", "deleted_count": 0}), 200
+            return jsonify({"message": "No analysis files to delete", "deleted_count": 0}), 200
+
         for file_path in analysis_files:
             try:
                 file_path.unlink()
                 deleted_count += 1
-                print(f"🗑️  Eliminado: {file_path.name}")
             except Exception as e:
                 errors.append(f"{file_path.name}: {str(e)}")
-        response = {"message": f"Eliminados {deleted_count} análisis", "deleted_count": deleted_count}
+                logging.error(f"Error deleting {file_path.name}: {str(e)}")
+
+        response = {
+            "message": f"Deleted {deleted_count} analysis files",
+            "deleted_count": deleted_count,
+            "total_files": len(analysis_files)
+        }
         if errors:
             response["errors"] = errors
-        print(f"✅ Limpieza completada: {deleted_count}/{len(analysis_files)} archivos eliminados")
+        logging.info(f"✅ Bulk deletion completed: {deleted_count}/{len(analysis_files)} files removed.")
         return jsonify(response), 200
+
     except Exception as e:
-        print(f"❌ Error en limpieza masiva: {str(e)}")
-        return jsonify({"error": f"Failed to clear all analyses: {str(e)}"}), 500
+        logging.error(f"❌ Error during bulk deletion of analysis files: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Failed to clear all analysis files: {str(e)}"}), 500
+
 
 # ============================================================================
-# Ejecutar servidor
+# API - Gestión de Archivos de Entrada (Opcional, para carga manual)
 # ============================================================================
+# Estos endpoints manejan archivos en /storage/output, que son los archivos
+# originales subidos ANTES del análisis. Pueden no ser necesarios si
+# el flujo principal es subir y analizar directamente.
 
+@app.route("/api/files", methods=["GET"])
+def list_input_files():
+    """Listar archivos en el directorio de entrada (output)."""
+    try:
+        files = []
+        for f in OUTPUT_DIR.glob("*"): # Considerar filtrar por extensión .csv, .txt etc.
+            if f.is_file():
+                stat = f.stat()
+                files.append({
+                    "name": f.name,
+                    "size": stat.st_size,
+                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
+                })
+        return jsonify({"files": files})
+    except Exception as e:
+         logging.error(f"❌ Error listing input files: {str(e)}", exc_info=True)
+         return jsonify({"error": "Failed to list input files"}), 500
+
+
+@app.route("/api/upload", methods=["POST"])
+def upload_input_file():
+    """Subir un archivo al directorio de entrada (output) sin analizarlo."""
+    if "file" not in request.files:
+        return jsonify({"error": "No 'file' part in the request"}), 400
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No file selected for upload"}), 400
+
+    try:
+        # Guardar en OUTPUT_DIR
+        file_path = OUTPUT_DIR / file.filename
+        file.save(file_path)
+        logging.info(f"📄 Input file uploaded manually: {file.filename}")
+        return jsonify({
+            "message": "File uploaded successfully to input directory",
+            "filename": file.filename,
+            "size": file_path.stat().st_size
+        })
+    except Exception as e:
+         logging.error(f"❌ Error uploading input file {file.filename}: {str(e)}", exc_info=True)
+         return jsonify({"error": f"Failed to upload file: {str(e)}"}), 500
+
+@app.route("/api/download/<path:filename>", methods=["GET"])
+def download_input_file(filename):
+    """Descargar un archivo original del directorio de entrada (output)."""
+    try:
+        # Validar y limpiar filename
+        if ".." in filename or filename.startswith("/"):
+             return jsonify({"error": "Invalid filename"}), 400
+
+        file_path = (OUTPUT_DIR / filename).resolve()
+
+        # Seguridad
+        if not str(file_path).startswith(str(OUTPUT_DIR.resolve())):
+             return jsonify({"error": "Access denied"}), 403
+
+        if not file_path.is_file():
+            return jsonify({"error": "Input file not found"}), 404
+
+        return send_from_directory(OUTPUT_DIR, filename, as_attachment=True)
+
+    except FileNotFoundError:
+         return jsonify({"error": "Input file not found"}), 404
+    except Exception as e:
+        logging.error(f"❌ Error downloading input file {filename}: {str(e)}", exc_info=True)
+        return jsonify({"error": "Failed to download file"}), 500
+
+# ============================================================================
+# API - Eliminar mediciones individuales
+# ============================================================================
+@app.route("/api/measurements/<int:measurement_id>", methods=["DELETE"])
+def delete_measurement(measurement_id):
+    """
+    Elimina una medición específica por ID.
+    Requiere 'company' en la URL para verificación de seguridad.
+    """
+    try:
+        requesting_company_id = request.args.get('company')
+        
+        if not requesting_company_id:
+            logging.warning(f"delete_measurement {measurement_id} called without 'company' parameter.")
+            return jsonify({"error": "Missing 'company' parameter"}), 400
+        
+        if requesting_company_id not in COMPANY_PROFILES:
+            return jsonify({"error": f"Invalid company ID: '{requesting_company_id}'"}), 404
+        
+        logging.debug(f"Delete request for measurement {measurement_id} by company '{requesting_company_id}'")
+        
+        # Intentar eliminar (la BD hace el chequeo de pertenencia)
+        success = db.delete_measurement(measurement_id, requesting_company_id)
+        
+        if success:
+            logging.info(f"Measurement {measurement_id} deleted by {requesting_company_id}")
+            return jsonify({
+                "message": f"Measurement {measurement_id} deleted successfully"
+            }), 200
+        else:
+            logging.warning(f"Measurement {measurement_id} not found or access denied for {requesting_company_id}")
+            return jsonify({"error": "Measurement not found or access denied"}), 404
+            
+    except Exception as e:
+        logging.error(f"Error deleting measurement {measurement_id}: {e}", exc_info=True)
+        return jsonify({"error": f"Failed to delete measurement: {str(e)}"}), 500
+
+
+@app.route("/api/measurements/clear-all", methods=["DELETE"])
+def clear_all_measurements():
+    """
+    Elimina todas las mediciones de una empresa específica.
+    Requiere 'company' en la URL.
+    """
+    try:
+        company_id = request.args.get('company')
+        
+        if not company_id:
+            return jsonify({"error": "Missing 'company' parameter"}), 400
+        
+        if company_id not in COMPANY_PROFILES:
+            return jsonify({"error": f"Invalid company ID: '{company_id}'"}), 404
+        
+        logging.warning(f"Clear all measurements request for company '{company_id}'")
+        
+        # Eliminar todas las mediciones de la empresa
+        deleted_count = db.delete_all_measurements(company_id)
+        
+        logging.info(f"Deleted {deleted_count} measurements for company '{company_id}'")
+        
+        return jsonify({
+            "message": f"Deleted {deleted_count} measurements",
+            "deleted_count": deleted_count,
+            "company_id": company_id
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Error clearing measurements: {e}", exc_info=True)
+        return jsonify({"error": f"Failed to clear measurements: {str(e)}"}), 500
+
+
+
+# ============================================================================
+# Ejecutar servidor Flask
+# ============================================================================
 if __name__ == "__main__":
-    print("=" * 60)
-    print("🚀 CraftRMN Analysis Server (Multi-Empresa)")
-    print("=" * 60)
-    print(f"📊 Version: 2.0.0")
-    print(f"🌐 Running on: http://localhost:5000")
-    print(f"📁 Storage: {OUTPUT_DIR}")
-    print("=" * 60)
-
+    # app.run() por defecto usa el servidor de desarrollo de Werkzeug.
+    # debug=True activa el recargador automático y el depurador.
+    # host='0.0.0.0' permite conexiones desde otras máquinas en la red local.
     app.run(host="0.0.0.0", port=5000, debug=True)
+    # Para producción, deberías usar un servidor WSGI como Gunicorn o Waitress.
+    # Ejemplo con Waitress (instalar con: pip install waitress):
+    # from waitress import serve
+    # serve(app, host="0.0.0.0", port=5000)
