@@ -13,46 +13,6 @@ COMPANY_PROFILES = {
         'contact_email': 'admin@craftrmn.com'
     },
 
-    "BIDATEK": {
-        'company_id': 'BIDATEK',
-        'company_name': 'Bidatek Water Solutions',
-        'logo_url': '/assets/logos/bidatek_logo.png',
-        'primary_color': '#0A4F3A',
-        'secondary_color': '#117855',
-        'language': 'es',
-        'contact_email': 'soporte@bidatek.com'
-    },
-
-    "URA": {
-        'company_id': 'URA',
-        'company_name': 'Agencia Vasca del Agua',
-        'logo_url': '/assets/logos/ura_logo.png',
-        'primary_color': '#0055A4',
-        'secondary_color': '#003366',
-        'language': 'eu',
-        'contact_email': 'info@ura.eus'
-    },
-
-    "URPA": {
-        'company_id': 'URPA',
-        'company_name': 'URPA (Mantenimiento Agua)',
-        'logo_url': '/assets/logos/urpa_logo.png',
-        'primary_color': '#3498DB',
-        'secondary_color': '#2980B9',
-        'language': 'es',
-        'contact_email': 'info@urpa.es'
-    },
-
-    "ACLIMA": {
-        'company_id': 'ACLIMA',
-        'company_name': 'Aclima - Basque Environment Cluster',
-        'logo_url': '/assets/logos/aclima_logo.png',
-        'primary_color': '#8BC34A',
-        'secondary_color': '#689F38',
-        'language': 'es',
-        'contact_email': 'info@aclima.eus'
-    },
-
     "FAES": {
         'company_id': 'FAES',
         'company_name': 'Faes Farma',

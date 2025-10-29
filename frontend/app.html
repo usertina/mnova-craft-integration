@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="app.title">CraftRMN Pro - Analizador de RMN</title>
+    
+    <!-- ============================================================
+         🚨 IMPORTANTE: CARGAR PERFIL DE EMPRESA PRIMERO
+         Este script DEBE ir ANTES que cualquier otro script
+    ============================================================ -->
+    <script>
+        console.log('🔄 [app.html] Inicializando carga de perfil de empresa...');
+        
+        // Intentar cargar el perfil de empresa desde sessionStorage
+        (function loadCompanyProfile() {
+            try {
+                const storedProfile = sessionStorage.getItem('selectedCompanyProfile');
+                console.log('📦 [app.html] Perfil en sessionStorage:', storedProfile ? 'Encontrado' : 'No encontrado');
+                
+                if (!storedProfile) {
+                    console.error('❌ [app.html] No se encontró perfil de empresa');
+                    alert('No se ha seleccionado ninguna empresa. Redirigiendo al portal...');
+                    // Redirigir al portal de selección
+                    // AJUSTA EL NOMBRE según cómo se llame tu archivo de portal:
+                    // Si tu portal se llama 'index.html' → cambia a 'index.html'
+                    // Si se llama 'portal.html' → deja 'portal.html'
+                    window.location.href = 'index.html'; // ← AJUSTA ESTE NOMBRE
+                    throw new Error('Sin perfil - redirigiendo...');
+                }
+                
+                // Parsear el perfil
+                const profile = JSON.parse(storedProfile);
+                console.log('✅ [app.html] Perfil parseado:', profile);
+                
+                // Validar campos obligatorios
+                if (!profile.company_id) {
+                    throw new Error('company_id no está definido en el perfil');
+                }
+                if (!profile.company_name) {
+                    throw new Error('company_name no está definido en el perfil');
+                }
+                
+                // Definir globalmente ANTES de que se carguen otros scripts
+                window.CURRENT_COMPANY_PROFILE = profile;
+                console.log('✅ [app.html] CURRENT_COMPANY_PROFILE definido:', window.CURRENT_COMPANY_PROFILE);
+                
+            } catch (error) {
+                console.error('❌ [app.html] Error al cargar perfil:', error);
+                // Si hay error, limpiar y redirigir
+                sessionStorage.removeItem('selectedCompanyProfile');
+                // Solo redirigir si no estamos ya en el portal
+                if (!window.location.href.includes('index.html') && window.location.pathname !== '/') {
+                    alert('Error al cargar el perfil de empresa. Redirigiendo al portal...');
+                    window.location.href = 'index.html'; // ← AJUSTA ESTE NOMBRE
+                }
+            }
+        })();
+    </script>
+    
+    <!-- Estilos CSS -->
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/responsive.css">
+    <link rel="stylesheet" href="styles/dashboard.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    
+    <!-- Estilos adicionales para el logo de la empresa -->
+    <style>
+        /* Estilos para el logo de la empresa seleccionada */
+        .company-branding {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #6366f1;
+        }
+        
+        .company-branding-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+        
+        .company-branding-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .company-branding-label {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .company-branding-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #e5e7eb;
+        }
+        
+        .logout-btn {
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p data-i18n="app.loading">Inicializando Analizador RMN...</p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div id="app" class="app-container hidden">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo">
+                    <img src="assets/images/logo.webp" alt="Logo Qubiz team" class="logo-img">
+                    <img src="assets/images/logo_qubiz.png" alt="Logo Qubiz team" class="logo-img">
+                    <span class="logo-text" data-i18n="app.logo">Qubiz team</span>
+                </div>
+                
+                <!-- 🆕 Branding de la Empresa Seleccionada -->
+                <div class="company-branding" id="companyBranding" style="display: none;">
+                    <img id="companyBrandingLogo" 
+                         src="" 
+                         alt="Company Logo" 
+                         class="company-branding-logo"
+                         onerror="this.style.display='none'">
+                    <div class="company-branding-info">
+                        <span class="company-branding-label">Empresa</span>
+                        <span class="company-branding-name" id="companyBrandingName">Cargando...</span>
+                    </div>
+                </div>
+                
+                <nav class="main-nav">
+                    <button class="nav-btn active" data-tab="analyzer" data-i18n="header.analyzer">Analizador</button>
+                    <button class="nav-btn" data-tab="history" data-i18n="header.history">Historial</button>
+                    <button class="nav-btn" data-tab="dashboard" data-i18n="header.dashboard">Dashboard</button>
+                    <button class="nav-btn" data-tab="comparison" data-i18n="header.comparison">Comparación</button>
+                </nav>
+            </div>
+            <div class="header-right">
+                <!-- Language Selector -->
+                <div class="language-selector">
+                    <label for="languageSelector" class="visually-hidden">Selector de Idioma</label>
+                    <select id="languageSelector" class="language-dropdown">
+                        <!-- Opciones se llenan dinámicamente -->
+                    </select>
+                </div>
+                
+                <!-- 🆕 Botón de Cerrar Sesión -->
+                <button class="logout-btn" id="logoutBtn" onclick="logoutToPortal()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Salir</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Analyzer Tab -->
+            <div id="analyzer-tab" class="tab-content active">
+                <div class="workspace">
+                    <!-- Left Panel - Controls -->
+                    <div class="control-panel">
+                        <div class="panel-section">
+                            <h3><i class="fas fa-upload"></i> <span data-i18n="analyzer.loadSpectrum">Cargar Espectro</span></h3>
+                            <div class="upload-area" id="uploadArea">
+                                <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                                <p data-i18n="analyzer.dragDrop">Arrastra archivos de Craft aquí o</p>
+                                <button class="btn btn-primary" id="browseFiles">
+                                    <i class="fas fa-folder-open"></i> 
+                                    <span data-i18n="analyzer.browse">Examinar</span>
+                                </button>
+                                <input type="file" id="fileInput" accept=".csv,.txt,.json" hidden>
+                            </div>
+                            <div class="file-list" id="fileList"></div>
+                        </div>
+
+                        <div class="panel-section">
+                            <h3><i class="fas fa-play-circle"></i> <span data-i18n="analyzer.actions">Acciones</span></h3>
+                            <button class="btn btn-success btn-block" id="analyzeBtn" disabled>
+                                <i class="fas fa-play"></i> 
+                                <span data-i18n="analyzer.runAnalysis">Ejecutar Análisis</span>
+                            </button>
+                            <button class="btn btn-outline btn-block" id="exportBtn" disabled>
+                                <i class="fas fa-download"></i> 
+                                <span data-i18n="analyzer.exportReport">Exportar Reporte</span>
+                            </button>
+                            <div class="connection-status" id="connectionStatus">
+                                <i class="fas fa-circle connection-dot"></i>
+                                <span data-i18n="connection.connecting">Conectando...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel - Results -->
+                    <div class="results-panel">
+                        <div class="results-header">
+                            <h2 id="sampleName" data-i18n="analyzer.waitingData">Esperando datos...</h2>
+                            <div class="result-actions">
+                                <button class="btn btn-icon" id="fullscreenBtn" title="Pantalla completa">
+                                    <i class="fas fa-expand"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Spectrum Chart with Toggle -->
+                        <div class="chart-section">
+                            <div class="chart-header">
+                                <h3><i class="fas fa-chart-area"></i> <span data-i18n="charts.spectrumTitle">Espectro RMN</span></h3>
+                                <button class="btn btn-outline btn-toggle-spectrum" id="toggleSpectrumBtn">
+                                    <i class="fas fa-eye"></i>
+                                    <span data-i18n="analyzer.showSpectrum">Mostrar Espectro RMN</span>
+                                </button>
+                            </div>
+                            <div class="chart-container" id="spectrumChartContainer" style="display: none;">
+                                <div id="spectrumChart" class="spectrum-chart"></div>
+                            </div>
+                        </div>
+
+                        <!-- Analysis Results Cards -->
+                        <div class="results-grid">
+                            <div class="result-card">
+                                <div class="result-icon fluor">
+                                    <i class="fas fa-vial"></i>
+                                </div>
+                                <div class="result-content">
+                                    <h4 data-i18n="results.fluor">Flúor</h4>
+                                    <div class="result-value" id="fluorResult">--</div>
+                                    <div class="result-unit" data-i18n="results.percentage">%</div>
+                                </div>
+                            </div>
+
+                            <div class="result-card">
+                                <div class="result-icon pifas">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                                <div class="result-content">
+                                    <h4 data-i18n="results.pifas">PIFAS</h4>
+                                    <div class="result-value" id="pifasResult">--</div>
+                                    <div class="result-unit" data-i18n="results.percentage">%</div>
+                                </div>
+                            </div>
+
+                            <div class="result-card quality-card">
+                                <div class="result-icon quality">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="result-content">
+                                    <h4 data-i18n="results.quality">Calidad</h4>
+                                    <div class="progress" id="qualityProgressBar" style="height: 20px;">
+                                        <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="10">0/10</div>
+                                    </div>
+                                    <div id="qualityBreakdownContainer" class="mt-2">
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Quick Stats -->
+                        <div class="detailed-results">
+                            <h3 data-i18n="results.quickStats">Estadísticas Rápidas</h3>
+                            <div class="result-row">
+                                <span data-i18n="results.detectedPeaks">Picos Detectados:</span>
+                                <strong id="peaksCount">0</strong>
+                            </div>
+                            <div class="result-row">
+                                <span data-i18n="results.totalIntegral">Integral Total:</span>
+                                <strong id="totalIntegral">0</strong>
+                            </div>
+                            <div class="result-row">
+                                <span data-i18n="results.signalNoise">Relación S/N:</span>
+                                <strong id="snRatio">0</strong>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Statistics Table with Toggle -->
+                        <div class="collapsible-section">
+                            <div class="section-header">
+                                <h3><i class="fas fa-table"></i> <span data-i18n="results.detailedResults">Resultados Detallados</span></h3>
+                                <button class="btn btn-outline btn-toggle-section" id="toggleDetailedResultsBtn">
+                                    <i class="fas fa-eye"></i>
+                                    <span data-i18n="analyzer.showDetailedResults">Mostrar Resultados Detallados</span>
+                                </button>
+                            </div>
+                            <div class="section-content" id="detailedResultsContainer" style="display: none;">
+                                <div class="table-container">
+                                    <table id="resultsTable">
+                                        <thead>
+                                            <tr>
+                                                <th data-i18n="results.parameter">Parámetro</th>
+                                                <th data-i18n="results.value">Valor</th>
+                                                <th data-i18n="results.units">Unidades</th>
+                                                <th data-i18n="results.limits">Límites</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="4" class="empty-state">
+                                                    <i class="fas fa-chart-line"></i>
+                                                    <p data-i18n="results.noDetails">No hay datos detallados disponibles</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Peak Details Table with Toggle -->
+                        <div class="collapsible-section">
+                            <div class="section-header">
+                                <h3><i class="fas fa-mountain"></i> <span data-i18n="results.peakDetails">Detalles de Picos</span></h3>
+                                <button class="btn btn-outline btn-toggle-section" id="togglePeakDetailsBtn">
+                                    <i class="fas fa-eye"></i>
+                                    <span data-i18n="analyzer.showPeakDetails">Mostrar Detalles de Picos</span>
+                                </button>
+                            </div>
+                            <div class="section-content" id="peakDetailsContainer" style="display: none;">
+                                <div class="table-container">
+                                    <table id="peakTable">
+                                        <thead>
+                                            <tr>
+                                                <th data-i18n="results.position">Posición (ppm)</th>
+                                                <th data-i18n="results.height">Altura</th>
+                                                <th data-i18n="results.area">Área</th>
+                                                <th data-i18n="results.width">Ancho (Hz)</th>
+                                                <th data-i18n="peaks.region">Región</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="5" class="empty-state">
+                                                    <i class="fas fa-chart-line"></i>
+                                                    <p data-i18n="results.noPeaksYet">No hay picos analizados aún</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="history-tab" class="tab-content">
+                <div class="history-container">
+                    <div class="history-header">
+                        <h2><i class="fas fa-history"></i> <span data-i18n="history.title">Historial de Análisis</span></h2>
+                        <div class="history-actions">
+                            <label for="searchHistory" class="visually-hidden" data-i18n="history.search">Buscar...</label>
+                            <input type="text" id="searchHistory" class="search-input" placeholder="Buscar..." data-i18n-placeholder="history.search">
+                            <button class="btn btn-outline" id="filterHistory">
+                                <i class="fas fa-filter"></i> 
+                                <span data-i18n="history.filter">Filtrar</span>
+                            </button>
+                            <button class="btn btn-outline" id="clearHistory">
+                                <i class="fas fa-trash"></i> 
+                                <span data-i18n="history.clear">Limpiar</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="history-list" id="historyList">
+                        <div class="empty-state">
+                            <i class="fas fa-folder-open empty-icon"></i>
+                            <p data-i18n="history.empty">No hay análisis guardados</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Tab -->
+            <div id="dashboard-tab" class="tab-content">
+                <div class="dashboard-container">
+                    <div class="dashboard-header">
+                        <h2>
+                            <i class="fas fa-chart-line"></i>
+                            <span data-i18n="dashboard.title">Panel de Control</span>
+                        </h2>
+                        <div class="dashboard-controls">
+                            <div class="date-filter-group">
+                                <label class="filter-label" for="dashboardQuickFilter" data-i18n="dashboard.filterBy">Filtrar por:</label>
+                                <select id="dashboardQuickFilter" class="filter-select">
+                                    <option value="all" data-i18n="dashboard.filters.all">Todos los análisis</option>
+                                    <option value="today" data-i18n="dashboard.filters.today">Hoy</option>
+                                    <option value="week" data-i18n="dashboard.filters.week">Última semana</option>
+                                    <option value="month" data-i18n="dashboard.filters.month">Último mes</option>
+                                    <option value="custom" data-i18n="dashboard.filters.custom">Rango personalizado</option>
+                                </select>
+                            </div>
+
+                            <div class="date-range-selector" id="customDateRange" style="display: none;">
+                                <div class="date-input-group">
+                                    <label class="date-label" for="dateFrom">
+                                        <i class="fas fa-calendar-day"></i>
+                                        <span data-i18n="dashboard.dateFrom">Desde:</span>
+                                    </label>
+                                    <input type="date" id="dateFrom" class="date-input">
+                                </div>
+                                <div class="date-input-group">
+                                    <label class="date-label" for="dateTo">
+                                        <i class="fas fa-calendar-day"></i>
+                                        <span data-i18n="dashboard.dateTo">Hasta:</span>
+                                    </label>
+                                    <input type="date" id="dateTo" class="date-input">
+                                </div>
+                                <button class="btn btn-primary" id="applyDateFilter">
+                                    <i class="fas fa-check"></i>
+                                    <span data-i18n="dashboard.apply">Aplicar</span>
+                                </button>
+                                <button class="btn btn-outline" id="clearDateFilter">
+                                    <i class="fas fa-times"></i>
+                                    <span data-i18n="dashboard.clear">Limpiar</span>
+                                </button>
+                            </div>
+
+                            <button class="btn btn-outline" id="refreshDashboard">
+                                <i class="fas fa-sync-alt"></i>
+                                <span data-i18n="dashboard.refresh">Actualizar</span>
+                            </button>
+                            <button class="btn btn-success" id="exportDashboardBtn">
+                                <i class="fas fa-download"></i>
+                                <span data-i18n="dashboard.export">Exportar Datos</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card info">
+                            <div class="stat-card-header">
+                                <div class="stat-icon">
+                                    <i class="fas fa-flask"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-label" data-i18n="dashboard.totalAnalyses">Total Análisis</div>
+                                    <div class="stat-value" id="dashTotalAnalyses">0</div>
+                                </div>
+                            </div>
+                            <div class="stat-footer">
+                                <span data-i18n="dashboard.inSelectedRange">En rango seleccionado</span>
+                            </div>
+                        </div>
+
+                        <div class="stat-card success">
+                            <div class="stat-card-header">
+                                <div class="stat-icon">
+                                    <i class="fas fa-vial"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-label" data-i18n="dashboard.avgFluor">Flúor Promedio</div>
+                                    <div class="stat-value" id="dashAvgFluor">0%</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card primary">
+                            <div class="stat-card-header">
+                                <div class="stat-icon">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-label" data-i18n="dashboard.avgPfas">PFAS Promedio</div>
+                                    <div class="stat-value" id="dashAvgPfas">0%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <h3>
+                                <i class="fas fa-chart-line"></i>
+                                <span data-i18n="dashboard.trendTitle">Tendencia de Concentración</span>
+                            </h3>
+                            <div class="chart-container-dash" id="trendChart"></div>
+                        </div>
+
+                        <div class="chart-card">
+                            <h3>
+                                <i class="fas fa-chart-pie"></i>
+                                <span data-i18n="dashboard.distributionTitle">Distribución de Calidad</span>
+                            </h3>
+                            <div class="chart-container-dash" id="distributionChart"></div>
+                        </div>
+                    </div>
+
+                    <div class="recent-analyses-section">
+                        <h3>
+                            <i class="fas fa-history"></i>
+                            <span data-i18n="dashboard.recentAnalyses">Análisis Recientes</span>
+                        </h3>
+                        <div class="table-container">
+                            <table id="recentAnalysesTable">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="comparison.sample">Muestra</th>
+                                        <th data-i18n="comparison.date">Fecha</th>
+                                        <th data-i18n="results.fluor">Flúor (%)</th>
+                                        <th data-i18n="results.pifas">PFAS (%)</th>
+                                        <th data-i18n="results.quality">Calidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Comparison Tab -->
+            <div id="comparison-tab" class="tab-content">
+                <div class="comparison-container">
+                    <div class="comparison-header">
+                        <h2>
+                            <i class="fas fa-balance-scale"></i> 
+                            <span data-i18n="comparison.title">Comparación de Muestras</span>
+                        </h2>
+                        <div class="comparison-actions">
+                            <span id="selectedCountDisplay" data-params-count="0" data-params-max="5">{count} of {max} selected</span>
+                            <button class="btn btn-success" id="exportComparisonBtn" disabled>
+                                <i class="fas fa-download"></i>
+                                <span data-i18n="comparison.exportComparison">Exportar Comparación</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="comparison-content-grid">
+                        <div class="sample-selector-panel">
+                            <h3 data-i18n="comparison.selectSamples">Seleccionar Muestras</h3>
+                            <p class="small-instructions" data-i18n="comparison.instructions" data-params-max="5">Selecciona hasta 5 muestras.</p>
+                            <div class="sample-selector-grid" id="sampleSelectorContainer">
+                                <div class="empty-state-comparison" data-i18n="comparison.noSamples">
+                                    No hay muestras disponibles
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="comparison-results-panel">
+                            <div class="chart-card">
+                                <h3>
+                                    <i class="fas fa-chart-bar"></i>
+                                    <span data-i18n="comparison.chartTitle">Gráfico de Comparación</span>
+                                </h3>
+                                <div class="chart-container-dash" id="comparisonChart"></div>
+                            </div>
+
+                            <div class="table-card">
+                                <h3>
+                                    <i class="fas fa-table"></i>
+                                    <span data-i18n="comparison.comparisonTable">Tabla Comparativa</span>
+                                </h3>
+                                <div class="table-container">
+                                    <table id="comparisonTable">
+                                        <thead>
+                                            <tr>
+                                                <th data-i18n="results.parameter">Parámetro</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="6" class="empty-state-cell" data-i18n="comparison.selectSamples">
+                                                    Selecciona muestras para comparar
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Notifications System -->
+        <div id="notifications" class="notifications-container"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/i18n/LanguageManager.js"></script>
+    <script src="js/apiClient.js"></script>
+    <script src="js/chartManager.js"></script>
+    <script src="js/fileProcessor.js"></script>
+    <script src="js/uiComponents.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/comparison.js"></script>
+    <script src="js/init.js"></script>
+    <script src="js/app.js"></script>
+    
+</body>
+</html>

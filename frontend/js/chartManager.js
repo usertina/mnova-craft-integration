@@ -20,34 +20,53 @@ class ChartManager {
             title: { text: LanguageManager.t('charts.spectrumTitle'), font: { size: 16, color: '#2c3e50' } },
             xaxis: {
                 title: { text: LanguageManager.t('charts.ppmAxis'), font: { size: 14, color: '#2c3e50' } },
-                autorange: 'reversed', gridcolor: '#f0f0f0', zerolinecolor: '#f0f0f0', showline: true, linecolor: '#bdc3c7', mirror: true
+                autorange: 'reversed', 
+                gridcolor: '#f0f0f0', 
+                zerolinecolor: '#f0f0f0', 
+                showline: true, 
+                linecolor: '#bdc3c7', 
+                mirror: true
             },
             yaxis: {
                 title: { text: LanguageManager.t('charts.intensityAxis'), font: { size: 14, color: '#2c3e50' } },
-                gridcolor: '#f0f0f0', zerolinecolor: '#f0f0f0', showline: true, linecolor: '#bdc3c7', mirror: true
+                gridcolor: '#f0f0f0', 
+                zerolinecolor: '#f0f0f0', 
+                showline: true, 
+                linecolor: '#bdc3c7', 
+                mirror: true
             },
-            plot_bgcolor: 'white', paper_bgcolor: 'white',
+            plot_bgcolor: 'white', 
+            paper_bgcolor: 'white',
             font: { family: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif', color: '#2c3e50' },
             margin: { t: 60, r: 40, b: 60, l: 60 },
             showlegend: true, 
             legend: { x: 1, y: 1, xanchor: 'right', yanchor: 'top' },
-            hovermode: 'x unified', // 'x unified' es a menudo mejor para espectros
+            hovermode: 'x unified',
             dragmode: 'zoom'
         };
         
         this.config = {
-            responsive: true, displayModeBar: true, displaylogo: false,
+            responsive: true, 
+            displayModeBar: true, 
+            displaylogo: false,
             locale: LanguageManager.currentLang || 'es', 
             modeBarButtonsToRemove: ['lasso2d', 'select2d'], 
-            toImageButtonOptions: { format: 'png', filename: 'rmn_spectrum', height: 500, width: 800, scale: 2 },
+            toImageButtonOptions: { 
+                format: 'png', 
+                filename: 'rmn_spectrum', 
+                height: 500, 
+                width: 800, 
+                scale: 2 
+            },
             scrollZoom: true
         };
         
+        // ✅ ASEGURAR que createEmptyChart se completa antes de continuar
         await this.createEmptyChart();
         
         window.APP_LOGGER.info('Chart manager initialized');
     }
-    
+        
     /**
      * FUNCIÓN MODIFICADA: Ahora es 'async' y usa LanguageManager
      */
@@ -65,41 +84,37 @@ class ChartManager {
     // ========================================================================
     // --- ¡FUNCIÓN CORREGIDA! ---
     // ========================================================================
-    // 🆕 FUNCIÓN MODIFICADA: Picos + Traducciones + Corrección de datos (.ppm / .intensity)
     static updateSpectrumChart(spectrumData, peaksData = null) {
-        
-        // --- CAMBIO AQUÍ ---
-        // Volvemos a la comprobación original que tenías.
+    
         if (!spectrumData || !spectrumData.ppm || !spectrumData.intensity) {
-            // Este es el error que estás viendo, pero lo cambiamos para que sea más claro
-            window.APP_LOGGER.error(`Invalid spectrum data for chart update. Esperando {ppm: [], intensity: []}. Recibido: ${JSON.stringify(spectrumData)}`);
+            window.APP_LOGGER.error(`Invalid spectrum data for chart update.`);
             return;
         }
 
-        // Trace principal del espectro
+        // ✅ AÑADIR: Verificar que layout existe
+        if (!this.layout) {
+            window.APP_LOGGER.error('Chart layout not initialized. Call init() first.');
+            return;
+        }
+
         const spectrumTrace = {
-            // --- CAMBIO AQUÍ ---
-            x: spectrumData.ppm,     // <-- CORREGIDO (antes era .x)
-            y: spectrumData.intensity, // <-- CORREGIDO (antes era .y)
+            x: spectrumData.ppm,
+            y: spectrumData.intensity,
             type: 'scatter',
             mode: 'lines',
             line: { color: '#3498db', width: 1.5 },
             name: LanguageManager.t('charts.spectrumTrace'), 
             hovertemplate: 'ppm: %{x:.2f}<br>Intensidad: %{y:.2f}<extra></extra>'
         };
-        // ========================================================================
-        // --- FIN DE LA CORRECCIÓN ---
-        // ========================================================================
 
         const traces = [spectrumTrace];
 
-        // 🆕 Si hay picos detectados, añadirlos
+        // Si hay picos detectados, añadirlos
         if (peaksData && Array.isArray(peaksData) && peaksData.length > 0) {
             window.APP_LOGGER.debug(`Adding ${peaksData.length} peaks to chart`);
             
             this.currentPeaks = peaksData;
 
-            // Trace para los picos
             const peaksTrace = {
                 x: peaksData.map(p => p.ppm),
                 y: peaksData.map(p => p.intensity),
@@ -112,16 +127,16 @@ class ChartManager {
                 },
                 name: LanguageManager.t('charts.peaksTrace'), 
                 hovertemplate: '<b>Pico</b><br>' +
-                               'ppm: %{x:.3f}<br>' +
-                               'Intensidad: %{y:.1f}<br>' +
-                               'Region: %{customdata}<extra></extra>',
+                            'ppm: %{x:.3f}<br>' +
+                            'Intensidad: %{y:.1f}<br>' +
+                            'Region: %{customdata}<extra></extra>',
                 customdata: peaksData.map(p => p.region || 'N/A'), 
                 showlegend: true
             };
 
             traces.push(peaksTrace);
 
-            // 🆕 Añadir anotaciones para los picos principales (top 3)
+            // Añadir anotaciones para los picos principales (top 3)
             const topPeaks = [...peaksData]
                 .sort((a, b) => b.intensity - a.intensity)
                 .slice(0, 3);
@@ -144,16 +159,24 @@ class ChartManager {
                 font: { size: 11, color: '#2c3e50' }
             }));
 
-            this.layout.annotations = annotations;
+            // ✅ CORREGIDO: Verificar antes de asignar
+            if (this.layout) {
+                this.layout.annotations = annotations;
+            }
         } else {
             this.currentPeaks = [];
-            this.layout.annotations = [];
+            // ✅ CORREGIDO: Verificar antes de asignar
+            if (this.layout) {
+                this.layout.annotations = [];
+            }
         }
         
-        // Asegurarnos de que los títulos del layout están en el idioma correcto
-        this.layout.title.text = LanguageManager.t('charts.spectrumTitle');
-        this.layout.xaxis.title.text = LanguageManager.t('charts.ppmAxis');
-        this.layout.yaxis.title.text = LanguageManager.t('charts.intensityAxis');
+        // Asegurarnos de que los títulos están actualizados
+        if (this.layout) {
+            this.layout.title.text = LanguageManager.t('charts.spectrumTitle');
+            this.layout.xaxis.title.text = LanguageManager.t('charts.ppmAxis');
+            this.layout.yaxis.title.text = LanguageManager.t('charts.intensityAxis');
+        }
 
         Plotly.react('spectrumChart', traces, this.layout, this.config)
             .then(() => {
@@ -394,4 +417,89 @@ class ChartManager {
             return null;
         }
     }
+
+    /**
+     * Método wrapper para compatibilidad con app.js
+     * Convierte los resultados del análisis al formato esperado por updateSpectrumChart
+     */
+    static plotResults(results) {
+        window.APP_LOGGER.debug('[ChartManager] plotResults llamado con:', results);
+
+        if (!results) {
+            window.APP_LOGGER.warn('[ChartManager] No hay resultados para graficar');
+            return;
+        }
+
+        // ✅ CORREGIDO: Extraer datos del espectro según estructura del backend
+        let spectrumData = null;
+        
+        if (results.spectrum && results.spectrum.ppm && results.spectrum.intensity) {
+            // Backend devuelve: { spectrum: { ppm: [...], intensity: [...] } }
+            spectrumData = {
+                ppm: results.spectrum.ppm,
+                intensity: results.spectrum.intensity
+            };
+        } else if (results.ppm && results.intensity) {
+            // Formato alternativo directo
+            spectrumData = {
+                ppm: results.ppm,
+                intensity: results.intensity
+            };
+        }
+
+        if (!spectrumData || !spectrumData.ppm || !spectrumData.intensity) {
+            window.APP_LOGGER.error('[ChartManager] Datos de espectro inválidos:', results);
+            if (window.UIManager) {
+                UIManager.showNotification(
+                    'No se pudieron graficar los datos del espectro',
+                    'warning'
+                );
+            }
+            return;
+        }
+
+        // ✅ CORREGIDO: Extraer picos según estructura del backend
+        let peaksData = null;
+        
+        if (results.peaks && Array.isArray(results.peaks) && results.peaks.length > 0) {
+            // Convertir formato de picos del backend al formato del gráfico
+            peaksData = results.peaks.map(peak => ({
+                ppm: peak.position || peak.ppm || 0,
+                intensity: peak.height || peak.intensity || 0,
+                region: peak.region || peak.assignment || 'N/A',
+                width: peak.width || 0,
+                area: peak.area || 0
+            }));
+            
+            window.APP_LOGGER.debug(`[ChartManager] ${peaksData.length} picos detectados`);
+        }
+
+        // Actualizar el gráfico
+        this.updateSpectrumChart(spectrumData, peaksData);
+
+        // Actualizar nombre de muestra si existe
+        const sampleName = document.getElementById('sampleName');
+        if (sampleName && (results.filename || results.sample_name)) {
+            sampleName.textContent = results.sample_name || results.filename;
+        }
+
+        window.APP_LOGGER.info('[ChartManager] Gráfico actualizado exitosamente');
+    }
+
+    /**
+     * Limpia el gráfico y resetea a estado inicial
+     */
+    static clearChart() {
+        this.clearPeaks();
+        this.clearIntegrationRegions();
+        
+        const chartDiv = document.getElementById('spectrumChart');
+        if (chartDiv) {
+            Plotly.purge(chartDiv);
+            this.createEmptyChart();
+        }
+    }
 }
+
+// Hacer disponible globalmente
+window.ChartManager = ChartManager;
