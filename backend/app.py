@@ -23,6 +23,24 @@ from company_data import COMPANY_PROFILES # Importar perfiles de empresa
 # Configurar logging (activar DEBUG para ver todo)
 logging.getLogger().setLevel(logging.DEBUG)
 
+# Mini-base de datos de información de moléculas
+MOLECULE_DATA_DB = {
+    "PFOA": {
+        "name": "PFOA (Ácido perfluorooctanoico)",
+        "file_3d": "pfoa.sdf",
+        "image_2d": "assets/molecules/pfoa_2d.png",
+        "formula": "C8HF15O2",
+        "mol_weight": "414.07 g/mol"
+    },
+    "PFOS": {
+        "name": "PFOS (Sulfonato de perfluorooctano)",
+        "file_3d": "pfos.sdf",
+        "image_2d": "assets/molecules/pfos_2d.png",
+        "formula": "C8HF17O3S",
+        "mol_weight": "500.13 g/mol"
+    }
+}
+
 # Inicializar componentes
 db = get_db()
 config = get_config_manager()
@@ -263,6 +281,45 @@ def analyze_spectrum():
             logging.debug("  🚀  Cloud sync thread started.")
         except Exception as thread_err:
             logging.error(f"  ❌  Failed to start cloud sync thread: {thread_err}")
+
+        # --- INICIO DEL NUEVO BLOQUE 3D/2D (BASADO EN ANÁLISIS) ---
+
+        molecule_key = None # Esta vez guardamos la clave (PFOA o PFOS)
+        try:
+            # 1. Comprobar si hay picos detectados
+            if 'peaks' in results and results['peaks']:
+
+                # 2. Crear un solo texto con TODAS las regiones detectadas
+                all_regions_text = " ".join([
+                    peak.get('region', '').lower() for peak in results['peaks']
+                ])
+
+                # 3. Buscar las "huellas dactilares" químicas
+                has_pfoa_fingerprint = "-coo" in all_regions_text
+                has_pfos_fingerprint = "-so3" in all_regions_text or "sulfonato" in all_regions_text
+
+                # 4. Decidir qué molécula mostrar
+                if has_pfoa_fingerprint and not has_pfos_fingerprint:
+                    molecule_key = "PFOA"
+                    logging.info("  🧬 Huella de PFOA (-COO) detectada. Añadiendo datos de molécula.")
+
+                elif has_pfos_fingerprint and not has_pfoa_fingerprint:
+                    molecule_key = "PFOS"
+                    logging.info("  🧬 Huella de PFOS (-SO3) detectada. Añadiendo datos de molécula.")
+
+                elif has_pfoa_fingerprint and has_pfos_fingerprint:
+                    logging.info("  🧬 Huellas de PFOA y PFOS detectadas (mezcla). No se sugieren datos.")
+                else:
+                    logging.info("  🧬 No se encontraron huellas claras de PFOA/PFOS en los picos.")
+
+        except Exception as e:
+            logging.error(f"  ❌ Error al determinar molécula: {e}")
+
+        # 5. Añadir el objeto de información completo (o nada) a los resultados
+        if molecule_key and molecule_key in MOLECULE_DATA_DB:
+            results['molecule_info'] = MOLECULE_DATA_DB[molecule_key]
+        else:
+            results['molecule_info'] = None
 
         # Devolver resultados al frontend
         # Añadir ID de la medición y nombre del archivo JSON a la respuesta
