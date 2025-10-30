@@ -1,3 +1,46 @@
+/* * ---------------------------------------------------
+ * REGLAS DE PERSONALIZACIÓN DE EMPRESA
+ * ---------------------------------------------------
+ */
+
+/* Petición 1: Colores de Botones Principales */
+/* El botón "Run Analysis" (#analyzeBtn) usa la clase .btn-success */
+.btn-success {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+.btn-success:hover {
+    filter: brightness(1.2); /* Un efecto hover simple */
+    border-color: var(--primary-color);
+}
+
+/* El botón "Export Report" (#exportBtn) usa .btn-outline */
+.btn-outline {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+.btn-outline:hover {
+    background-color: var(--primary-color);
+    color: #ffffff; /* O el color de texto que prefieras */
+}
+
+
+/* Petición 3: Cabecera y Pestañas */
+.app-header {
+    /* sutil: una barra inferior con el color corporativo */
+    border-bottom: 3px solid var(--primary-color); 
+    
+    /* o más radical: teñir todo el fondo */
+    /* background-color: var(--primary-color); */
+}
+
+.nav-btn.active {
+    /* Pestaña activa con el color secundario */
+    background-color: var(--secondary-color);
+    border-bottom-color: var(--primary-color); /* o var(--primary-color) */
+    color: #ffffff;
+}
+
 /* Additional Component Styles */
 
 /* Badges */

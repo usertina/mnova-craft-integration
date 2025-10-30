@@ -370,13 +370,20 @@ class DashboardManager {
             // Recopilar estadísticas
             const stats = {
                 totalAnalyses: this.filteredMeasurements.length,
-                avgFluor: (this.filteredMeasurements.reduce((sum, m) => sum + (m.fluor_percentage || 0), 0) / this.filteredMeasurements.length).toFixed(2),
-                avgPfas: (this.filteredMeasurements.reduce((sum, m) => sum + (m.pfas_percentage || m.pifas_percentage || 0), 0) / this.filteredMeasurements.length).toFixed(2)
+                avgFluor: this.filteredMeasurements.reduce((sum, m) => sum + (m.fluor_percentage || 0), 0) / this.filteredMeasurements.length,
+                avgPfas: this.filteredMeasurements.reduce((sum, m) => sum + (m.pfas_percentage || m.pifas_percentage || 0), 0) / this.filteredMeasurements.length,
+                avgConcentration: this.filteredMeasurements.reduce((sum, m) => sum + (m.analysis?.pifas_concentration || m.concentration || 0), 0) / this.filteredMeasurements.length,
+                avgQuality: this.filteredMeasurements.reduce((sum, m) => sum + (m.quality_score || 0), 0) / this.filteredMeasurements.length,
+                avgSNR: this.filteredMeasurements.reduce((sum, m) => sum + (m.snr || m.signal_to_noise || 0), 0) / this.filteredMeasurements.length,
+                highQualitySamples: this.filteredMeasurements.filter(m => (m.quality_score || 0) >= 8).length
             };
 
             // Capturar gráficos como imágenes
             const trendImage = await this.captureChartAsBase64('trendChart');
             const distributionImage = await this.captureChartAsBase64('distributionChart');
+
+            // Obtener datos de la empresa
+            const companyProfile = window.CURRENT_COMPANY_PROFILE || {};
 
             const exportConfig = {
                 type: 'dashboard',
@@ -386,6 +393,13 @@ class DashboardManager {
                 chart_images: {
                     trend: trendImage,
                     distribution: distributionImage
+                },
+                company_data: {
+                    name: companyProfile.company_name,
+                    logo: companyProfile.logo_url,
+                    address: companyProfile.company_address,
+                    phone: companyProfile.contact_phone,
+                    email: companyProfile.contact_email
                 }
             };
 
@@ -490,5 +504,3 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
-

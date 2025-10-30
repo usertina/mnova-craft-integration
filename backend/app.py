@@ -610,138 +610,154 @@ def get_measurement(measurement_id):
 # ============================================================================
 # API - Exportar Reportes
 # ============================================================================
-# ============================================================================
-# API - Exportar Reportes
-# ============================================================================
+
 @app.route("/api/export", methods=["POST"])
 def export_report():
     """
     Exportar reporte (single, comparison, dashboard).
-    El frontend envía los datos a incluir en el formato correcto.
+    El frontend envía los datos a incluir + company_data para branding.
     """
     try:
         data = request.get_json()
         if not data:
             return jsonify({"error": "Request body must be JSON"}), 400
 
-        # Validar parámetros básicos
+        # --- Validar parámetros básicos ---
         format_type = data.get("format", "pdf").lower()
         export_type = data.get("type", "single")
         lang = data.get("lang", 'es')
 
         logging.info(f"📤 Export request: Type={export_type}, Format={format_type}, Lang={lang}")
 
-        mime_types = {
-            "json": "application/json", 
-            "csv": "text/csv",
-            "pdf": "application/pdf", 
-            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        # --- ¡NUEVO! Extraer y procesar company_data ---
+        company_data = data.get("company_data", {}) # Obtener datos de la empresa
+        logo_url = company_data.get('logo')
+        company_logo_server_path = None # Inicializar como None
+
+        if logo_url:
+            try:
+                # --- Lógica para convertir URL a RUTA DE SERVIDOR ---
+                # Asume que la URL es relativa a la carpeta 'static_folder' de Flask
+                # Ejemplo: logo_url = '/assets/logos/faes_logo.png'
+                # app.static_folder = '/path/to/project/frontend'
+                
+                # Quita la '/' inicial si existe para unir correctamente
+                relative_path = logo_url.lstrip('/') 
+                
+                # Construye la ruta absoluta en el servidor
+                # app.static_folder es la ruta a tu carpeta 'frontend'
+                potential_path = Path(app.static_folder) / relative_path 
+                
+                # Resuelve a ruta absoluta y normalizada
+                absolute_path = potential_path.resolve()
+
+                # *** ¡Chequeo de seguridad MUY IMPORTANTE! ***
+                # Asegurarse que la ruta resultante está DENTRO de la carpeta static
+                if str(absolute_path).startswith(str(Path(app.static_folder).resolve())):
+                    if absolute_path.exists() and absolute_path.is_file():
+                        company_logo_server_path = str(absolute_path) # ¡Guardar como string!
+                        logging.debug(f"Logo path resolved: {company_logo_server_path}")
+                    else:
+                        logging.warning(f"Logo file not found at resolved path: {absolute_path}")
+                else:
+                    # Si la ruta sale de la carpeta static, es un intento de Path Traversal
+                    logging.error(f"Security Alert: Logo URL resolved outside static folder: {absolute_path}")
+                    # No asignar la ruta, se usará el fallback o no habrá logo
+
+            except Exception as path_err:
+                logging.error(f"Error resolving logo path for URL '{logo_url}': {path_err}")
+        else:
+             logging.debug("No logo URL provided in company_data.")
+
+        # Añadir la ruta resuelta (o None) de vuelta al diccionario company_data
+        company_data['logo_path_on_server'] = company_logo_server_path
+        # --------------------------------------------------------
+
+        mime_types = { # (sin cambios)
+             "json": "application/json", "csv": "text/csv",
+             "pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         }
-        
-        extensions = {
-            "json": "json", 
-            "csv": "csv", 
-            "pdf": "pdf", 
-            "docx": "docx"
+        extensions = { # (sin cambios)
+             "json": "json", "csv": "csv", "pdf": "pdf", "docx": "docx"
         }
-        
+
         if format_type not in mime_types:
-            logging.warning(f"Unsupported export format requested: {format_type}")
-            return jsonify({
-                "error": f"Unsupported format: '{format_type}'. Supported: {', '.join(extensions.keys())}"
-            }), 400
+             logging.warning(f"Unsupported export format requested: {format_type}")
+             return jsonify({"error": f"Unsupported format: '{format_type}'. Supported: {', '.join(extensions.keys())}"}), 400
 
         output = None
         filename_prefix = f"CraftRMN_{export_type}_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-        # =====================================================================
-        # DASHBOARD EXPORT
-        # =====================================================================
+        # --- Lógica de exportación ---
         if export_type == "dashboard":
             stats = data.get("stats", {})
             chart_images_base64 = data.get("chart_images", {})
-            
-            # Convertir imágenes base64 a bytes
             chart_images = {}
             for key, base64_str in chart_images_base64.items():
-                if base64_str:
-                    img_bytes = ReportExporter.base64_to_bytes(base64_str)
-                    if img_bytes:
-                        chart_images[key] = img_bytes
-            
-            # ✅ CORREGIDO: Solo 3 parámetros
-            if format_type == "pdf":
-                output = ReportExporter.export_dashboard_pdf(stats, chart_images, lang)
-            elif format_type == "docx":
-                output = ReportExporter.export_dashboard_docx(stats, chart_images, lang)
-            elif format_type == "json":
-                output = ReportExporter.export_json(data)
-            else:  # csv
-                return jsonify({
-                    "error": "CSV export for dashboard is not implemented server-side."
-                }), 400
+                 if base64_str:
+                     img_bytes = ReportExporter.base64_to_bytes(base64_str)
+                     if img_bytes: chart_images[key] = img_bytes
 
-        # =====================================================================
-        # COMPARISON EXPORT
-        # =====================================================================
+            # --- ¡PASAR company_data! ---
+            if format_type == "pdf":
+                output = ReportExporter.export_dashboard_pdf(stats, company_data, chart_images, lang) # Modificado
+            elif format_type == "docx":
+                output = ReportExporter.export_dashboard_docx(stats, company_data, chart_images, lang) # Modificado
+            # ... (json/csv si aplican) ...
+            else:
+                 return jsonify({"error": "Dashboard export to JSON/CSV not implemented with branding"}), 400
+
+
         elif export_type == "comparison":
             samples = data.get("samples", [])
             chart_image_base64 = data.get("chart_image")
-            
-            # Convertir imagen base64 a bytes
-            chart_image_bytes = None
-            if chart_image_base64:
-                chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64)
-            
-            # ✅ CORREGIDO: Solo 3 parámetros
-            if format_type == "pdf":
-                output = ReportExporter.export_comparison_pdf(samples, chart_image_bytes, lang)
-            elif format_type == "docx":
-                output = ReportExporter.export_comparison_docx(samples, chart_image_bytes, lang)
-            elif format_type == "csv":
-                output = ReportExporter.export_comparison_csv(samples, lang)
-            else:  # json
-                output = ReportExporter.export_json(data)
+            chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64) if chart_image_base64 else None
 
-        # =====================================================================
-        # SINGLE ANALYSIS EXPORT
-        # =====================================================================
+            # --- ¡PASAR company_data! ---
+            if format_type == "pdf":
+                output = ReportExporter.export_comparison_pdf(samples, company_data, chart_image_bytes, lang) # Modificado
+            elif format_type == "docx":
+                output = ReportExporter.export_comparison_docx(samples, company_data, chart_image_bytes, lang) # Modificado
+            elif format_type == "csv":
+                # CSV no necesita company_data (a menos que quieras añadirlo)
+                output = ReportExporter.export_comparison_csv(samples, lang) 
+            # ... (json si aplica) ...
+            else:
+                 output = ReportExporter.export_json(data) # JSON puede incluir company_data si quieres
+
+
         elif export_type == "single":
             results = data.get("results", {})
             chart_image_base64 = data.get("chart_image")
-            
-            # Convertir imagen base64 a bytes
-            chart_image_bytes = None
-            if chart_image_base64:
-                chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64)
-            
-            # ✅ CORREGIDO: Solo 3 parámetros
+            chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64) if chart_image_base64 else None
+
+            # --- ¡PASAR company_data! ---
             if format_type == "pdf":
-                output = ReportExporter.export_pdf(results, chart_image_bytes, lang)
+                output = ReportExporter.export_pdf(results, company_data, chart_image_bytes, lang) # Modificado
             elif format_type == "docx":
-                output = ReportExporter.export_docx(results, chart_image_bytes, lang)
+                output = ReportExporter.export_docx(results, company_data, chart_image_bytes, lang) # Modificado
             elif format_type == "csv":
-                output = ReportExporter.export_csv(results, lang)
-            else:  # json
-                output = ReportExporter.export_json(results)
-        
-        else:
-            logging.warning(f"Unsupported export type requested: {export_type}")
-            return jsonify({
-                "error": f"Unsupported export type: '{export_type}'. Supported: single, comparison, dashboard"
-            }), 400
+                 # CSV no necesita company_data (a menos que quieras añadirlo)
+                output = ReportExporter.export_csv(results, lang) 
+            else: # json
+                # Podrías añadir company_data al JSON si quieres
+                results_with_company = {**results, "company_info": company_data} # Ejemplo
+                output = ReportExporter.export_json(results_with_company)
 
-        # Verificar si se generó salida
+
+        else: # Tipo no soportado (sin cambios)
+             logging.warning(f"Unsupported export type requested: {export_type}")
+             return jsonify({"error": f"Unsupported export type: '{export_type}'..."}), 400
+
+
+        # --- Enviar archivo generado (sin cambios) ---
         if output is None:
-            logging.error(f"Export generation failed for type={export_type}, format={format_type}. Output was None.")
-            return jsonify({
-                "error": f"Failed to generate export file for the requested format '{format_type}'."
-            }), 500
+             logging.error(f"Export generation failed...")
+             return jsonify({"error": f"Failed to generate export file..."}), 500
 
-        # Enviar archivo generado
         filename = f"{filename_prefix}.{extensions[format_type]}"
         logging.info(f"✅ Sending export file: {filename} (MIME: {mime_types[format_type]})")
-        
+
         return send_file(
             output,
             mimetype=mime_types[format_type],
@@ -752,6 +768,7 @@ def export_report():
     except Exception as e:
         logging.error(f"❌ Error during export: {str(e)}", exc_info=True)
         return jsonify({"error": f"Export failed: {str(e)}"}), 500
+
 # ============================================================================
 # API - Gestión de Archivos de Análisis (JSONs)
 # ============================================================================

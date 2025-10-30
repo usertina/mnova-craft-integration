@@ -425,12 +425,22 @@ class ComparisonManager {
                 console.warn('[Comparison] No se pudo capturar gráfico:', error);
             }
 
+            // Obtener datos de la empresa
+            const companyProfile = window.CURRENT_COMPANY_PROFILE || {};
+
             const exportConfig = {
                 type: 'comparison',
                 format: format,
                 lang: LanguageManager.currentLang || 'es',
                 samples: samples,
-                chart_image: chartImage
+                chart_image: chartImage,
+                company_data: {
+                    name: companyProfile.company_name,
+                    logo: companyProfile.logo_url,
+                    address: companyProfile.company_address,
+                    phone: companyProfile.contact_phone,
+                    email: companyProfile.contact_email
+                }
             };
 
             await APIClient.exportData(exportConfig);
