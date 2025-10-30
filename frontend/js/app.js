@@ -275,6 +275,8 @@ async function runAnalysis() {
         }
         
         UIManager.displayResults(results);
+
+        setupMoleculeViewers(results);
         
         try {
             await loadHistory(1);
@@ -671,6 +673,8 @@ async function loadResult(measurementId, filename) {
         }
         
         UIManager.displayResults(measurement);
+
+        setupMoleculeViewers(measurement);
         
         UIManager.hideLoading();
         UIManager.showNotification(
@@ -685,6 +689,80 @@ async function loadResult(measurementId, filename) {
             `No se pudo cargar ${filename}: ${error.message}`,
             'error'
         );
+    }
+}
+
+/**
+ * 🆕 NUEVA FUNCIÓN
+ * Configura los botones y contenedores de 2D/3D
+ * basándose en los resultados del análisis.
+ */
+function setupMoleculeViewers(analysisResults) {
+    // Referencias a todos los botones y contenedores
+    const toggle3DBtn = document.getElementById('toggle3DModelBtn');
+    const molecule3DContainer = document.getElementById('molecule3DContainer');
+    const toggle2DBtn = document.getElementById('toggle2DInfoBtn');
+    const molecule2DContainer = document.getElementById('molecule2DContainer');
+
+    // Limpiar/resetear todo
+    molecule3DContainer.innerHTML = '';
+    molecule3DContainer.style.display = 'none';
+    molecule2DContainer.style.display = 'none';
+
+    // Coger la info de la molécula (si existe)
+    // El backend ahora envía 'molecule_info'
+    const moleculeInfo = analysisResults.molecule_info; 
+
+    if (moleculeInfo) {
+        // --- 1. Configurar el Botón 3D ---
+        toggle3DBtn.style.display = 'inline-flex';
+        toggle3DBtn.onclick = () => {
+            const isVisible = molecule3DContainer.style.display === 'block';
+            if (isVisible) {
+                molecule3DContainer.style.display = 'none';
+            } else {
+                molecule3DContainer.style.display = 'block';
+                molecule2DContainer.style.display = 'none'; // Ocultar el 2D
+                if (molecule3DContainer.innerHTML === '') { // Cargar solo una vez
+                    try {
+                        const stage = new NGL.Stage("molecule3DContainer");
+                        const filePath = `assets/molecules/${moleculeInfo.file_3d}`; // Usar el objeto
+                        stage.loadFile(filePath).then(component => {
+                            component.addRepresentation("ball+stick");
+                            component.autoView();
+                        });
+                    } catch(e) { 
+                        console.error("Error al cargar NGL Viewer:", e);
+                        molecule3DContainer.innerHTML = "<p style='color:red;'>Error al cargar molécula 3D.</p>";
+                    }
+                }
+            }
+        };
+
+        // --- 2. Configurar el Botón 2D ---
+        toggle2DBtn.style.display = 'inline-flex';
+        toggle2DBtn.onclick = () => {
+            const isVisible = molecule2DContainer.style.display === 'block';
+            if (isVisible) {
+                molecule2DContainer.style.display = 'none';
+            } else {
+                molecule2DContainer.style.display = 'block';
+                molecule3DContainer.style.display = 'none'; // Ocultar el 3D
+
+                // Rellenar los datos (esto se hace cada vez, es rápido)
+                document.getElementById('moleculeName').textContent = moleculeInfo.name;
+                document.getElementById('molecule2DImage').src = moleculeInfo.image_2d;
+                document.getElementById('moleculeFormula').textContent = moleculeInfo.formula;
+                document.getElementById('moleculeWeight').textContent = moleculeInfo.mol_weight;
+            }
+        };
+
+    } else {
+        // No se detectó molécula, ocultar AMBOS botones
+        toggle3DBtn.style.display = 'none';
+        toggle3DBtn.onclick = null;
+        toggle2DBtn.style.display = 'none';
+        toggle2DBtn.onclick = null;
     }
 }
 
