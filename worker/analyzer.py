@@ -10,9 +10,10 @@ from scipy.signal import find_peaks, peak_widths # ### NUEVO ### Importar peak_w
 
 class SpectrumAnalyzer:
     """
-    Analizador mejorado v2.1 de espectros RMN para detección de PFAS
+    Analizador mejorado v2.2 de espectros RMN para detección de PFAS
     
-    Mejoras v2.1:
+    Mejoras v2.2:
+    - Cálculo de área de pico individual (integración trapezoidal).
     - Evaluación de límites en estadísticas detalladas.
     - Cálculo de ancho de pico con scipy.signal.peak_widths.
     - Exposición de datos de baseline y desglose de calidad.
@@ -86,7 +87,7 @@ class SpectrumAnalyzer:
         # Realizar análisis completo
         # Calcular métricas y picos ANTES del score de calidad
         quality_metrics = self._calculate_quality_metrics()
-        peaks = self._detect_peaks_advanced() # Ahora usa peak_widths
+        peaks = self._detect_peaks_advanced() # ### MODIFICADO ### Ahora incluye área
         analysis_data = self._calculate_analysis(fluor_range, pifas_range, concentration)
         region_data = self._analyze_regions()
         detailed_stats = self._detailed_statistics(fluor_range, pifas_range, quality_metrics["snr"]) # Pasar SNR calculado
@@ -267,7 +268,7 @@ class SpectrumAnalyzer:
         }
     
     def _detect_peaks_advanced(self, prominence_factor=0.5, height_factor=0.3) -> List[Dict]: # ### UMBRALES MÁS BAJOS ###
-        """Detecta picos usando scipy.signal.find_peaks y calcula anchos."""
+        """Detecta picos usando scipy.signal.find_peaks, calcula anchos y áreas."""
         print("\n   🔍 Detectando picos significativos...")
         
         intensity = self.intensity_corrected
@@ -337,9 +338,21 @@ class SpectrumAnalyzer:
             # Convertir anchos a PPM
             indices = np.arange(len(ppm))
             widths_ppm = abs(np.interp(right_ips, indices, ppm) - np.interp(left_ips, indices, ppm))
+            
+            # ### NUEVO ### Calcular límites del pico en índices
+            left_indices = np.floor(left_ips).astype(int)
+            right_indices = np.ceil(right_ips).astype(int)
+            
+            # Asegurar que los índices están dentro de rango
+            left_indices = np.clip(left_indices, 0, len(ppm) - 1)
+            right_indices = np.clip(right_indices, 0, len(ppm) - 1)
+            
         except Exception as e:
             print(f"   ⚠️  Error calculando anchos de pico: {e}. Usando valores por defecto.")
             widths_ppm = np.ones(len(peak_indices)) * 0.1 # Ancho por defecto
+            # Límites por defecto (± 5 puntos alrededor del pico)
+            left_indices = np.maximum(peak_indices - 5, 0)
+            right_indices = np.minimum(peak_indices + 5, len(ppm) - 1)
 
         peaks = []
         max_intensity_overall = signal_max if signal_max > 0 else 1.0
@@ -349,11 +362,24 @@ class SpectrumAnalyzer:
             peak_intensity = float(intensity[idx])
             region = self._classify_chemical_region(peak_ppm)
             
+            # ### NUEVO ### Calcular área del pico mediante integración trapezoidal
+            left_idx = int(left_indices[i])
+            right_idx = int(right_indices[i])
+            
+            # Asegurar que hay al menos 2 puntos para integrar
+            if right_idx > left_idx:
+                peak_ppm_range = ppm[left_idx:right_idx+1]
+                peak_intensity_range = intensity[left_idx:right_idx+1]
+                peak_area = np.trapz(peak_intensity_range, peak_ppm_range)
+            else:
+                peak_area = 0.0
+            
             peaks.append({
                 "ppm": round(peak_ppm, 3),
                 "intensity": round(peak_intensity, 2),
                 "relative_intensity": round((peak_intensity / max_intensity_overall * 100), 1),
                 "width_ppm": round(float(widths_ppm[i]), 3),
+                "area": round(float(abs(peak_area)), 2),  # ### NUEVO ### Área del pico
                 "region": region,
                 "prominence": round(float(properties["prominences"][i]), 2),
             })
@@ -368,7 +394,7 @@ class SpectrumAnalyzer:
         print(f"   ✅ Detectados {len(peaks)} picos significativos (top 20 por intensidad)")
         if len(peaks) > 0:
             main_peak = max(peaks, key=lambda p: p["intensity"])
-            print(f"   ✅ Pico principal: {main_peak['ppm']:.3f} ppm (Int: {main_peak['intensity']:.1f}, Rel: {main_peak['relative_intensity']:.1f}%)")
+            print(f"   ✅ Pico principal: {main_peak['ppm']:.3f} ppm (Int: {main_peak['intensity']:.1f}, Área: {main_peak['area']:.2f}, Ancho: {main_peak['width_ppm']:.3f} ppm)")
         
         return peaks
     
@@ -646,7 +672,6 @@ class SpectrumAnalyzer:
     
     def _print_summary(self, results: Dict):
         """Imprime resumen formateado en consola."""
-        # ... (La función _print_summary parece correcta, la dejamos como está) ...
         print(f"\n{'='*70}")
         print("📊 RESUMEN DEL ANÁLISIS")
         print(f"{'='*70}")
@@ -674,7 +699,7 @@ class SpectrumAnalyzer:
         # Mostrar los 5 picos más intensos
         peaks_sorted_intensity = sorted(peaks, key=lambda x: x["intensity"], reverse=True)
         for i, peak in enumerate(peaks_sorted_intensity[:5], 1):
-            print(f"   {i}. {peak.get('ppm', ''):>8.3f} ppm | Int: {peak.get('intensity', ''):>7.1f} | Ancho: {peak.get('width_ppm', ''):>5.3f} ppm | Reg: {peak.get('region', '')}")
+            print(f"   {i}. {peak.get('ppm', ''):>8.3f} ppm | Int: {peak.get('intensity', ''):>7.1f} | Área: {peak.get('area', 'N/A'):>7.2f} | Ancho: {peak.get('width_ppm', ''):>5.3f} ppm")
         
         print(f"\n{'='*70}\n")
 
@@ -684,10 +709,9 @@ class SpectrumAnalyzer:
 if __name__ == "__main__":
     import sys
     
-    # ... (El código del __main__ parece correcto y maneja los argumentos) ...
     if len(sys.argv) < 2:
         print("\n" + "="*70)
-        print("🔬 ANALIZADOR DE ESPECTROS RMN - DETECCIÓN DE PFAS (v2.1)")
+        print("🔬 ANALIZADOR DE ESPECTROS RMN - DETECCIÓN DE PFAS (v2.2)")
         print("="*70)
         print("\nUso: python analyzer.py <archivo.csv> [opciones]")
         print("\nEjemplo:")
@@ -740,9 +764,6 @@ if __name__ == "__main__":
          )
     except Exception as e:
          print(f"\n❌ Ocurrió un error fatal durante el análisis: {e}")
-         # Considera imprimir traceback si necesitas más detalles del error
-         # import traceback
-         # traceback.print_exc()
          sys.exit(1)
 
     # Verificar si hubo un error devuelto por analyze_file (ej. no data points)
@@ -755,15 +776,7 @@ if __name__ == "__main__":
     output_file = file_path.parent / f"{file_path.stem}_analysis_v2.json"
     try:
         with open(output_file, "w", encoding='utf-8') as f:
-            # Usar NumPyEncoder si tienes arrays numpy residuales, aunque intentamos evitarlos
-            # class NumPyEncoder(json.JSONEncoder):
-            #     def default(self, obj):
-            #         if isinstance(obj, np.integer): return int(obj)
-            #         elif isinstance(obj, np.floating): return float(obj)
-            #         elif isinstance(obj, np.ndarray): return obj.tolist()
-            #         return super(NumPyEncoder, self).default(obj)
-            # json.dump(results, f, indent=2, ensure_ascii=False, cls=NumPyEncoder)
-            json.dump(results, f, indent=2, ensure_ascii=False) # Ahora debería funcionar sin encoder
+            json.dump(results, f, indent=2, ensure_ascii=False)
         print(f"💾 Resultados JSON guardados en: {output_file}")
     except Exception as e:
          print(f"❌ Error al guardar el archivo JSON: {e}")
@@ -786,7 +799,6 @@ if __name__ == "__main__":
             writer.writerow(["Calidad (Score)", results.get("quality_score", "N/A"), "/10"])
             writer.writerow(["SNR", quality.get("snr", "N/A"), ""])
             writer.writerow(["Picos detectados", len(peaks_list), ""])
-            # Añadir más métricas si se desea
             writer.writerow(["Estabilidad Baseline (std)", quality.get("baseline_stability_std", "N/A"), "a.u."])
 
         print(f"💾 Resumen CSV guardado en: {csv_output}")

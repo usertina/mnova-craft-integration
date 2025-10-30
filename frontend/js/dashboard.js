@@ -230,6 +230,7 @@ class DashboardManager {
 
         const fluorData = measurements.map(m => m.fluor_percentage || 0);
         const pfasData = measurements.map(m => m.pfas_percentage || m.pifas_percentage || 0);
+        const concentrationData = measurements.map(m => m.analysis?.pifas_concentration || 0);
 
         const data = [
             {
@@ -238,7 +239,8 @@ class DashboardManager {
                 name: LanguageManager.t('results.fluor'),
                 type: 'scatter',
                 mode: 'lines+markers',
-                line: { color: '#10b981' }
+                line: { color: '#10b981' },
+                yaxis: 'y'
             },
             {
                 x: dates,
@@ -246,18 +248,39 @@ class DashboardManager {
                 name: LanguageManager.t('results.pfas'),
                 type: 'scatter',
                 mode: 'lines+markers',
-                line: { color: '#6366f1' }
+                line: { color: '#6366f1' },
+                yaxis: 'y'
+            },
+            {
+                x: dates,
+                y: concentrationData,
+                name: LanguageManager.t('results.concentration') || 'Concentración',
+                type: 'scatter',
+                mode: 'lines+markers',
+                line: { color: '#f59e0b', dash: 'dot' },
+                yaxis: 'y2'
             }
         ];
 
         const layout = {
             title: '',
             xaxis: { title: LanguageManager.t('dashboard.date') },
-            yaxis: { title: '(%)' },
+            yaxis: { 
+                title: '(%)',
+                side: 'left'
+            },
+            yaxis2: {
+                title: 'Concentración (mM)',
+                overlaying: 'y',
+                side: 'right',
+                color: '#f59e0b'
+            },
             paper_bgcolor: 'transparent',
             plot_bgcolor: 'transparent',
             font: { color: '#e5e7eb' },
-            margin: { t: 20, r: 20, b: 40, l: 50 }
+            margin: { t: 20, r: 60, b: 40, l: 50 },
+            showlegend: true,
+            legend: { x: 0, y: 1.1, orientation: 'h' }
         };
 
         Plotly.newPlot('trendChart', data, layout, { responsive: true });

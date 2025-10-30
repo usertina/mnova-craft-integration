@@ -12,6 +12,8 @@ import traceback
 from export_utils import ReportExporter
 import numpy as np
 import logging
+import requests
+import threading
 
 # Importar dependencias locales
 from database import get_db
@@ -123,8 +125,47 @@ def health_check():
     })
 
 # ============================================================================
+# FUNCIÓN DE SINCRONIZACIÓN EN LA NUBE
+# ============================================================================
+
+def push_to_google_cloud(url, payload, encoder):
+    """
+    Intenta enviar datos a la URL de Google Apps Script en un hilo separado
+    y comprueba la respuesta para asegurar que fue exitosa.
+    """
+    try:
+        # Convertimos los datos a JSON usando el codificador de Numpy
+        json_payload = json.dumps(payload, cls=encoder)
+        
+        # Hacemos el POST. timeout=10.0 (10 segundos)
+        response = requests.post(
+            url, 
+            data=json_payload, 
+            headers={'Content-Type': 'application/json'}, 
+            timeout=10.0
+        )
+        
+        # --- ¡LA MEJORA CLAVE ESTÁ AQUÍ! ---
+        # Esto revisará si la respuesta de Google fue un error (como 403, 404, 500)
+        # Si fue un error, saltará automáticamente al 'except' de abajo.
+        response.raise_for_status()
+        
+        # Si llegamos aquí, la respuesta fue exitosa (ej. 200 OK)
+        logging.info(f"  ☁️  Measurement pushed to Google Cloud successfully. (Status: {response.status_code})")
+    
+    except requests.exceptions.HTTPError as http_err:
+        # Captura errores específicos de HTTP (ej. 403 Prohibido, 404 No Encontrado)
+        # Esto es lo que te pasó a ti (HTTP 403)
+        logging.error(f"  ❌  HTTP Error pushing to cloud. Google respondió: {http_err}")
+        
+    except Exception as cloud_err:
+        # Captura otros errores (ej. sin internet, timeout, URL mal escrita)
+        logging.warning(f"  ⚠️  Failed to push measurement to cloud (Network/Timeout): {str(cloud_err)}")
+        
+# ============================================================================
 # API - Análisis de Espectros
 # ============================================================================
+
 @app.route("/api/analyze", methods=["POST"])
 def analyze_spectrum():
     """
@@ -205,6 +246,23 @@ def analyze_spectrum():
         }
         measurement_id = db.save_measurement(measurement_data) # save_measurement ahora recibe el dict
         logging.info(f"  📊 Measurement saved to DB. ID: {measurement_id} for Company: {company_id}")
+
+        GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynodLTTvLqqjCNhyN2y-O2U1sd7RrwaXaP-_yHGlyILXSwJoU1U6pbjlEf2DU433Js/exec"
+
+        # Añadimos el ID a los datos que enviaremos
+        measurement_data['measurement_id_local'] = measurement_id
+
+        # Llamamos a nuestra nueva función en un hilo (segundo plano)
+        # Esto es clave para que la app no se congele
+        try:
+            sync_thread = threading.Thread(
+                target=push_to_google_cloud,
+                args=(GOOGLE_SCRIPT_URL, measurement_data, NumpyJSONEncoder)
+            )
+            sync_thread.start() # Inicia el envío
+            logging.debug("  🚀  Cloud sync thread started.")
+        except Exception as thread_err:
+            logging.error(f"  ❌  Failed to start cloud sync thread: {thread_err}")
 
         # Devolver resultados al frontend
         # Añadir ID de la medición y nombre del archivo JSON a la respuesta
