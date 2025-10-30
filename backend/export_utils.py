@@ -239,12 +239,23 @@ class ReportExporter:
         # RESUMEN EJECUTIVO
         story.append(Paragraph(f"2. {t.get('report.executive_summary', default='Resumen Ejecutivo')}", styles['Heading1'])); story.append(Spacer(1, 0.2*inch))
         analysis = results.get("analysis", {})
+        
+        # ✅ Extraer concentración de múltiples ubicaciones
+        concentration_val = (
+            analysis.get('pifas_concentration') or 
+            analysis.get('pfas_concentration') or 
+            results.get('concentration') or 
+            results.get('pifas_concentration') or 
+            0
+        )
+        
         summary_data = [
              [t.get('report.parameter', default='Parámetro'), t.get('report.value', default='Valor'), t.get('report.unit', default='Unidad')],
              [t.get('results.fluor', default='Flúor Total'), f"{analysis.get('fluor_percentage', 0):.2f}", t.get('units.percentage', default='%')],
              [t.get('results.pfas', default='PFAS'), f"{analysis.get('pifas_percentage', analysis.get('pfas_percentage', 0)):.2f}", t.get('units.percent_fluor', default='% Flúor')],
-             [t.get('results.concentration', default='Concentración PFAS'), f"{analysis.get('pifas_concentration', analysis.get('pfas_concentration', 0)):.4f}", t.get('units.millimolar', default='mM')],
+             [t.get('results.concentration', default='Concentración PFAS'), f"{concentration_val:.4f}", t.get('units.millimolar', default='mM')],
         ]
+
         summary_table = Table(summary_data, colWidths=[3*inch, 1.5*inch, 1*inch])
         summary_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -260,12 +271,27 @@ class ReportExporter:
         # INFORMACIÓN RÁPIDA
         story.append(Paragraph(f"3. {t.get('report.quick_info', default='Información Rápida')}", styles['Heading1'])); story.append(Spacer(1, 0.1*inch))
         qm = results.get("quality_metrics", {})
-        snr_value = qm.get('snr', results.get('signal_to_noise')) # Buscar en ambos sitios
+        
+        # ✅ Buscar SNR en múltiples ubicaciones
+        snr_value = (
+            qm.get('snr') or 
+            results.get('signal_to_noise') or 
+            results.get('snr') or 
+            0
+        )
+        
+        # ✅ Buscar área total en múltiples ubicaciones
+        total_area = (
+            analysis.get('total_area') or 
+            results.get('total_area') or 
+            0
+        )
+        
         quick_info_data = [
              [t.get('report.metric', default='Métrica'), t.get('report.value', default='Valor')],
              [t.get('peaks.title', default='Picos Detectados'), str(len(results.get('peaks', [])))],
-             [t.get('results.total_area', default='Área Total'), f"{analysis.get('total_area', 0):,.2f}"],
-             ['SNR', f"{snr_value:.2f}" if snr_value is not None else 'N/A']
+             [t.get('results.total_area', default='Área Total'), f"{total_area:,.2f}"],
+             ['SNR', f"{snr_value:.2f}" if snr_value else 'N/A']
         ]
         quick_table = Table(quick_info_data, colWidths=[2.5*inch, 2*inch])
         quick_table.setStyle(TableStyle([
@@ -313,18 +339,37 @@ class ReportExporter:
         if peaks:
             story.append(Spacer(1, 0.2*inch))
             peaks_data = [
-                [t.get('peaks.ppm', default='PPM'), t.get('peaks.intensity', default='Intensidad'), t.get('peaks.relative_intensity', default='Int. Rel.'), t.get('peaks.width', default='Ancho (ppm)'), t.get('peaks.region', default='Región')]
+            [
+                t.get('peaks.ppm', default='PPM'),
+                t.get('peaks.intensity', default='Intensidad'),
+                t.get('peaks.relative_intensity', default='Int. Rel.'),
+                t.get('peaks.width', default='Ancho (ppm)'),
+                t.get('peaks.width_hz', default='Ancho (Hz)'),  # ✅ NUEVO
+                'SNR',  # ✅ NUEVO
+                t.get('peaks.region', default='Región')
             ]
-            for peak in peaks:
-                width_val = peak.get('width_ppm', peak.get('width', 0))
-                peaks_data.append([
-                     f"{peak.get('ppm', peak.get('position', 0)):.3f}",
-                     f"{peak.get('intensity', peak.get('height', 0)):,.0f}",
-                     f"{peak.get('relative_intensity', 0):.1f}{t.get('units.percentage', default='%')}",
-                     f"{width_val:.3f}",
-                     normalize_region_text(peak.get('region', 'N/A'))
-                ])
-            peaks_table = Table(peaks_data, colWidths=[0.9*inch, 1.0*inch, 1.1*inch, 0.9*inch, 2.9*inch])
+        ]
+        
+        for peak in peaks:
+            ppm_val = peak.get('ppm') or peak.get('position') or 0
+            intensity_val = peak.get('intensity') or peak.get('height') or 0
+            rel_intensity_val = peak.get('relative_intensity') or 0
+            width_ppm_val = peak.get('width_ppm') or peak.get('width') or 0
+            width_hz_val = peak.get('width_hz') or 0  # ✅ NUEVO
+            snr_val = peak.get('snr') or 0  # ✅ NUEVO
+            region_val = normalize_region_text(peak.get('region', 'N/A'))
+            
+            peaks_data.append([
+                 f"{ppm_val:.3f}",
+                 f"{intensity_val:,.0f}",
+                 f"{rel_intensity_val:.1f}%",
+                 f"{width_ppm_val:.3f}",
+                 f"{width_hz_val:.1f}",  # ✅ NUEVO
+                 f"{snr_val:.2f}",  # ✅ NUEVO
+                 region_val
+            ])
+
+            peaks_table = Table(peaks_data, colWidths=[0.9*inch, 1.0*inch, 1.1*inch, 0.9*inch, 0.7*inch, 0.7*inch, 2.9*inch])
             peaks_table.setStyle(TableStyle([
                  ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f39c12')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                  ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -339,138 +384,276 @@ class ReportExporter:
         return output
 
     # ========================================================================
-    # EXPORTACIÓN DOCX INDIVIDUAL (¡FINAL!)
+    # EXPORTACIÓN DOCX INDIVIDUAL (✅ CORREGIDA - VERSIÓN FINAL)
     # ========================================================================
     @staticmethod
     def export_docx(results: Dict, company_data: Dict, chart_image: bytes = None, lang: str = 'es') -> BinaryIO:
         """Exporta análisis individual como DOCX con gráfico y datos de empresa."""
-        if not DOCX_AVAILABLE: raise ImportError("python-docx no está instalado.")
+        if not DOCX_AVAILABLE: 
+            raise ImportError("python-docx no está instalado.")
+        
         t = TranslationManager(lang)
         doc = Document()
-        style = doc.styles['Normal']; style.font.name = 'Calibri'; style.font.size = Pt(11)
+        style = doc.styles['Normal']
+        style.font.name = 'Calibri'
+        style.font.size = Pt(11)
 
         # PIE DE PÁGINA
         ReportExporter._add_docx_footer(doc, company_data)
 
+        # ====================================================================
         # PORTADA
-        title = doc.add_heading(t.get('report.title', default="Reporte de Análisis RMN"), 0); title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        subtitle = doc.add_heading(t.get('report.subtitle', default="Análisis de Espectroscopia RMN"), level=2); subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # ====================================================================
+        title = doc.add_heading(t.get('report.title', default="Reporte de Análisis RMN"), 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        subtitle = doc.add_heading(t.get('report.subtitle', default="Análisis de Espectroscopia RMN"), level=2)
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
         doc.add_paragraph()
-        info = doc.add_paragraph(); info.add_run(f"{t.get('report.sample', default='Muestra')}: ").bold = True; info.add_run(results.get('filename', 'N/A')); info.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        date_p = doc.add_paragraph(); date_p.add_run(f"{t.get('report.date', default='Fecha')}: ").bold = True; date_p.add_run(datetime.now().strftime('%d/%m/%Y %H:%M')); date_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        info = doc.add_paragraph()
+        info.add_run(f"{t.get('report.sample', default='Muestra')}: ").bold = True
+        info.add_run(results.get('filename', 'N/A'))
+        info.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        date_p = doc.add_paragraph()
+        date_p.add_run(f"{t.get('report.date', default='Fecha')}: ").bold = True
+        date_p.add_run(datetime.now().strftime('%d/%m/%Y %H:%M'))
+        date_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
         doc.add_page_break()
 
+        # ====================================================================
         # LOGO
+        # ====================================================================
         ReportExporter._add_logo(doc, company_data, 'docx')
 
+        # ====================================================================
         # GRÁFICO
+        # ====================================================================
         doc.add_heading(f"1. {t.get('report.spectrum', default='Espectro')}", level=1)
+        
         if chart_image:
-            try: doc.add_picture(io.BytesIO(chart_image), width=Inches(6)); doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-            except Exception as e: print(f"Error al añadir imagen del gráfico DOCX: {e}"); doc.add_paragraph(f"[{t.get('errors.chartError', default='Error al mostrar gráfico')}]")
-        else: doc.add_paragraph(f"[{t.get('errors.noChartData', default='Gráfico no disponible')}]")
+            try:
+                doc.add_picture(io.BytesIO(chart_image), width=Inches(6))
+                doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            except Exception as e:
+                print(f"Error al añadir imagen del gráfico DOCX: {e}")
+                doc.add_paragraph(f"[{t.get('errors.chartError', default='Error al mostrar gráfico')}]")
+        else:
+            doc.add_paragraph(f"[{t.get('errors.noChartData', default='Gráfico no disponible')}]")
+        
         doc.add_paragraph()
 
-        # RESUMEN EJECUTIVO
+        # ====================================================================
+        # RESUMEN EJECUTIVO (✅ CORREGIDO)
+        # ====================================================================
         doc.add_heading(f"2. {t.get('report.executive_summary', default='Resumen Ejecutivo')}", level=1)
+        
         analysis = results.get("analysis", {})
-        table = doc.add_table(rows=4, cols=3) # Ajusta rows
+        
+        # ✅ CORRECCIÓN: Extraer concentración de múltiples ubicaciones
+        concentration_val = (
+            analysis.get('pifas_concentration') or 
+            analysis.get('pfas_concentration') or 
+            results.get('concentration') or 
+            results.get('pifas_concentration') or 
+            0
+        )
+        
+        table = doc.add_table(rows=4, cols=3)
         table.style = 'Light Grid Accent 1'
+        
         hdr_cells = table.rows[0].cells
         hdr_cells[0].text = t.get('report.parameter', default='Parámetro')
         hdr_cells[1].text = t.get('report.value', default='Valor')
         hdr_cells[2].text = t.get('report.unit', default='Unidad')
+        
         data_rows = [
              (t.get('results.fluor'), f"{analysis.get('fluor_percentage', 0):.2f}", t.get('units.percentage', default='%')),
              (t.get('results.pfas'), f"{analysis.get('pifas_percentage', analysis.get('pfas_percentage', 0)):.2f}", t.get('units.percent_fluor', default='% Flúor')),
-             (t.get('results.concentration'), f"{analysis.get('pifas_concentration', analysis.get('pfas_concentration', 0)):.4f}", t.get('units.millimolar', default='mM')),
+             (t.get('results.concentration'), f"{concentration_val:.4f}", t.get('units.millimolar', default='mM')),  # ✅ Usa concentration_val
         ]
+        
         for idx, (param, value, unit) in enumerate(data_rows, 1):
             if idx < len(table.rows):
-                 row_cells = table.rows[idx].cells; row_cells[0].text = param; row_cells[1].text = value; row_cells[2].text = unit
+                 row_cells = table.rows[idx].cells
+                 row_cells[0].text = param
+                 row_cells[1].text = value
+                 row_cells[2].text = unit
+        
         doc.add_paragraph()
+        
         quality_score = results.get('quality_score', 0)
-        quality_p = doc.add_paragraph(); quality_p.add_run(f"{t.get('report.quality_score', default='Puntuación de Calidad')}: ").bold = True
+        quality_p = doc.add_paragraph()
+        quality_p.add_run(f"{t.get('report.quality_score', default='Puntuación de Calidad')}: ").bold = True
         quality_p.add_run(f"{quality_score:.1f}{t.get('units.over_ten', default='/10')}")
+        
         doc.add_page_break()
 
-        # INFORMACIÓN RÁPIDA
+        # ====================================================================
+        # INFORMACIÓN RÁPIDA (✅ CORREGIDO)
+        # ====================================================================
         doc.add_heading(f"3. {t.get('report.quick_info', default='Información Rápida')}", level=1)
+        
         qm = results.get("quality_metrics", {})
-        snr_value = qm.get('snr', results.get('signal_to_noise'))
-        quick_table = doc.add_table(rows=4, cols=2) # Ajusta rows
+        
+        # ✅ CORRECCIÓN: Buscar SNR en múltiples ubicaciones
+        snr_value = (
+            qm.get('snr') or 
+            results.get('signal_to_noise') or 
+            results.get('snr') or 
+            0
+        )
+        
+        # ✅ CORRECCIÓN: Buscar área total en múltiples ubicaciones
+        total_area = (
+            analysis.get('total_area') or 
+            results.get('total_area') or 
+            0
+        )
+        
+        quick_table = doc.add_table(rows=4, cols=2)
         quick_table.style = 'Light Grid Accent 1'
+        
         quick_hdr = quick_table.rows[0].cells
         quick_hdr[0].text = t.get('report.metric', default='Métrica')
         quick_hdr[1].text = t.get('report.value', default='Valor')
+        
         quick_rows = [
             (t.get('peaks.title', default='Picos Detectados'), str(len(results.get('peaks', [])))),
-            (t.get('results.total_area', default='Área Total'), f"{analysis.get('total_area', 0):,.2f}"),
-            ('SNR', f"{snr_value:.2f}" if snr_value is not None else 'N/A')
+            (t.get('results.total_area', default='Área Total'), f"{total_area:,.2f}"),  # ✅ Usa total_area
+            ('SNR', f"{snr_value:.2f}" if snr_value else 'N/A')  # ✅ Usa snr_value
         ]
+        
         for idx, (metric, value) in enumerate(quick_rows, 1):
             if idx < len(quick_table.rows):
-                 row_cells = quick_table.rows[idx].cells; row_cells[0].text = metric; row_cells[1].text = value
+                 row_cells = quick_table.rows[idx].cells
+                 row_cells[0].text = metric
+                 row_cells[1].text = value
+        
         doc.add_page_break()
 
-        # ANÁLISIS DETALLADO
+        # ====================================================================
+        # ANÁLISIS DETALLADO (✅ CORREGIDO)
+        # ====================================================================
         doc.add_heading(f"4. {t.get('report.detailed_analysis', default='Análisis Detallado')}", level=1)
         doc.add_heading(f"4.1 {t.get('report.chemical_composition', default='Composición Química')}", level=2)
-        detailed_table = doc.add_table(rows=5, cols=3) # Ajusta rows
+        
+        # ✅ CORRECCIÓN: Extraer sample_concentration con fallback
+        sample_concentration_val = results.get('sample_concentration', 0)
+        
+        detailed_table = doc.add_table(rows=5, cols=3)
         detailed_table.style = 'Light Grid Accent 1'
+        
         hdr_cells_det = detailed_table.rows[0].cells
-        hdr_cells_det[0].text = t.get('report.parameter'); hdr_cells_det[1].text = t.get('report.value'); hdr_cells_det[2].text = t.get('report.unit')
+        hdr_cells_det[0].text = t.get('report.parameter')
+        hdr_cells_det[1].text = t.get('report.value')
+        hdr_cells_det[2].text = t.get('report.unit')
+        
         detailed_rows = [
-             (t.get('results.total_area'), f"{analysis.get('total_area', 0):,.2f}", t.get('units.arbitrary', default='u.a.')),
+             (t.get('results.total_area'), f"{total_area:,.2f}", t.get('units.arbitrary', default='u.a.')),  # ✅ Usa total_area ya calculada
              (t.get('results.fluor_area'), f"{analysis.get('fluor_area', 0):,.2f}", t.get('units.arbitrary', default='u.a.')),
              (t.get('results.pfas_area'), f"{analysis.get('pifas_area', analysis.get('pfas_area', 0)):,.2f}", t.get('units.arbitrary', default='u.a.')),
-             (t.get('results.sample_concentration'), f"{results.get('sample_concentration', 0):.2f}", t.get('units.millimolar', default='mM')),
+             (t.get('results.sample_concentration'), f"{sample_concentration_val:.2f}", t.get('units.millimolar', default='mM')),  # ✅ Usa sample_concentration_val
         ]
+        
         for idx, (param, value, unit) in enumerate(detailed_rows, 1):
             if idx < len(detailed_table.rows):
-                 row_cells = detailed_table.rows[idx].cells; row_cells[0].text = param; row_cells[1].text = value; row_cells[2].text = unit
+                 row_cells = detailed_table.rows[idx].cells
+                 row_cells[0].text = param
+                 row_cells[1].text = value
+                 row_cells[2].text = unit
+        
         doc.add_paragraph()
+        
+        # ====================================================================
+        # ESTADÍSTICAS DETALLADAS (✅ CORREGIDO)
+        # ====================================================================
         doc.add_heading(f"4.2 {t.get('report.detailed_statistics', default='Estadísticas Detalladas')}", level=2)
-        stats_table = doc.add_table(rows=3, cols=2) # Ajusta rows
+        
+        # ✅ CORRECCIÓN: Buscar resolución en múltiples ubicaciones
+        resolution_val = (
+            qm.get('resolution') or 
+            results.get('resolution') or 
+            0
+        )
+        
+        stats_table = doc.add_table(rows=3, cols=2)
         stats_table.style = 'Light Grid Accent 1'
+        
         stats_hdr = stats_table.rows[0].cells
-        stats_hdr[0].text = t.get('report.parameter'); stats_hdr[1].text = t.get('report.value')
+        stats_hdr[0].text = t.get('report.parameter')
+        stats_hdr[1].text = t.get('report.value')
+        
         stats_rows = [
-             ('SNR', f"{snr_value:.2f}" if snr_value is not None else 'N/A'),
-             (t.get('report.limits', default='Límites (Resolución)'), f"{qm.get('resolution', 0):.2f} ppm"),
-             # ('FWHM', f"{qm.get('fwhm', 0):.2f} Hz"), # Descomentar si tienes FWHM
+             ('SNR', f"{snr_value:.2f}" if snr_value else 'N/A'),  # ✅ Usa snr_value ya calculado
+             (t.get('report.limits', default='Límites (Resolución)'), f"{resolution_val:.2f} ppm"),  # ✅ Usa resolution_val
         ]
+        
         for idx, (param, value) in enumerate(stats_rows, 1):
              if idx < len(stats_table.rows):
-                 row_cells = stats_table.rows[idx].cells; row_cells[0].text = param; row_cells[1].text = value
+                 row_cells = stats_table.rows[idx].cells
+                 row_cells[0].text = param
+                 row_cells[1].text = value
+        
         doc.add_page_break()
 
-        # PICOS DETECTADOS
+        # ====================================================================
+        # PICOS DETECTADOS (✅ CORREGIDO - TABLA CON 7 COLUMNAS)
+        # ====================================================================
         doc.add_heading(f"5. {t.get('report.detected_peaks', default='Picos Detectados')}", level=1)
+        
         peaks = results.get("peaks", [])
+        
         if peaks:
-            peaks_table = doc.add_table(rows=len(peaks) + 1, cols=5)
+            # ✅ CORRECCIÓN: 7 columnas en lugar de 5
+            peaks_table = doc.add_table(rows=len(peaks) + 1, cols=7)
             peaks_table.style = 'Light Grid Accent 1'
-            widths = [0.9, 1.0, 1.1, 0.9, 2.5]
+            
+            # ✅ CORRECCIÓN: Anchos ajustados para 7 columnas
+            widths = [0.7, 0.8, 0.8, 0.7, 0.7, 0.6, 2.2]
             for i, width in enumerate(widths):
-                 for cell in peaks_table.columns[i].cells: cell.width = Inches(width)
+                 for cell in peaks_table.columns[i].cells:
+                     cell.width = Inches(width)
+            
+            # ✅ CORRECCIÓN: Encabezados con las 2 columnas nuevas
             hdr_cells_peaks = peaks_table.rows[0].cells
-            hdr_cells_peaks[0].text=t.get('peaks.ppm', default='PPM'); hdr_cells_peaks[1].text=t.get('peaks.intensity', default='Intensidad')
-            hdr_cells_peaks[2].text=t.get('peaks.relative_intensity', default='Int. Rel.'); hdr_cells_peaks[3].text=t.get('peaks.width', default='Ancho (ppm)')
-            hdr_cells_peaks[4].text=t.get('peaks.region', default='Región')
+            hdr_cells_peaks[0].text = t.get('peaks.ppm', default='PPM')
+            hdr_cells_peaks[1].text = t.get('peaks.intensity', default='Intensidad')
+            hdr_cells_peaks[2].text = t.get('peaks.relative_intensity', default='Int. Rel.')
+            hdr_cells_peaks[3].text = t.get('peaks.width', default='Ancho (ppm)')
+            hdr_cells_peaks[4].text = t.get('peaks.width_hz', default='Ancho (Hz)')  
+            hdr_cells_peaks[5].text = 'SNR'  
+            hdr_cells_peaks[6].text = t.get('peaks.region', default='Región')
+            
+            # ✅ CORRECCIÓN: Llenar datos con todos los campos
             for idx, peak in enumerate(peaks, 1):
                 if idx < len(peaks_table.rows):
                     row_cells = peaks_table.rows[idx].cells
-                    row_cells[0].text = f"{peak.get('ppm', peak.get('position', 0)):.3f}"
-                    row_cells[1].text = f"{peak.get('intensity', peak.get('height', 0)):,.0f}"
-                    row_cells[2].text = f"{peak.get('relative_intensity', 0):.1f}%"
-                    width_val = peak.get('width_ppm', peak.get('width', 0))
-                    row_cells[3].text = f"{width_val:.3f}"
-                    row_cells[4].text = normalize_region_text(peak.get('region', 'N/A'))
+                    
+                    # ✅ Extraer todos los valores con fallbacks
+                    ppm_val = peak.get('ppm') or peak.get('position') or 0
+                    intensity_val = peak.get('intensity') or peak.get('height') or 0
+                    rel_intensity_val = peak.get('relative_intensity') or 0
+                    width_ppm_val = peak.get('width_ppm') or peak.get('width') or 0
+                    width_hz_val = peak.get('width_hz') or 0  # ✅ NUEVO
+                    snr_val = peak.get('snr') or 0  # ✅ NUEVO
+                    
+                    row_cells[0].text = f"{ppm_val:.3f}"
+                    row_cells[1].text = f"{intensity_val:,.0f}"
+                    row_cells[2].text = f"{rel_intensity_val:.1f}%"
+                    row_cells[3].text = f"{width_ppm_val:.3f}"
+                    row_cells[4].text = f"{width_hz_val:.1f}"  # ✅ NUEVA COLUMNA
+                    row_cells[5].text = f"{snr_val:.2f}"  # ✅ NUEVA COLUMNA
+                    row_cells[6].text = normalize_region_text(peak.get('region', 'N/A'))
         else:
             doc.add_paragraph(t.get('peaks.none', default='No se detectaron picos significativos.'))
 
-        output = io.BytesIO(); doc.save(output); output.seek(0)
+        output = io.BytesIO()
+        doc.save(output)
+        output.seek(0)
         return output
 
     # ========================================================================

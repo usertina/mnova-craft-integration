@@ -12,6 +12,7 @@
 // --- PEGA ESTE BLOQUE AL PRINCIPIO DE TODO EN APP.JS ---
 
 let currentHistoryPage = 1;
+let currentAnalysisData = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Función auto-ejecutable asíncrona para la inicialización
@@ -213,7 +214,7 @@ async function initializeApp() {
  * (Modificado: Ya no pasa companyId, APIClient lo maneja)
  */
 async function runAnalysis() {
-    const file = FileProcessor.getCurrentFile(); // ✅ Usar FileProcessor
+    const file = FileProcessor.getCurrentFile();
     
     if (!file) {
         UIManager.showNotification(
@@ -226,15 +227,45 @@ async function runAnalysis() {
     try {
         UIManager.showLoading(LanguageManager.t('messages.analyzing') || 'Analizando...');
         
-        // Recoger parámetros de la UI
         const parameters = UIManager.getCurrentAnalysisParams();
-
-        // APIClient usa CURRENT_COMPANY_PROFILE automáticamente
         const results = await APIClient.analyzeSpectrum(file, parameters);
 
         APP_LOGGER.info('Análisis completado:', results);
 
-        // Mostrar resultados en gráfico (si ChartManager existe)
+        // ✅ CRÍTICO: Almacenar el análisis completo
+        currentAnalysisData = {
+            filename: results.filename || file.name || 'Muestra',
+            sample_name: results.sample_name || results.filename || file.name || 'Muestra',
+            timestamp: results.timestamp || new Date().toISOString(),
+            
+            analysis: results.analysis || {},
+            
+            fluor_percentage: results.fluor_percentage || results.analysis?.fluor_percentage || 0,
+            pfas_percentage: results.pfas_percentage || results.pifas_percentage || results.analysis?.pfas_percentage || results.analysis?.pifas_percentage || 0,
+            pifas_percentage: results.pifas_percentage || results.analysis?.pifas_percentage || 0,
+            concentration: results.concentration || results.analysis?.pifas_concentration || results.analysis?.pfas_concentration || 0,
+            pifas_concentration: results.analysis?.pifas_concentration || results.concentration || 0,
+            
+            quality_score: results.quality_score || 0,
+            quality_classification: results.quality_classification || 'N/A',
+            signal_to_noise: results.signal_to_noise || results.snr || 0,
+            snr: results.snr || results.signal_to_noise || 0,
+            
+            total_area: results.analysis?.total_area || results.total_area || 0,
+            fluor_area: results.analysis?.fluor_area || 0,
+            pfas_area: results.analysis?.pfas_area || results.analysis?.pifas_area || 0,
+            pifas_area: results.analysis?.pifas_area || 0,
+            sample_concentration: results.sample_concentration || 0,
+            
+            peaks: results.peaks || [],
+            quality_metrics: results.quality_metrics || {},
+            
+            ppm: results.ppm || [],
+            intensity: results.intensity || []
+        };
+
+        console.log('✅ Datos del análisis almacenados:', currentAnalysisData);
+
         if (window.ChartManager && typeof ChartManager.plotResults === 'function') {
             try {
                 ChartManager.plotResults(results);
@@ -243,10 +274,8 @@ async function runAnalysis() {
             }
         }
         
-        // Mostrar resultados en tablas
         UIManager.displayResults(results);
         
-        // Recargar historial para mostrar el nuevo item
         try {
             await loadHistory(1);
         } catch (histError) {
@@ -259,7 +288,6 @@ async function runAnalysis() {
             'success'
         );
         
-        // Limpiar archivo después del análisis
         FileProcessor.clearFiles();
 
     } catch (error) {
@@ -370,72 +398,111 @@ async function deleteHistoryItem(measurementId, filename) {
  * Exporta el reporte actual.
  */
 async function exportReport(format = null) {
-    try {
-        // Si no se especificó formato, mostrar menú
-        if (!format) {
-            showExportFormatMenu('single');
-            return;
-        }
+    try {
+        if (!format) {
+            showExportFormatMenu('single');
+            return;
+        }
 
-        UIManager.showLoading(LanguageManager.t('messages.exporting') || 'Exportando...');
+        // ✅ VERIFICAR que tenemos datos
+        if (!currentAnalysisData) {
+            UIManager.showNotification(
+                '⚠️ No hay datos de análisis disponibles. Por favor, realiza un análisis primero.',
+                'warning'
+            );
+            console.error('❌ currentAnalysisData es null');
+            return;
+        }
 
-        // --- ¡¡LÍNEA AÑADIDA!! ---
+        console.log('📤 Exportando reporte con datos:', currentAnalysisData);
+
+        UIManager.showLoading(LanguageManager.t('messages.exporting') || 'Exportando...');
+
         const companyProfile = window.CURRENT_COMPANY_PROFILE || {};
 
-        // Obtener datos del análisis actual desde la UI
-        const results = {
-            filename: document.getElementById('sampleName')?.textContent || 'Muestra',
-            sample_name: document.getElementById('sampleName')?.textContent || 'Muestra',
-            timestamp: new Date().toISOString(),
-            analysis: {
-                fluor_percentage: parseFloat(document.getElementById('fluorResult')?.textContent) || 0,
-                pifas_percentage: parseFloat(document.getElementById('pifasResult')?.textContent) || 0,
-                pfas_percentage: parseFloat(document.getElementById('pifasResult')?.textContent) || 0
-            },
-            quality_score: parseFloat(document.querySelector('#qualityProgressBar .progress-bar')?.textContent?.split('/')[0]) || 0,
-            peaks: [] // TODO: Extraer picos de la tabla si están disponibles
-        };
+        let chartImage = null;
+        if (window.ChartManager && typeof ChartManager.getChartAsBase64 === 'function') {
+            try {
+                chartImage = await ChartManager.getChartAsBase64();
+            } catch (chartError) {
+                console.warn('[exportReport] No se pudo capturar gráfico:', chartError);
+            }
+        }
 
-        // Capturar gráfico si existe
-        let chartImage = null;
-        if (window.ChartManager && typeof ChartManager.getChartAsBase64 === 'function') {
-            try {
-                chartImage = await ChartManager.getChartAsBase64();
-            } catch (chartError) {
-                console.warn('[exportReport] No se pudo capturar gráfico:', chartError);
-            }
-        }
+        // ✅ USAR LOS DATOS ALMACENADOS
+        const exportConfig = {
+            type: 'single',
+            format: format,
+            lang: LanguageManager.currentLang || 'es',
+            
+            results: {
+                filename: currentAnalysisData.filename,
+                sample_name: currentAnalysisData.sample_name,
+                timestamp: currentAnalysisData.timestamp,
+                
+                analysis: {
+                    fluor_percentage: currentAnalysisData.fluor_percentage,
+                    pfas_percentage: currentAnalysisData.pfas_percentage,
+                    pifas_percentage: currentAnalysisData.pifas_percentage,
+                    pifas_concentration: currentAnalysisData.pifas_concentration,
+                    pfas_concentration: currentAnalysisData.concentration,
+                    total_area: currentAnalysisData.total_area,
+                    fluor_area: currentAnalysisData.fluor_area,
+                    pfas_area: currentAnalysisData.pfas_area,
+                    pifas_area: currentAnalysisData.pifas_area
+                },
+                
+                quality_score: currentAnalysisData.quality_score,
+                quality_classification: currentAnalysisData.quality_classification,
+                signal_to_noise: currentAnalysisData.snr,
+                snr: currentAnalysisData.snr,
+                
+                sample_concentration: currentAnalysisData.sample_concentration,
+                
+                // ✅ PICOS CON TODOS LOS DATOS
+                peaks: currentAnalysisData.peaks.map(peak => ({
+                    ppm: peak.ppm || peak.position || 0,
+                    position: peak.position || peak.ppm || 0,
+                    intensity: peak.intensity || peak.height || 0,
+                    height: peak.height || peak.intensity || 0,
+                    relative_intensity: peak.relative_intensity || 0,
+                    width: peak.width || peak.width_ppm || 0,
+                    width_ppm: peak.width_ppm || peak.width || 0,
+                    width_hz: peak.width_hz || 0,
+                    area: peak.area || 0,
+                    snr: peak.snr || 0,
+                    region: peak.region || 'N/A'
+                })),
+                
+                quality_metrics: currentAnalysisData.quality_metrics || {}
+            },
+            
+            chart_image: chartImage,
+            
+            company_data: {
+                name: companyProfile.company_name,
+                logo: companyProfile.logo_url,
+                address: companyProfile.company_address,
+                phone: companyProfile.contact_phone,
+                email: companyProfile.contact_email
+            }
+        };
 
-        const exportConfig = {
-            type: 'single',
-            format: format,
-            lang: LanguageManager.currentLang || 'es',
-            results: results,
-            chart_image: chartImage,
+        console.log('📦 Configuración de exportación:', exportConfig);
 
-            // Añadimos toda la información de la empresa
-            company_data: {
-                name: companyProfile.company_name,
-                logo: companyProfile.logo_url, 
-                address: companyProfile.company_address,
-                phone: companyProfile.contact_phone,
-                email: companyProfile.contact_email
-            }
-        };
+        await APIClient.exportData(exportConfig);
+        
+        UIManager.hideLoading();
+        UIManager.showNotification(
+            LanguageManager.t('messages.exportSuccess') || 'Exportado correctamente',
+            'success'
+        );
 
-        await APIClient.exportData(exportConfig);
-        
-        UIManager.hideLoading();
-        UIManager.showNotification(
-            LanguageManager.t('messages.exportSuccess') || 'Exportado correctamente',
-            'success'
-        );
-
-    } catch (error) {
-        console.error("Error en exportReport:", error);
-        UIManager.hideLoading();
-        UIManager.showNotification(error.message, 'error');
-    }
+    } catch (error) {
+        console.error("Error en exportReport:", error);
+        UIManager.hideLoading();
+        UIManager.showNotification(error.message, 'error');
+    }
 }
 
 /**
@@ -557,6 +624,39 @@ async function loadResult(measurementId, filename) {
         const measurement = await APIClient.getMeasurement(measurementId);
         
         console.log('[loadResult] Medición obtenida:', measurement);
+
+        currentAnalysisData = {
+            filename: measurement.filename || measurement.sample_name || 'Muestra',
+            sample_name: measurement.sample_name || measurement.filename || 'Muestra',
+            timestamp: measurement.timestamp || measurement.created_at || new Date().toISOString(),
+            
+            analysis: measurement.analysis || {},
+            
+            fluor_percentage: measurement.fluor_percentage || measurement.analysis?.fluor_percentage || 0,
+            pfas_percentage: measurement.pfas_percentage || measurement.pifas_percentage || measurement.analysis?.pfas_percentage || 0,
+            pifas_percentage: measurement.pifas_percentage || measurement.analysis?.pifas_percentage || 0,
+            concentration: measurement.concentration || measurement.analysis?.pifas_concentration || 0,
+            pifas_concentration: measurement.analysis?.pifas_concentration || measurement.concentration || 0,
+            
+            quality_score: measurement.quality_score || 0,
+            quality_classification: measurement.quality_classification || 'N/A',
+            signal_to_noise: measurement.signal_to_noise || measurement.snr || 0,
+            snr: measurement.snr || measurement.signal_to_noise || 0,
+            
+            total_area: measurement.analysis?.total_area || measurement.total_area || 0,
+            fluor_area: measurement.analysis?.fluor_area || 0,
+            pfas_area: measurement.analysis?.pfas_area || measurement.analysis?.pifas_area || 0,
+            pifas_area: measurement.analysis?.pifas_area || 0,
+            sample_concentration: measurement.sample_concentration || 0,
+            
+            peaks: measurement.peaks || [],
+            quality_metrics: measurement.quality_metrics || {},
+            
+            ppm: measurement.ppm || [],
+            intensity: measurement.intensity || []
+        };
+        
+        console.log('✅ Datos de medición almacenados:', currentAnalysisData);
         
         // Cambiar a la pestaña del analizador
         UIManager.switchTab('analyzer');
