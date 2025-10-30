@@ -14,22 +14,33 @@ COMPANY_PROFILES = {
     },
 
     "FAES": {
-        'company_id': 'FAES',
-        'company_name': 'Faes Farma',
-        'logo_url': '/assets/logos/faes_logo.png',
-        'primary_color': '#004b8d', # Azul corporativo de Faes
-        'secondary_color': '#006fcf',
-        'language': 'es',
-        'contact_email': 'info@faesfarma.com'
-    },
+    # --- Identidad Visual ---
+    'company_id': 'FAES',
+    'company_name': 'Faes Farma',
+    'logo_url': '/assets/logos/faes_logo.png',         
+    'favicon_url': '/assets/favicons/faes_favicon.ico', 
+    'primary_color': '#004b8d',
+    'secondary_color': '#006fcf',
+    
+    # --- Datos para Reportes (PDF) ---
+    'language': 'es',
+    'contact_email': 'atencionalcliente@faes.es',
+    'contact_phone': '+34 94 481 83 00',            
+    'company_address': 'Máximo Aguirre 14, 48940 Leioa, Bizkaia' 
+},
 
     "AUGAS_GALICIA": {
         'company_id': 'AUGAS_GALICIA',
         'company_name': 'Augas de Galicia',
         'logo_url': '/assets/logos/augas_de_galicia_logo.png',
+        'favicon_url': '/assets/favicons/augas_favicon.ico',
         'primary_color': '#0090d0', # Azul corporativo de Augas de Galicia
         'secondary_color': '#0070a0',
-        'language': 'es', # O 'gl' si tuvieras un archivo de idioma gallego
-        'contact_email': 'info@augasdegalicia.gal'
+
+    # --- Datos para Reportes (PDF) ---    
+        'language': 'es', 
+        'contact_email': 'augasdegalicia@xunta.gal',
+        'contact_phone': '+34 981 95 74 01',             
+        'company_address': 'Plaza Camilo Díaz Baliño 7-9, 15781 Santiago de Compostela'
     }
 }
