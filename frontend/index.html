@@ -105,28 +105,72 @@
         }
 
          // --- Función para Manejar Selección de Empresa (definida antes) ---
-         function selectCompany(companyProfile) {
-            console.log("Función selectCompany ejecutada con:", companyProfile);
-            if (typeof companyProfile !== 'object' || companyProfile === null) {
-                 console.error("selectCompany llamada con perfil inválido:", companyProfile);
-                 if(selectionError) {
+        // --- Función para Manejar Selección de Empresa (NUEVA VERSIÓN CON PIN) ---
+        async function selectCompany(companyProfile) {
+            console.log("selectCompany (con PIN) ejecutada para:", companyProfile);
+
+            const companyId = companyProfile.company_id;
+            if (!companyId) {
+                console.error("Perfil inválido, sin company_id", companyProfile);
+                if(selectionError) {
                     selectionError.textContent = 'Error interno: Perfil inválido.';
                     selectionError.classList.remove('hidden');
-                 }
-                 return;
+                }
+                return;
             }
+
+            // 1. Pedir el PIN al usuario
+            const pin = prompt(`Por favor, introduce el PIN para ${companyProfile.company_name}:`);
+
+            if (pin === null) {
+                // El usuario pulsó "Cancelar"
+                console.log("Validación de PIN cancelada.");
+                return; 
+            }
+
+            // Limpiar errores antiguos
+            if(selectionError) selectionError.classList.add('hidden');
+
             try {
-                sessionStorage.setItem('selectedCompanyProfile', JSON.stringify(companyProfile));
-                console.log("Perfil guardado. Redirigiendo a app.html...");
+                // 2. Llamar a la nueva API de validación que creamos en app.py
+                const validateUrl = `${API_BASE_URL}/api/validate_pin`; // Usa tu constante global
+                const response = await fetch(validateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        company_id: companyId,
+                        pin: pin
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    // Si la respuesta es 403 (Prohibido), 404, etc.
+                    throw new Error(data.error || 'PIN o empresa incorrectos');
+                }
+
+                // 3. ¡ÉXITO! Guardamos el perfil en el navegador
+                // Usamos 'CURRENT_COMPANY_PROFILE' para ser consistentes con app.html
+                sessionStorage.setItem('CURRENT_COMPANY_PROFILE', JSON.stringify(data.profile));
+
+                // 4. Redirigir a la app
+                console.log("PIN validado. Perfil guardado. Redirigiendo a app.html...");
                 window.location.href = 'app.html';
-            } catch (e) {
-                console.error("Error al guardar/redirigir:", e);
-                 if(selectionError){
-                    selectionError.textContent = `No se pudo iniciar la sesión: ${e.message}`;
+
+            } catch (err) {
+                console.error('Error al validar PIN:', err);
+                // Mostrar el error en la UI
+                if(selectionError) {
+                    selectionError.textContent = `Error: ${err.message}`;
                     selectionError.classList.remove('hidden');
-                 }
+                } else {
+                    alert(`Error: ${err.message}`); // Fallback
+                }
             }
-        }
+        } 
 
         // --- Función para CREAR una Tarjeta de Empresa ---
         function createCompanyCard(company) {

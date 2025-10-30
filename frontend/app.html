@@ -5,67 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="app.title">CraftRMN Pro - Analizador de RMN</title>
     
-    <!-- ============================================================
-         🚨 IMPORTANTE: CARGAR PERFIL DE EMPRESA PRIMERO
-         Este script DEBE ir ANTES que cualquier otro script
-    ============================================================ -->
     <script>
-        console.log('🔄 [app.html] Inicializando carga de perfil de empresa...');
-        
-        // Intentar cargar el perfil de empresa desde sessionStorage
-        (function loadCompanyProfile() {
+        // Este script se ejecuta ANTES de que se cargue la página
+        const profileJson = sessionStorage.getItem('CURRENT_COMPANY_PROFILE');
+
+        if (!profileJson) {
+            // Si NO hay perfil guardado (no han puesto PIN), expulsar
+            alert('Acceso no autorizado. Debes validar tu PIN primero.');
+            window.location.href = 'index.html';
+        } else {
+            // Si HAY perfil, lo cargamos en la variable global
             try {
-                const storedProfile = sessionStorage.getItem('selectedCompanyProfile');
-                console.log('📦 [app.html] Perfil en sessionStorage:', storedProfile ? 'Encontrado' : 'No encontrado');
-                
-                if (!storedProfile) {
-                    console.error('❌ [app.html] No se encontró perfil de empresa');
-                    alert('No se ha seleccionado ninguna empresa. Redirigiendo al portal...');
-                    // Redirigir al portal de selección
-                    // AJUSTA EL NOMBRE según cómo se llame tu archivo de portal:
-                    // Si tu portal se llama 'index.html' → cambia a 'index.html'
-                    // Si se llama 'portal.html' → deja 'portal.html'
-                    window.location.href = 'index.html'; // ← AJUSTA ESTE NOMBRE
-                    throw new Error('Sin perfil - redirigiendo...');
-                }
-                
-                // Parsear el perfil
-                const profile = JSON.parse(storedProfile);
-                console.log('✅ [app.html] Perfil parseado:', profile);
-                
-                // Validar campos obligatorios
-                if (!profile.company_id) {
-                    throw new Error('company_id no está definido en el perfil');
-                }
-                if (!profile.company_name) {
-                    throw new Error('company_name no está definido en el perfil');
-                }
-                
-                // Definir globalmente ANTES de que se carguen otros scripts
-                window.CURRENT_COMPANY_PROFILE = profile;
-                console.log('✅ [app.html] CURRENT_COMPANY_PROFILE definido:', window.CURRENT_COMPANY_PROFILE);
-                
-            } catch (error) {
-                console.error('❌ [app.html] Error al cargar perfil:', error);
-                // Si hay error, limpiar y redirigir
-                sessionStorage.removeItem('selectedCompanyProfile');
-                // Solo redirigir si no estamos ya en el portal
-                if (!window.location.href.includes('index.html') && window.location.pathname !== '/') {
-                    alert('Error al cargar el perfil de empresa. Redirigiendo al portal...');
-                    window.location.href = 'index.html'; // ← AJUSTA ESTE NOMBRE
-                }
+                window.CURRENT_COMPANY_PROFILE = JSON.parse(profileJson);
+            } catch (e) {
+                // Si está corrupto, lo borramos y expulsamos
+                console.error('Perfil corrupto, redirigiendo...', e);
+                sessionStorage.removeItem('CURRENT_COMPANY_PROFILE');
+                window.location.href = 'index.html';
             }
-        })();
+        }
     </script>
     
-    <!-- Estilos CSS -->
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/components.css">
     <link rel="stylesheet" href="styles/responsive.css">
     <link rel="stylesheet" href="styles/dashboard.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
     
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
     <!-- Estilos adicionales para el logo de la empresa -->
     <style>
         /* Estilos para el logo de la empresa seleccionada */

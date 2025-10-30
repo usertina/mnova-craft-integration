@@ -161,7 +161,7 @@ def push_to_google_cloud(url, payload, encoder):
     except Exception as cloud_err:
         # Captura otros errores (ej. sin internet, timeout, URL mal escrita)
         logging.warning(f"  ⚠️  Failed to push measurement to cloud (Network/Timeout): {str(cloud_err)}")
-        
+
 # ============================================================================
 # API - Análisis de Espectros
 # ============================================================================
@@ -520,6 +520,48 @@ def get_company_profile():
     # Devolver el perfil completo
     return jsonify(profile)
 
+# ============================================================================
+# API - VALIDACIÓN DE PIN DE EMPRESA (NUEVO ENDPOINT)
+# ============================================================================
+@app.route("/api/validate_pin", methods=["POST"])
+def validate_company_pin():
+    """
+    Valida si el PIN proporcionado para una empresa es correcto.
+    """
+    try:
+        data = request.json
+        if not data or 'company_id' not in data or 'pin' not in data:
+            return jsonify({"error": "Faltan company_id o pin"}), 400
+
+        company_id = data.get("company_id")
+        provided_pin = data.get("pin")
+
+        profile = COMPANY_PROFILES.get(company_id)
+
+        # 1. Comprobar si la empresa existe
+        if not profile:
+            logging.warning(f"Intento de validación para empresa no existente: {company_id}")
+            return jsonify({"error": "Empresa no válida"}), 404
+
+        # 2. Comprobar si el PIN es correcto
+        correct_pin = profile.get("pin")
+        if not correct_pin or provided_pin != correct_pin:
+            logging.warning(f"PIN incorrecto para la empresa: {company_id}")
+            # Damos un error genérico para no dar pistas
+            return jsonify({"error": "PIN o empresa incorrectos"}), 403 # 403 = Prohibido
+
+        # 3. ¡Éxito! El PIN es correcto.
+        # Devolvemos el perfil completo para que el frontend lo guarde.
+        logging.info(f"PIN validado con éxito para: {company_id}")
+        return jsonify({
+            "success": True,
+            "profile": profile # Devolvemos el perfil
+        })
+
+    except Exception as e:
+        logging.error(f"❌ Error en validate_pin: {str(e)}", exc_info=True)
+        return jsonify({"error": "Error interno del servidor"}), 500
+    
 
 @app.route("/api/config", methods=["POST"])
 def update_config():

@@ -17,6 +17,7 @@ COMPANY_PROFILES = {
     # --- Identidad Visual ---
     'company_id': 'FAES',
     'company_name': 'Faes Farma',
+    'pin': '1234',
     'logo_url': '/assets/logos/faes_logo.png',         
     'favicon_url': '/assets/favicons/faes_favicon.ico', 
     'primary_color': '#004b8d',
@@ -32,6 +33,7 @@ COMPANY_PROFILES = {
     "AUGAS_GALICIA": {
         'company_id': 'AUGAS_GALICIA',
         'company_name': 'Augas de Galicia',
+        'pin': '5678',
         'logo_url': '/assets/logos/augas_de_galicia_logo.png',
         'favicon_url': '/assets/favicons/augas_favicon.ico',
         'primary_color': '#0090d0', # Azul corporativo de Augas de Galicia
