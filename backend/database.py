@@ -1,7 +1,7 @@
 """
 CraftRMN Pro - Módulo de Base de Datos SQLite
 Gestiona todas las operaciones de base de datos local del dispositivo
-(VERSIÓN CORREGIDA Y COMPLETA)
+(VERSIÓN CORREGIDA - Extrae datos completos de raw_data)
 """
 
 import sqlite3
@@ -63,7 +63,7 @@ class Database:
                 raw_data TEXT NOT NULL,
                 spectrum_data TEXT,
                 peaks_data TEXT,
-                molecule_info TEXT, -- <-- COLUMNA NUEVA
+                molecule_info TEXT,
                 synced INTEGER DEFAULT 0,
                 sync_attempts INTEGER DEFAULT 0,
                 last_sync_attempt TEXT,
@@ -93,10 +93,7 @@ class Database:
     # ==================== MÉTODOS AUXILIARES ====================
     
     def execute_query(self, query: str, params: Tuple = ()) -> List[sqlite3.Row]:
-        """
-        Ejecuta una consulta SQL y devuelve todas las filas.
-        (Función auxiliar, sin cambios)
-        """
+        """Ejecuta una consulta SQL y devuelve todas las filas."""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -113,10 +110,7 @@ class Database:
             conn.close()
     
     def _row_to_dict(self, row: sqlite3.Row) -> Dict:
-        """
-        Convierte una fila de SQLite a diccionario (versión simplificada).
-        (Función auxiliar, sin cambios)
-        """
+        """Convierte una fila de SQLite a diccionario (versión simplificada)."""
         if not row:
             return {}
         
@@ -129,9 +123,10 @@ class Database:
                 'filename': row['filename'],
                 'sample_name': row['filename'],
                 'fluor_percentage': row['fluor_percentage'],
-                'pfas_percentage': row['pifas_percentage'],
-                'pifas_percentage': row['pifas_percentage'],
-                'pifas_concentration': row['pifas_concentration'],
+                'pfas_percentage': row['pifas_percentage'],  # Nombre principal
+                'pifas_percentage': row['pifas_percentage'],  # Alias
+                'pfas_concentration': row['pifas_concentration'],  # Nombre principal
+                'pifas_concentration': row['pifas_concentration'],  # Alias
                 'concentration': row['concentration'],
                 'quality_score': row['quality_score'],
                 'synced': bool(row['synced']),
@@ -145,7 +140,6 @@ class Database:
     # ==================== CONFIGURACIÓN ====================
     
     def get_config(self, key: str) -> Optional[str]:
-        # (Sin cambios)
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT value FROM device_config WHERE key = ?", (key,))
@@ -154,7 +148,6 @@ class Database:
         return row['value'] if row else None
     
     def set_config(self, key: str, value: str):
-        # (Sin cambios)
         conn = self.get_connection()
         cursor = conn.cursor()
         now = datetime.now().isoformat()
@@ -166,7 +159,6 @@ class Database:
         conn.close()
     
     def get_all_config(self) -> Dict[str, str]:
-        # (Sin cambios)
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT key, value FROM device_config")
@@ -196,24 +188,24 @@ class Database:
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
-            measurement_data.get('device_id', 'unknown'),         # 1
-            measurement_data.get('company_id', 'unknown'),      # 2
-            measurement_data.get('timestamp', now),             # 3
-            measurement_data.get('filename', 'unknown'),        # 4
-            analysis.get('fluor_percentage'),                   # 5
-            analysis.get('pifas_percentage'),                   # 6
-            analysis.get('pifas_concentration'),                # 7
-            analysis.get('concentration'),                      # 8
-            measurement_data.get('quality_score'),              # 9
-            json.dumps(measurement_data),                       # 10 (raw_data)
-            json.dumps(measurement_data.get('spectrum', {})),    # 11 (spectrum_data)
-            json.dumps(measurement_data.get('peaks', [])),      # 12 (peaks_data)
-            json.dumps(measurement_data.get('molecule_info')),  # 13 (molecule_info)
-            0,                                                  # 14 (synced)
-            0,                                                  # 15 (sync_attempts)
-            None,                                               # 16 (last_sync_attempt)
-            now,                                                # 17 (created_at)
-            now                                                 # 18 (updated_at)
+            measurement_data.get('device_id', 'unknown'),
+            measurement_data.get('company_id', 'unknown'),
+            measurement_data.get('timestamp', now),
+            measurement_data.get('filename', 'unknown'),
+            analysis.get('fluor_percentage'),
+            analysis.get('pifas_percentage'),
+            analysis.get('pifas_concentration'),
+            analysis.get('concentration'),
+            measurement_data.get('quality_score'),
+            json.dumps(measurement_data),
+            json.dumps(measurement_data.get('spectrum', {})),
+            json.dumps(measurement_data.get('peaks', [])),
+            json.dumps(measurement_data.get('molecule_info')),
+            0,
+            0,
+            None,
+            now,
+            now
         ))
         
         measurement_id = cursor.lastrowid
@@ -231,7 +223,6 @@ class Database:
         conn.close()
         return self._row_to_measurement(row) if row else None
     
-    # --- ¡¡AQUÍ ESTÁ LA FUNCIÓN QUE FALTABA!! ---
     def get_measurements(
         self, 
         company_id: Optional[str] = None,
@@ -309,9 +300,7 @@ class Database:
         limit: int = 50, 
         offset: int = 0
     ) -> Dict:
-        """
-        Obtiene mediciones con búsqueda por filename.
-        """
+        """Obtiene mediciones con búsqueda por filename."""
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
@@ -357,9 +346,7 @@ class Database:
             return {'measurements': [], 'total': 0, 'total_pages': 0}
     
     def count_measurements_with_search(self, company_id: str, search_term: str) -> int:
-        """
-        Cuenta mediciones que coinciden con un término de búsqueda.
-        """
+        """Cuenta mediciones que coinciden con un término de búsqueda."""
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
@@ -388,9 +375,7 @@ class Database:
             return 0
     
     def delete_measurement(self, measurement_id: int, company_id: Optional[str] = None) -> bool:
-        """
-        Elimina una medición específica.
-        """
+        """Elimina una medición específica."""
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
@@ -430,9 +415,7 @@ class Database:
             return False
     
     def delete_all_measurements(self, company_id: Optional[str] = None) -> int:
-        """
-        Elimina todas las mediciones de una empresa.
-        """
+        """Elimina todas las mediciones de una empresa."""
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
@@ -461,20 +444,47 @@ class Database:
     def _row_to_measurement(self, row: sqlite3.Row) -> Dict:
         """
         Convierte una fila de SQLite a diccionario completo de medición.
-        (VERSIÓN CORREGIDA - CON MOLECULE_INFO)
+        ✅ VERSIÓN CORREGIDA - Extrae datos completos de raw_data
         """
         if not row:
             return {}
         
         try:
+            # Parsear los datos JSON
             spectrum_data = json.loads(row['spectrum_data']) if row['spectrum_data'] else {}
             peaks_data = json.loads(row['peaks_data']) if row['peaks_data'] else []
             molecule_info_data = json.loads(row['molecule_info']) if row['molecule_info'] else None
+            
+            # 🔧 CORRECCIÓN: Extraer el objeto 'analysis' completo desde 'raw_data'
+            raw_data = json.loads(row['raw_data']) if row['raw_data'] else {}
+            analysis_full = raw_data.get('analysis', {})
+            
+            # Si analysis_full está vacío, usar los valores de las columnas como fallback
+            if not analysis_full:
+                logger.warning(f"Medición {row['id']}: raw_data['analysis'] está vacío, usando columnas directas")
+                analysis_full = {
+                    'fluor_percentage': row['fluor_percentage'],
+                    'pfas_percentage': row['pifas_percentage'],  # Usar 'pfas' como estándar
+                    'pifas_percentage': row['pifas_percentage'],  # Mantener 'pifas' para compatibilidad
+                    'pfas_concentration': row['pifas_concentration'],
+                    'pifas_concentration': row['pifas_concentration'],
+                    'concentration': row['concentration']
+                }
+            
+            logger.debug(f"Medición {row['id']}: analysis extraído con {len(analysis_full)} campos")
+            
         except json.JSONDecodeError as e:
             logger.error(f"Error decodificando JSON de medición {row['id']}: {e}")
             spectrum_data = {"error": "failed to decode spectrum"}
             peaks_data = []
             molecule_info_data = None
+            analysis_full = {
+                'fluor_percentage': row['fluor_percentage'],
+                'pifas_percentage': row['pifas_percentage'],
+                'pfas_percentage': row['pifas_percentage'],
+                'pifas_concentration': row['pifas_concentration'],
+                'concentration': row['concentration']
+            }
 
         return {
             'id': row['id'],
@@ -483,20 +493,22 @@ class Database:
             'timestamp': row['timestamp'],
             'filename': row['filename'],
             'sample_name': row['filename'],
-            'analysis': {
-                'fluor_percentage': row['fluor_percentage'],
-                'pifas_percentage': row['pifas_percentage'],
-                'pfas_percentage': row['pifas_percentage'],
-                'pifas_concentration': row['pifas_concentration'],
-                'concentration': row['concentration']
-            },
+            
+            # ✅ USAR EL OBJETO ANALYSIS COMPLETO de raw_data
+            'analysis': analysis_full,
+            
+            # Mantener campos directos para compatibilidad
             'fluor_percentage': row['fluor_percentage'],
-            'pfas_percentage': row['pifas_percentage'],
-            'pifas_percentage': row['pifas_percentage'],
+            'pfas_percentage': row['pifas_percentage'],  # Nombre principal: pfas
+            'pifas_percentage': row['pifas_percentage'],  # Alias para compatibilidad
+            'pfas_concentration': row['pifas_concentration'],  # Nombre principal: pfas
+            'pifas_concentration': row['pifas_concentration'],  # Alias para compatibilidad
             'quality_score': row['quality_score'],
+            
+            # Datos adicionales
             'spectrum': spectrum_data,
             'peaks': peaks_data,
-            'molecule_info': molecule_info_data, # <-- Dato añadido
+            'molecule_info': molecule_info_data,
             'synced': bool(row['synced']),
             'sync_attempts': row['sync_attempts'],
             'created_at': row['created_at'],

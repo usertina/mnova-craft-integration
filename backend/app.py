@@ -252,6 +252,28 @@ def analyze_spectrum():
         # Corregido el error 'unhashable type: dict'
         logging.debug(f"Analysis raw results: {results}")
 
+        # --- INICIO DEL ENRIQUECIMIENTO 3D/2D ---
+        # ✅ IMPORTANTE: Esto debe ir ANTES de guardar en la BD
+        #    para que los datos 2D/3D se guarden y estén disponibles en el historial
+        
+        logging.info("  🧬  Enriqueciendo lista de compuestos con datos 2D/3D...")
+        
+        if 'pfas_detection' in results and 'compounds' in results['pfas_detection']:
+            for compound in results['pfas_detection']['compounds']:
+                cas_number = compound.get('cas')
+                molecule_files = MOLECULE_DATA_DB.get(cas_number)
+                
+                if molecule_files:
+                    compound['file_3d'] = molecule_files.get('file_3d')
+                    compound['image_2d'] = molecule_files.get('image_2d')
+                    logging.debug(f"     -> Añadidos datos 2D/3D para {cas_number}: {molecule_files}")
+                else:
+                    compound['file_3d'] = None
+                    compound['image_2d'] = None
+                    logging.warning(f"     -> No se encontraron datos 2D/3D para CAS: {cas_number}")
+        
+        # --- FIN DEL ENRIQUECIMIENTO 3D/2D ---
+
         # GUARDAR EN JSON (Opcional, pero útil para debug)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         result_filename = f"{Path(file.filename).stem}_{company_id}_analysis_{timestamp}.json"
@@ -315,29 +337,6 @@ def analyze_spectrum():
         except Exception as thread_err:
             logging.error(f"  ❌  Failed to start cloud sync thread: {thread_err}")
 
-        # --- INICIO DEL NUEVO BLOQUE 3D/2D (Versión 4.0 - Dinámica) ---
-        
-        logging.info("  🧬  Enriqueciendo lista de compuestos con datos 2D/3D...")
-        
-        # Corregido: buscar 'compounds' en lugar de 'detected_compounds'
-        if 'pfas_detection' in results and 'compounds' in results['pfas_detection']:
-            
-            for compound in results['pfas_detection']['compounds']:
-                cas_number = compound.get('cas')
-                molecule_files = MOLECULE_DATA_DB.get(cas_number)
-                
-                if molecule_files:
-                    compound['file_3d'] = molecule_files.get('file_3d')
-                    compound['image_2d'] = molecule_files.get('image_2d')
-                    logging.debug(f"     -> Añadidos datos 2D/3D para {cas_number}")
-                else:
-                    compound['file_3d'] = None
-                    compound['image_2d'] = None
-                    logging.warning(f"     -> No se encontraron datos 2D/3D para CAS: {cas_number}")
-
-        results.pop('molecule_info', None) 
-        
-        # --- FIN DEL NUEVO BLOQUE ---
 
         results['measurement_id'] = measurement_id
         results['result_file'] = result_filename

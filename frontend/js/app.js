@@ -604,37 +604,56 @@ async function loadResult(measurementId, filename) {
         // 2. 'analysisBlob' es el objeto JSON que SÍ tiene todos los datos
         const analysisBlob = measurement.analysis || {};
 
-        // 3. Reconstruimos 'currentAnalysisData' para que se parezca
-        //    al objeto 'results' que genera un análisis nuevo.
+        // 3. CORRECCIÓN: Reconstruir currentAnalysisData con la estructura correcta
+        // Asegurarnos de que el objeto analysis tenga todos los campos necesarios
         currentAnalysisData = {
-            // Datos base
+            // Datos base del análisis
             filename: measurement.filename || 'Muestra',
             sample_name: measurement.sample_name || measurement.filename || 'Muestra',
             timestamp: measurement.timestamp || new Date().toISOString(),
+            measurement_id: measurementId,
+            
+            // Puntuación de calidad
             quality_score: measurement.quality_score || 0,
-            peaks: (measurement.peaks || []),
+            quality_breakdown: analysisBlob.quality_breakdown || {},
+            
+            // Datos del espectro
             spectrum: measurement.spectrum || {},
             ppm: measurement.spectrum?.ppm || [],
             intensity: measurement.spectrum?.intensity || [],
-
-            // --- ¡AQUÍ ESTÁ LA CLAVE! ---
-            // Re-añadimos los datos que faltan desde el 'analysisBlob'
             
-            // El objeto 'analysis' (para Integral Total, etc.)
-            analysis: analysisBlob, 
+            // Picos detectados
+            peaks: measurement.peaks || [],
             
-            // La lista de compuestos
+            // CRÍTICO: El objeto 'analysis' debe contener TODOS los campos de análisis
+            // No podemos usar simplemente analysisBlob porque puede que no tenga la estructura completa
+            // Nota: Usamos 'pfas' como nombre estándar pero mantenemos 'pifas' para compatibilidad
+            analysis: {
+                fluor_percentage: analysisBlob.fluor_percentage || 0,
+                pfas_percentage: analysisBlob.pfas_percentage || analysisBlob.pifas_percentage || 0,  // pfas primero
+                pifas_percentage: analysisBlob.pifas_percentage || analysisBlob.pfas_percentage || 0,  // alias
+                pfas_concentration: analysisBlob.pfas_concentration || analysisBlob.pifas_concentration || 0,  // pfas primero
+                pifas_concentration: analysisBlob.pifas_concentration || analysisBlob.pfas_concentration || 0,  // alias
+                total_integral: analysisBlob.total_integral || 0,
+                concentration: analysisBlob.concentration || analysisBlob.pfas_concentration || analysisBlob.pifas_concentration || 0,
+                signal_to_noise: analysisBlob.signal_to_noise || 0,
+                // Incluir todos los demás campos que puedan existir
+                ...analysisBlob
+            },
+            
+            // Detección de compuestos PFAS
             pfas_detection: analysisBlob.pfas_detection || null,
             
-            // El S/N
+            // S/N en el nivel raíz (para compatibilidad)
             signal_to_noise: analysisBlob.signal_to_noise || 0,
-            snr: analysisBlob.signal_to_noise || 0, // Alias
-            
-            // El desglose de calidad
-            quality_breakdown: analysisBlob.quality_breakdown || {}
+            snr: analysisBlob.signal_to_noise || 0
         };
         
         console.log('✅ Datos de medición normalizados:', currentAnalysisData);
+        console.log('📊 Analysis object:', currentAnalysisData.analysis);
+        console.log('📈 Total Integral:', currentAnalysisData.analysis?.total_integral);
+        console.log('📡 Signal to Noise:', currentAnalysisData.signal_to_noise);
+        console.log('🔬 PFAS Detection:', currentAnalysisData.pfas_detection);
         
         // 4. Mostrar los datos
         UIManager.switchTab('analyzer');
