@@ -260,38 +260,62 @@
     font-size: 1.2rem;
 }
 
-.btn-toggle-spectrum {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: white;
-    color: var(--primary-color);
-    border: 2px solid white;
-    border-radius: var(--border-radius);
-    font-weight: 600;
-    cursor: pointer;
+/* Estilos de botones de toggle unificados */
+.btn-toggle-spectrum,
+.btn-toggle-3d,
+.btn-toggle-2d {
+    /* Tamaño y espaciado */
+    padding: 10px 20px;
+    min-width: 180px;
+    
+    /* Colores base (mismo para todos) */
+    background: rgba(99, 102, 241, 0.1);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    
+    /* Tipografía */
+    font-size: 0.9rem;
+    font-weight: 500;
+    
+    /* Efectos */
+    border-radius: 8px;
     transition: all 0.3s ease;
+    cursor: pointer;
+    
+    /* Flexbox para alinear icono y texto */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
-.btn-toggle-spectrum:hover {
-    background: rgba(255, 255, 255, 0.9);
+/* Hover - mismo efecto para todos */
+.btn-toggle-spectrum:hover,
+.btn-toggle-3d:hover,
+.btn-toggle-2d:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.5);
+    color: #a5b4fc;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
 }
 
-.btn-toggle-spectrum i {
-    transition: transform 0.3s ease;
+/* Estado activo - cuando el contenido está visible */
+.btn-toggle-spectrum.active,
+.btn-toggle-3d.active,
+.btn-toggle-2d.active {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: #6366f1;
+    color: #c7d2fe;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-.btn-toggle-spectrum.active {
-    background: var(--danger-color);
-    color: white;
-    border-color: var(--danger-color);
-}
-
-.btn-toggle-spectrum.active i {
-    transform: rotate(180deg);
+/* Iconos dentro de los botones */
+.btn-toggle-spectrum i,
+.btn-toggle-3d i,
+.btn-toggle-2d i {
+    font-size: 1rem;
+    opacity: 0.9;
 }
 
 #spectrumChartContainer {
@@ -331,6 +355,16 @@
         opacity: 0;
         max-height: 0;
         transform: translateY(-20px);
+    }
+}
+
+@media (max-width: 768px) {
+    .btn-toggle-spectrum,
+    .btn-toggle-3d,
+    .btn-toggle-2d {
+        min-width: 140px;
+        padding: 8px 16px;
+        font-size: 0.85rem;
     }
 }
 
@@ -442,92 +476,6 @@
     color: #e5e7eb;
 }
 
-/* Estilos para tarjetas de muestra en comparación */
-.sample-card {
-    background: #374151;
-    border-radius: 8px;
-    padding: 1rem;
-    border: 2px solid transparent;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-
-.sample-card:hover {
-    border-color: #6366f1;
-}
-
-.sample-card.selected {
-    background: #4b5563;
-    border-color: #10b981;
-}
-
-.sample-card-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-}
-
-.sample-checkbox {
-    width: 20px;
-    height: 20px;
-    cursor: pointer;
-}
-
-.sample-name {
-    flex: 1;
-    font-weight: 600;
-    color: #e5e7eb;
-    cursor: pointer;
-}
-
-.sample-card-body {
-    padding-left: 2rem;
-}
-
-.sample-info {
-    color: #9ca3af;
-    font-size: 0.875rem;
-    margin-bottom: 0.5rem;
-}
-
-.sample-metrics {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.metric {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.875rem;
-}
-
-.metric-label {
-    color: #9ca3af;
-}
-
-.metric-value {
-    color: #e5e7eb;
-    font-weight: 600;
-}
-
-.sample-selector-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
-    max-height: 600px;
-    overflow-y: auto;
-    padding: 0.5rem;
-}
-
-.empty-state-comparison {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 3rem;
-    color: #6b7280;
-}
-
 /* ============================================================================
    COLLAPSIBLE SECTIONS (Detailed Results & Peak Details)
    ============================================================================ */
@@ -598,6 +546,8 @@
 }
 
 .section-content {
+    /* Esta regla se sobrescribe por .hide y .show, pero es buen fallback */
+    display: none; 
     transition: all 0.4s ease;
     overflow: hidden;
 }
@@ -678,7 +628,7 @@
     padding: 1.5rem;
     border-bottom: 1px solid var(--border-color);
     display: flex;
-    justify-content: between;
+    justify-content: space-between;
     align-items: center;
 }
 
@@ -1219,3 +1169,159 @@
     font-weight: 600;
 }
 
+/* ==========================================================================
+   ESTILOS DINÁMICOS (Modal y Lista de Compuestos)
+   ========================================================================== */
+
+/* --- CSS para el Modal de Moléculas --- */
+.molecule-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.molecule-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+}
+
+.molecule-modal-content {
+    position: relative;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    max-width: 90%;
+    max-height: 90%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.molecule-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.molecule-modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #333;
+}
+
+.molecule-modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: #888;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+}
+.molecule-modal-close:hover {
+    color: #000;
+}
+
+.molecule-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+/* --- CSS para la lista de compuestos --- */
+.compound-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background: #fafafa;
+}
+
+.compound-info .compound-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color, #0056b3);
+    margin: 0 0 5px 0;
+}
+
+.compound-info .compound-confidence {
+    font-weight: 500;
+    color: #1aAB67; /* Un color verde para confianza */
+}
+
+.compound-info .compound-details {
+    font-size: 0.85rem;
+    color: #555;
+    margin-top: 5px;
+}
+
+.compound-actions .btn {
+    margin-left: 10px;
+}
+
+/* --- Paginación del Historial --- */
+.history-pagination {
+    margin-top: 20px;
+    padding: 15px 0;
+    display: flex;
+    justify-content: center;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pagination-btn {
+    background: var(--light-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-dark);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+    min-width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pagination-btn:hover:not(.disabled) {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.pagination-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+
+.pagination-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+    color: var(--text-light);
+    padding: 0 4px;
+}

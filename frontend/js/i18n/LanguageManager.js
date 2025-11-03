@@ -6,9 +6,10 @@ class LanguageManager {
     static currentLang = 'es';
     static translations = {};
     static availableLanguages = [
-        { code: 'es', name: 'Español', flag: '🇪🇸' },
-        { code: 'en', name: 'English', flag: '🇬🇧' },
-        { code: 'eu', name: 'Euskara', flag: '🔴⚪' }
+        { code: 'es', name: 'Español', img: 'assets/flags/es.svg' },
+        { code: 'en', name: 'English', img: 'assets/flags/gb.png' },
+        { code: 'eu', name: 'Euskara', img: 'assets/flags/eu.png' },
+        { code: 'gl', name: 'Galego' , img: 'assets/flags/gl.jpg' }
     ];
 
     /**
@@ -21,7 +22,25 @@ class LanguageManager {
         // Cargar idioma guardado o por defecto
         const savedLang = localStorage.getItem('selectedLanguage') || 'es';
         this.changeLanguage(savedLang);
+        this.populateCustomLanguageSelector();
+
     }
+
+    static populateCustomLanguageSelector() {
+        const container = document.getElementById('languageSelectorCustom');
+        if (!container) return;
+
+        container.innerHTML = ''; // limpiar
+
+        this.availableLanguages.forEach(lang => {
+            const div = document.createElement('div');
+            div.className = 'lang-option';
+            div.innerHTML = `<img src="${lang.img}" alt="${lang.name}"> <span>${lang.name}</span>`;
+            div.addEventListener('click', () => this.changeLanguage(lang.code));
+            container.appendChild(div);
+        });
+    }
+
 
     /**
      * Pobla el selector de idiomas con las opciones disponibles

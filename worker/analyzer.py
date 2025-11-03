@@ -4,9 +4,9 @@ import numpy as np
 import re # ### NUEVO ### Importar regex para parsear límites
 from pathlib import Path
 from typing import Dict, List, Tuple
-from scipy import signal # Cambiado de from scipy import signal
-from scipy.signal import find_peaks, peak_widths # ### NUEVO ### Importar peak_widths
-# from scipy.interpolate import UnivariateSpline # No se usa actualmente, se puede quitar si no la necesitas
+from scipy.signal import find_peaks, peak_widths
+from pfas_detector import PFASDetector
+
 
 class SpectrumAnalyzer:
     """
@@ -85,12 +85,11 @@ class SpectrumAnalyzer:
         intensity_corrected_list = [round(float(x), 4) for x in self.intensity_corrected]
         
         # Realizar análisis completo
-        # Calcular métricas y picos ANTES del score de calidad
         quality_metrics = self._calculate_quality_metrics()
-        peaks = self._detect_peaks_advanced() # ### MODIFICADO ### Ahora incluye área
+        peaks = self._detect_peaks_advanced()
         analysis_data = self._calculate_analysis(fluor_range, pifas_range, concentration)
         region_data = self._analyze_regions()
-        detailed_stats = self._detailed_statistics(fluor_range, pifas_range, quality_metrics["snr"]) # Pasar SNR calculado
+        detailed_stats = self._detailed_statistics(fluor_range, pifas_range, quality_metrics["snr"])
 
         results = {
             "filename": file_path.name,
@@ -107,29 +106,41 @@ class SpectrumAnalyzer:
                 "ppm_min": round(float(np.min(self.ppm_data)), 2),
                 "ppm_max": round(float(np.max(self.ppm_data)), 2),
                 "data_points": len(self.ppm_data),
-                "intensity_min_orig": round(float(np.min(self.intensity_data)), 2), # ### NUEVO ### Renombrado
-                "intensity_max_orig": round(float(np.max(self.intensity_data)), 2), # ### NUEVO ### Renombrado
-                "intensity_min_corr": round(float(np.min(self.intensity_corrected)), 2),# ### NUEVO ### Renombrado
-                "intensity_max_corr": round(float(np.max(self.intensity_corrected)), 2),# ### NUEVO ### Renombrado
-                "baseline_value": round(float(self.baseline_value), 2) if self.baseline_value is not None else None # ### NUEVO ###
+                "intensity_min_orig": round(float(np.min(self.intensity_data)), 2),
+                "intensity_max_orig": round(float(np.max(self.intensity_data)), 2),
+                "intensity_min_corr": round(float(np.min(self.intensity_corrected)), 2),
+                "intensity_max_corr": round(float(np.max(self.intensity_corrected)), 2),
+                "baseline_value": round(float(self.baseline_value), 2) if self.baseline_value is not None else None
             },
             "analysis": analysis_data,
             "peaks": peaks,
             "regions": region_data,
-            "quality_metrics": quality_metrics, # Métricas crudas
-            "detailed_analysis": detailed_stats # Estadísticas con evaluación
+            "quality_metrics": quality_metrics,
+            "detailed_analysis": detailed_stats,
+            
+            # ✅ AGREGAR ALIAS PARA COMPATIBILIDAD CON FRONTEND
+            "signal_to_noise": quality_metrics.get("snr", 0),  # Alias
+            "snr": quality_metrics.get("snr", 0)  # Alias adicional
+            
         }
-        
-        # Calcular quality score final y su desglose
-        # ### MODIFICADO ### Pasar métricas y picos
+
+        try:
+            
+            detector = PFASDetector()
+            pfas_detection = detector.detect_pfas(peaks, results)
+            results["pfas_detection"] = pfas_detection
+        except Exception as e:
+            print(f"⚠️ Error en detección de PFAS: {e}")
+            results["pfas_detection"] = {"detected": False, "error": str(e)}
+            
         quality_score, quality_breakdown = self._calculate_quality_score_v2(quality_metrics, peaks) 
         results["quality_score"] = quality_score
-        results["quality_breakdown"] = quality_breakdown # ### NUEVO ### Desglose
+        results["quality_breakdown"] = quality_breakdown
 
         self._print_summary(results)
-        
-        return results
-    
+            
+        return results    
+            
     def _read_spectrum(self, file_path: Path):
         """Lee archivo CSV y guarda como numpy arrays."""
         _ppm_data = []
@@ -213,25 +224,24 @@ class SpectrumAnalyzer:
         print(f"   ✅ Intensidad media corregida: {np.mean(self.intensity_corrected):.2f} a.u.")
     
     def _calculate_analysis(self, fluor_range: Dict, pifas_range: Dict, 
-                           concentration: float) -> Dict:
+                        concentration: float) -> Dict:
         """Calcula áreas y concentraciones."""
         
         print("\n   📈 Calculando composición química...")
         
-        # Usar datos ya convertidos a numpy
         ppm = self.ppm_data 
         intensity = self.intensity_corrected
         
-        # Asegurar que haya suficientes puntos para integrar
         if len(ppm) < 2:
-            return { # Devolver valores por defecto o NaN
+            return {
                 "fluor_percentage": 0.0, "pifas_percentage": 0.0,
                 "pifas_concentration": 0.0, "concentration": concentration,
-                "total_area": 0.0, "fluor_area": 0.0, "pifas_area": 0.0,
+                "total_area": 0.0, 
+                "total_integral": 0.0,  # ✅ ALIAS PARA FRONTEND
+                "fluor_area": 0.0, "pifas_area": 0.0,
                 "fluor_atoms_estimate": 0.0
             }
 
-        # Integración usando la regla trapezoidal (más precisa con ppm como x)
         total_area = np.trapz(intensity, ppm)
         
         fluor_mask = (ppm >= fluor_range["min"]) & (ppm <= fluor_range["max"])
@@ -240,14 +250,11 @@ class SpectrumAnalyzer:
         pifas_mask = (ppm >= pifas_range["min"]) & (ppm <= pifas_range["max"])
         pifas_area = np.trapz(intensity[pifas_mask], ppm[pifas_mask]) if np.sum(pifas_mask) > 1 else 0
         
-        # Cálculos (usar abs para áreas por si baseline sobrecorrige un poco)
-        # Añadir pequeña constante epsilon para evitar división por cero
         epsilon = 1e-12
         fluor_percentage = (abs(fluor_area) / (abs(total_area) + epsilon) * 100)
         pifas_percentage = (abs(pifas_area) / (abs(fluor_area) + epsilon) * 100)
         pifas_concentration = concentration * (pifas_percentage / 100)
         
-        # Estimación muy cruda de "átomos" relativa a la señal máxima
         fluor_atoms_estimate = abs(fluor_area) / (np.max(intensity) + epsilon) if np.max(intensity) > 0 else 0
         
         print(f"   ✅ Área total:           {total_area:,.2f}")
@@ -255,19 +262,20 @@ class SpectrumAnalyzer:
         print(f"   ✅ Área PFAS:            {pifas_area:,.2f} ({pifas_percentage:.1f}% del flúor)")
         print(f"   ✅ Concentración PFAS:   {pifas_concentration:.4f} mM")
         
-        # Devolver siempre floats, usar round()
         return {
             "fluor_percentage": round(float(fluor_percentage), 2),
             "pifas_percentage": round(float(pifas_percentage), 2),
             "pifas_concentration": round(float(pifas_concentration), 4),
             "concentration": float(concentration),
             "total_area": round(float(total_area), 2),
+            "total_integral": round(float(total_area), 2),  # ✅ ALIAS PARA FRONTEND
             "fluor_area": round(float(fluor_area), 2),
             "pifas_area": round(float(pifas_area), 2),
             "fluor_atoms_estimate": round(float(fluor_atoms_estimate), 1)
         }
-    
-    def _detect_peaks_advanced(self, prominence_factor=0.5, height_factor=0.3) -> List[Dict]: # ### UMBRALES MÁS BAJOS ###
+        
+    def _detect_peaks_advanced(self, prominence_factor=0.5, height_factor=0.3, 
+                            spectrometer_freq_mhz=470.0) -> List[Dict]:  # ✅ AÑADIR PARÁMETRO
         """Detecta picos usando scipy.signal.find_peaks, calcula anchos y áreas."""
         print("\n   🔍 Detectando picos significativos...")
         
@@ -278,20 +286,17 @@ class SpectrumAnalyzer:
             print("   ⚠️  Advertencia: No hay suficientes puntos para detectar picos.")
             return []
         
-        # --- Estimación de ruido y umbrales (MÁS PERMISIVOS) ---
-        # Usar percentil 5 para estimar ruido
-        noise_region = intensity[intensity < np.percentile(intensity, 15)] # Percentil más alto
+        # --- Estimación de ruido y umbrales ---
+        noise_region = intensity[intensity < np.percentile(intensity, 15)]
         noise_std = np.std(noise_region) if len(noise_region) > 1 else np.std(intensity) / 3
         noise_std = max(noise_std, 1e-9)
         
-        # Media de la señal para calcular umbral relativo
         signal_mean = np.mean(intensity)
         signal_max = np.max(intensity)
         
-        # Umbrales más permisivos
-        min_prominence = max(prominence_factor * noise_std, signal_max * 0.01) # Al menos 1% del máximo
-        min_height = max(height_factor * noise_std, signal_mean * 0.1) # Al menos 10% de la media
-        min_distance = max(len(intensity) // 500, 3) # Menos restrictivo
+        min_prominence = max(prominence_factor * noise_std, signal_max * 0.01)
+        min_height = max(height_factor * noise_std, signal_mean * 0.1)
+        min_distance = max(len(intensity) // 500, 3)
 
         print(f"   ℹ️  Señal: Max={signal_max:.2f}, Media={signal_mean:.2f}, Ruido Std={noise_std:.2f}")
         print(f"   ℹ️  Criterios picos: Prominencia > {min_prominence:.2f}, Altura > {min_height:.2f}, Distancia > {min_distance} pts")
@@ -312,12 +317,11 @@ class SpectrumAnalyzer:
 
         if len(peak_indices) == 0:
             print("   ⚠️  No se detectaron picos. Intentando con criterios más relajados...")
-            # Segundo intento con umbrales aún más bajos
             try:
                 peak_indices, properties = find_peaks(
                     intensity,
-                    height=signal_mean * 0.05, # 5% de la media
-                    prominence=signal_max * 0.005, # 0.5% del máximo
+                    height=signal_mean * 0.05,
+                    prominence=signal_max * 0.005,
                     distance=3
                 )
                 print(f"   ℹ️  Segundo intento: {len(peak_indices)} picos encontrados")
@@ -330,27 +334,24 @@ class SpectrumAnalyzer:
                 return []
 
         # --- Calcular Ancho de Picos ---
+        
         try:
             widths, width_heights, left_ips, right_ips = peak_widths(
                 intensity, peak_indices, rel_height=0.5
             )
             
-            # Convertir anchos a PPM
             indices = np.arange(len(ppm))
             widths_ppm = abs(np.interp(right_ips, indices, ppm) - np.interp(left_ips, indices, ppm))
             
-            # ### NUEVO ### Calcular límites del pico en índices
             left_indices = np.floor(left_ips).astype(int)
             right_indices = np.ceil(right_ips).astype(int)
             
-            # Asegurar que los índices están dentro de rango
             left_indices = np.clip(left_indices, 0, len(ppm) - 1)
             right_indices = np.clip(right_indices, 0, len(ppm) - 1)
             
         except Exception as e:
             print(f"   ⚠️  Error calculando anchos de pico: {e}. Usando valores por defecto.")
-            widths_ppm = np.ones(len(peak_indices)) * 0.1 # Ancho por defecto
-            # Límites por defecto (± 5 puntos alrededor del pico)
+            widths_ppm = np.ones(len(peak_indices)) * 0.1
             left_indices = np.maximum(peak_indices - 5, 0)
             right_indices = np.minimum(peak_indices + 5, len(ppm) - 1)
 
@@ -362,11 +363,10 @@ class SpectrumAnalyzer:
             peak_intensity = float(intensity[idx])
             region = self._classify_chemical_region(peak_ppm)
             
-            # ### NUEVO ### Calcular área del pico mediante integración trapezoidal
+            # Calcular área del pico
             left_idx = int(left_indices[i])
             right_idx = int(right_indices[i])
             
-            # Asegurar que hay al menos 2 puntos para integrar
             if right_idx > left_idx:
                 peak_ppm_range = ppm[left_idx:right_idx+1]
                 peak_intensity_range = intensity[left_idx:right_idx+1]
@@ -374,30 +374,45 @@ class SpectrumAnalyzer:
             else:
                 peak_area = 0.0
             
+            # ✅ CALCULAR ANCHO EN Hz
+            width_ppm_value = float(widths_ppm[i])
+            width_hz = abs(width_ppm_value * spectrometer_freq_mhz)  # Convertir ppm a Hz
+            
+            # ✅ CALCULAR SNR INDIVIDUAL DEL PICO
+            peak_snr = peak_intensity / noise_std if noise_std > 0 else 0.0
+            
             peaks.append({
                 "ppm": round(peak_ppm, 3),
                 "intensity": round(peak_intensity, 2),
                 "relative_intensity": round((peak_intensity / max_intensity_overall * 100), 1),
-                "width_ppm": round(float(widths_ppm[i]), 3),
-                "area": round(float(abs(peak_area)), 2),  # ### NUEVO ### Área del pico
+                "width_ppm": round(width_ppm_value, 3),
+                "width_hz": round(width_hz, 2),  # ✅ NUEVO
+                "area": round(float(abs(peak_area)), 2),
                 "region": region,
                 "prominence": round(float(properties["prominences"][i]), 2),
+                "snr": round(peak_snr, 2)  # ✅ NUEVO
             })
         
-        # Ordenar por intensidad (más intensos primero) y tomar los top 20
-        peaks.sort(key=lambda x: x["intensity"], reverse=True)
-        peaks = peaks[:20] # Limitar a 20 picos más relevantes
+        # Guardar total antes de limitar
+        total_peaks_detected = len(peaks)
         
-        # Re-ordenar por PPM para visualización
+        # Ordenar y limitar
+        peaks.sort(key=lambda x: x["intensity"], reverse=True)
+        peaks = peaks[:20]
         peaks.sort(key=lambda x: x["ppm"])
         
-        print(f"   ✅ Detectados {len(peaks)} picos significativos (top 20 por intensidad)")
+        # Mensaje corregido
+        if total_peaks_detected <= 20:
+            print(f"   ✅ Detectados {total_peaks_detected} picos significativos")
+        else:
+            print(f"   ✅ Detectados {total_peaks_detected} picos significativos (mostrando top 20 por intensidad)")
+        
         if len(peaks) > 0:
             main_peak = max(peaks, key=lambda p: p["intensity"])
-            print(f"   ✅ Pico principal: {main_peak['ppm']:.3f} ppm (Int: {main_peak['intensity']:.1f}, Área: {main_peak['area']:.2f}, Ancho: {main_peak['width_ppm']:.3f} ppm)")
+            print(f"   ✅ Pico principal: {main_peak['ppm']:.3f} ppm (Int: {main_peak['intensity']:.1f}, Área: {main_peak['area']:.2f}, SNR: {main_peak['snr']:.2f})")
         
         return peaks
-    
+        
     def _classify_chemical_region(self, ppm: float) -> str:
         """Clasifica la región química basada en rangos típicos de PFAS."""
         # Rangos ajustados según literatura de 19F-NMR para PFAS

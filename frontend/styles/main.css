@@ -39,6 +39,32 @@ body {
   border: 0;
 }
 
+.language-selector-custom {
+    display: flex;
+    gap: 6px;
+}
+
+.lang-option {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.lang-option:hover {
+    background: rgba(0,0,0,0.1);
+}
+
+.lang-option img {
+    width: 20px;
+    height: 14px;
+    object-fit: cover;
+}
+
+
 /* Loading Screen */
 .loading-screen {
     position: fixed;
@@ -80,6 +106,8 @@ body {
 .hidden {
     display: none !important;
 }
+
+
 
 /* App Layout */
 .app-container {
@@ -214,14 +242,21 @@ body {
     max-width: 100%;
 }
 
+/* ============================================= */
+/* == REGLA MAESTRA PARA CORREGIR PESTAÑAS == */
+/* ============================================= */
 .tab-content {
     display: none;
+    visibility: hidden;
     animation: fadeIn 0.3s ease;
 }
 
 .tab-content.active {
     display: block;
+    visibility: visible;
 }
+/* ============================================= */
+
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
@@ -233,7 +268,8 @@ body {
     display: grid;
     grid-template-columns: 350px 1fr;
     gap: 2rem;
-    height: calc(100vh - 140px);
+    /* Ajuste de altura para que sea flexible */
+    min-height: calc(100vh - 140px);
 }
 
 /* Control Panel */
@@ -243,6 +279,8 @@ body {
     padding: 1.5rem;
     box-shadow: var(--shadow);
     overflow-y: auto;
+    /* Damos una altura máxima para que no ocupe todo en pantallas pequeñas */
+    max-height: calc(100vh - 140px);
 }
 
 .panel-section {
@@ -503,6 +541,8 @@ body {
     padding: 1.5rem;
     box-shadow: var(--shadow);
     overflow-y: auto;
+    /* Damos una altura máxima para que no ocupe todo en pantallas pequeñas */
+    max-height: calc(100vh - 140px);
 }
 
 .results-header {
@@ -556,10 +596,10 @@ body {
     box-shadow: var(--shadow);
 }
 
-.result-card .fluor { border-left-color: #e74c3c; }
-.result-card .pifas { border-left-color: #3498db; }
-.result-card .concentration { border-left-color: #27ae60; }
-.result-card .quality { border-left-color: #f39c12; }
+.result-card.fluor { border-left-color: #e74c3c; }
+.result-card.pifas { border-left-color: #3498db; }
+.result-card.concentration { border-left-color: #27ae60; }
+.result-card.quality { border-left-color: #f39c12; }
 
 .result-icon {
     width: 60px;

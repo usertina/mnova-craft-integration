@@ -25,21 +25,33 @@ logging.getLogger().setLevel(logging.DEBUG)
 
 # Mini-base de datos de información de moléculas
 MOLECULE_DATA_DB = {
-    "PFOA": {
+    "335-67-1": {  # PFOA
         "name": "PFOA (Ácido perfluorooctanoico)",
         "file_3d": "pfoa.sdf",
-        "image_2d": "assets/molecules/pfoa_2d.png",
-        "formula": "C8HF15O2",
-        "mol_weight": "414.07 g/mol"
+        "image_2d": "assets/molecules/pfoa_2d.png"
     },
-    "PFOS": {
+    "375-95-1": {  # PFNA
+        "name": "PFNA (Ácido perfluorononanoico)",
+        "file_3d": "pfna.sdf",
+        "image_2d": "assets/molecules/pfna_2d.png"
+    },
+    "335-76-2": {  # PFDA
+        "name": "PFDA (Ácido perfluorodecanoico)",
+        "file_3d": "pfda.sdf",
+        "image_2d": "assets/molecules/pfda_2d.png"
+    },
+    "355-46-4": {  # PFHxS
+        "name": "PFHxS (Sulfonato de perfluorohexano)",
+        "file_3d": "pfhxs.sdf",
+        "image_2d": "assets/molecules/pfhxs_2d.png"
+    },
+    "1763-23-1": {  # PFOS
         "name": "PFOS (Sulfonato de perfluorooctano)",
         "file_3d": "pfos.sdf",
-        "image_2d": "assets/molecules/pfos_2d.png",
-        "formula": "C8HF17O3S",
-        "mol_weight": "500.13 g/mol"
+        "image_2d": "assets/molecules/pfos_2d.png"
     }
 }
+
 
 # Inicializar componentes
 db = get_db()
@@ -208,10 +220,6 @@ def analyze_spectrum():
         logging.debug(f"Received analysis request for company: {company_id}, file: {file.filename}")
 
         # Guardar archivo temporalmente
-        # Es mejor usar un nombre temporal único para evitar colisiones
-        # temp_filename = f"{uuid.uuid4()}_{file.filename}"
-        # file_path = OUTPUT_DIR / temp_filename
-        # Por simplicidad mantenemos el original, pero considera lo anterior
         file_path = OUTPUT_DIR / file.filename
         file.save(file_path)
         logging.debug(f"File saved temporarily to: {file_path}")
@@ -236,20 +244,43 @@ def analyze_spectrum():
             pifas_range=parameters.get("pifas_range", analysis_params.get('pifas_range')),
             concentration=parameters.get("concentration", analysis_params.get('default_concentration'))
         )
-        logging.debug("Analysis raw results:", results)
+        # Validar que results sea un dict
+        if not results or not isinstance(results, dict):
+            logging.error("❌ Analyzer returned no results or invalid format.")
+            return jsonify({"error": "Analyzer returned no results"}), 500
+        
+        # Corregido el error 'unhashable type: dict'
+        logging.debug(f"Analysis raw results: {results}")
 
         # GUARDAR EN JSON (Opcional, pero útil para debug)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # Incluir company_id en el nombre del archivo podría ser útil
         result_filename = f"{Path(file.filename).stem}_{company_id}_analysis_{timestamp}.json"
         result_path = ANALYSIS_DIR / result_filename
         try:
             with open(result_path, "w", encoding='utf-8') as f:
                 json.dump(results, f, indent=2, cls=NumpyJSONEncoder, ensure_ascii=False)
-            logging.info(f"  💾 Analysis JSON saved: {result_filename}")
+            logging.info(f"  💾 Analysis JSON saved: {result_filename}")
         except Exception as json_err:
             logging.error(f"Failed to save analysis JSON {result_filename}: {json_err}")
-            # Continuar igualmente, el guardado en BD es más importante
+
+        
+        # --- ¡¡¡INICIO DE LA CORRECCIÓN DE GUARDADO EN BD!!! ---
+        
+        # 1. Obtenemos el diccionario 'analysis' base
+        # (Usamos .copy() para no modificar el objeto 'results' original)
+        analysis_data_to_save = results.get('analysis', {}).copy()
+        
+        # 2. Le añadimos la lista de compuestos detectados
+        if 'pfas_detection' in results:
+            analysis_data_to_save['pfas_detection'] = results['pfas_detection']
+            
+        # 3. Le añadimos el S/N (que está en el nivel raíz de 'results')
+        if 'signal_to_noise' in results:
+            analysis_data_to_save['signal_to_noise'] = results['signal_to_noise']
+        
+        # 4. Le añadimos el desglose de calidad (si existe)
+        if 'quality_breakdown' in results:
+            analysis_data_to_save['quality_breakdown'] = results['quality_breakdown']
 
         # GUARDAR EN SQLITE
         measurement_data = {
@@ -257,13 +288,16 @@ def analyze_spectrum():
             'company_id': company_id,
             'filename': file.filename,
             'timestamp': datetime.now().isoformat(),
-            'analysis': results.get('analysis', {}), # Asegurar que sea un dict
+            'analysis': analysis_data_to_save, # <-- ¡USAMOS EL OBJETO CORREGIDO!
             'quality_score': results.get('quality_score'),
-            'spectrum': results.get('spectrum', {}), # Asegurar que sea un dict
-            'peaks': results.get('peaks', []) # Asegurar que sea una lista
+            'spectrum': results.get('spectrum', {}), 
+            'peaks': results.get('peaks', []),
         }
-        measurement_id = db.save_measurement(measurement_data) # save_measurement ahora recibe el dict
-        logging.info(f"  📊 Measurement saved to DB. ID: {measurement_id} for Company: {company_id}")
+        measurement_id = db.save_measurement(measurement_data)
+        logging.info(f"  📊 Measurement saved to DB. ID: {measurement_id} for Company: {company_id}")
+        
+        # --- ¡¡¡FIN DE LA CORRECCIÓN!!! ---
+
 
         GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynodLTTvLqqjCNhyN2y-O2U1sd7RrwaXaP-_yHGlyILXSwJoU1U6pbjlEf2DU433Js/exec"
 
@@ -271,81 +305,65 @@ def analyze_spectrum():
         measurement_data['measurement_id_local'] = measurement_id
 
         # Llamamos a nuestra nueva función en un hilo (segundo plano)
-        # Esto es clave para que la app no se congele
         try:
             sync_thread = threading.Thread(
                 target=push_to_google_cloud,
                 args=(GOOGLE_SCRIPT_URL, measurement_data, NumpyJSONEncoder)
             )
             sync_thread.start() # Inicia el envío
-            logging.debug("  🚀  Cloud sync thread started.")
+            logging.debug("  🚀  Cloud sync thread started.")
         except Exception as thread_err:
-            logging.error(f"  ❌  Failed to start cloud sync thread: {thread_err}")
+            logging.error(f"  ❌  Failed to start cloud sync thread: {thread_err}")
 
-        # --- INICIO DEL NUEVO BLOQUE 3D/2D (BASADO EN ANÁLISIS) ---
-
-        molecule_key = None # Esta vez guardamos la clave (PFOA o PFOS)
-        try:
-            # 1. Comprobar si hay picos detectados
-            if 'peaks' in results and results['peaks']:
-
-                # 2. Crear un solo texto con TODAS las regiones detectadas
-                all_regions_text = " ".join([
-                    peak.get('region', '').lower() for peak in results['peaks']
-                ])
-
-                # 3. Buscar las "huellas dactilares" químicas
-                has_pfoa_fingerprint = "-coo" in all_regions_text
-                has_pfos_fingerprint = "-so3" in all_regions_text or "sulfonato" in all_regions_text
-
-                # 4. Decidir qué molécula mostrar
-                if has_pfoa_fingerprint and not has_pfos_fingerprint:
-                    molecule_key = "PFOA"
-                    logging.info("  🧬 Huella de PFOA (-COO) detectada. Añadiendo datos de molécula.")
-
-                elif has_pfos_fingerprint and not has_pfoa_fingerprint:
-                    molecule_key = "PFOS"
-                    logging.info("  🧬 Huella de PFOS (-SO3) detectada. Añadiendo datos de molécula.")
-
-                elif has_pfoa_fingerprint and has_pfos_fingerprint:
-                    logging.info("  🧬 Huellas de PFOA y PFOS detectadas (mezcla). No se sugieren datos.")
+        # --- INICIO DEL NUEVO BLOQUE 3D/2D (Versión 4.0 - Dinámica) ---
+        
+        logging.info("  🧬  Enriqueciendo lista de compuestos con datos 2D/3D...")
+        
+        # Corregido: buscar 'compounds' en lugar de 'detected_compounds'
+        if 'pfas_detection' in results and 'compounds' in results['pfas_detection']:
+            
+            for compound in results['pfas_detection']['compounds']:
+                cas_number = compound.get('cas')
+                molecule_files = MOLECULE_DATA_DB.get(cas_number)
+                
+                if molecule_files:
+                    compound['file_3d'] = molecule_files.get('file_3d')
+                    compound['image_2d'] = molecule_files.get('image_2d')
+                    logging.debug(f"     -> Añadidos datos 2D/3D para {cas_number}")
                 else:
-                    logging.info("  🧬 No se encontraron huellas claras de PFOA/PFOS en los picos.")
+                    compound['file_3d'] = None
+                    compound['image_2d'] = None
+                    logging.warning(f"     -> No se encontraron datos 2D/3D para CAS: {cas_number}")
 
-        except Exception as e:
-            logging.error(f"  ❌ Error al determinar molécula: {e}")
+        results.pop('molecule_info', None) 
+        
+        # --- FIN DEL NUEVO BLOQUE ---
 
-        # 5. Añadir el objeto de información completo (o nada) a los resultados
-        if molecule_key and molecule_key in MOLECULE_DATA_DB:
-            results['molecule_info'] = MOLECULE_DATA_DB[molecule_key]
-        else:
-            results['molecule_info'] = None
-
-        # Devolver resultados al frontend
-        # Añadir ID de la medición y nombre del archivo JSON a la respuesta
         results['measurement_id'] = measurement_id
-        results['result_file'] = result_filename # Nombre del archivo JSON por si el frontend lo necesita
-        results['saved_company_id'] = company_id # Confirmar empresa guardada
+        results['result_file'] = result_filename
+        results['saved_company_id'] = company_id
+
+        if not isinstance(results, dict):
+            logging.error("❌ Final results object is not a dictionary.")
+            return jsonify({"error": "Invalid results format"}), 500
 
         return jsonify(results)
 
+
     except Exception as e:
-        logging.error(f"❌ Error during analysis: {str(e)}", exc_info=True) # Log completo del traceback
-        # Devolver un error JSON genérico pero informativo
+        logging.error(f"❌ Error during analysis: {str(e)}", exc_info=True)
         return jsonify({
             "error": f"Analysis failed: {str(e)}",
-            # "details": traceback.format_exc() # Evitar enviar traceback completo al cliente
         }), 500
     finally:
-        # Limpiar archivo temporal si existe (opcional)
         if 'file_path' in locals() and file_path.exists():
-             try:
-                 # os.remove(file_path)
-                 # logging.debug(f"Temporary file removed: {file_path}")
-                 pass # Decidir si borrar o no
-             except Exception as rm_err:
-                 logging.error(f"Failed to remove temporary file {file_path}: {rm_err}")
-
+            try:
+                # os.remove(file_path)
+                # logging.debug(f"Temporary file removed: {file_path}")
+                pass
+            except Exception as rm_err:
+                logging.error(f"Failed to remove temporary file {file_path}: {rm_err}")
+                                 
 # ============================================================================
 # API - Activación y Configuración del Dispositivo
 # ============================================================================

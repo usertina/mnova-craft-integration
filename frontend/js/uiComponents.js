@@ -99,6 +99,40 @@ class UIManager {
         this.showNotification(message, type);
     }
 
+    /**
+     * Actualiza el indicador de estado de conexión
+     */
+    
+    static setConnectionStatus(status) {
+        const statusEl = document.getElementById('connectionStatus');
+        if (!statusEl) return;
+
+        const dotEl = statusEl.querySelector('.connection-dot');
+        const textEl = statusEl.querySelector('span');
+        
+        // Asumimos que 'connection.connecting' es la clave por defecto
+        let textKey = 'connection.connecting'; 
+        
+        if (status === 'connected') {
+            textKey = 'connection.connected';
+            statusEl.classList.remove('disconnected');
+            statusEl.classList.add('connected');
+        } else if (status === 'disconnected') {
+            textKey = 'connection.disconnected';
+            statusEl.classList.remove('connected');
+            statusEl.classList.add('disconnected');
+        } else { // 'connecting'
+            statusEl.classList.remove('connected', 'disconnected');
+        }
+        
+        // Actualizar el texto usando el LanguageManager
+        if (textEl && window.LanguageManager) {
+            textEl.textContent = LanguageManager.t(textKey);
+            // También actualizamos el data-i18n por si acaso
+            textEl.dataset.i18n = textKey;
+        }
+    }
+
     // ============================================================
     // SISTEMA DE MODALES
     // ============================================================
@@ -314,13 +348,17 @@ class UIManager {
         const historyList = document.getElementById('historyList');
         
         if (!historyList) {
-            console.error('[UIManager] Elemento historyList no encontrado');
+            console.error('❌ [UIManager] Elemento historyList no encontrado');
             return;
         }
 
-        const measurements = historyData.measurements || [];
+        console.log('🎨 [displayHistory] Datos recibidos:', historyData);
+
+        const measurements = historyData?.measurements || historyData?.data || historyData || [];
         
-        if (measurements.length === 0) {
+        console.log('🎨 [displayHistory] Measurements:', measurements.length);
+        
+        if (!Array.isArray(measurements) || measurements.length === 0) {
             historyList.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-inbox fa-3x"></i>
@@ -331,49 +369,50 @@ class UIManager {
             return;
         }
 
-        // Construir HTML de los items
+        // Construir HTML
         const itemsHTML = measurements.map(item => {
             const filename = UIManager.escapeHtml(item.filename || item.sample_name || 'Sin nombre');
             const timestamp = new Date(item.timestamp || item.created_at).toLocaleString();
             const fluorPercentage = item.fluor_percentage?.toFixed(2) || 'N/A';
-            // ✅ CORREGIDO: Usar ambos nombres posibles
             const pfasPercentage = (item.pfas_percentage || item.pifas_percentage)?.toFixed(2) || 'N/A';
             const qualityScore = item.quality_score?.toFixed(1) || 'N/A';
             
             return `
                 <div class="history-item" data-id="${item.id}" data-filename="${filename}">
-                    <div class="history-item-header">
-                        <div class="history-item-title">
-                            <i class="fas fa-file-alt"></i>
-                            <span>${filename}</span>
+                    <div class="history-item-content">
+                        <div class="history-item-header">
+                            <div class="history-item-title">
+                                <i class="fas fa-file-alt"></i>
+                                <span>${filename}</span>
+                            </div>
+                            <div class="history-item-date">
+                                ${timestamp}
+                            </div>
                         </div>
-                        <div class="history-item-date">
-                            ${timestamp}
-                        </div>
-                    </div>
-                    <div class="history-item-details">
-                        <div class="detail-badge">
-                            <span class="detail-label">Flúor:</span>
-                            <span class="detail-value">${fluorPercentage}%</span>
-                        </div>
-                        <div class="detail-badge">
-                            <span class="detail-label">PFAS:</span>
-                            <span class="detail-value">${pfasPercentage}%</span>
-                        </div>
-                        <div class="detail-badge">
-                            <span class="detail-label">Calidad:</span>
-                            <span class="detail-value">${qualityScore}/10</span>
+                        <div class="history-item-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Flúor:</span>
+                                <span class="stat-value">${fluorPercentage}%</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">PFAS:</span>
+                                <span class="stat-value">${pfasPercentage}%</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Calidad:</span>
+                                <span class="stat-value">${qualityScore}/10</span>
+                            </div>
                         </div>
                     </div>
                     <div class="history-item-actions">
-                        <button class="btn btn-sm btn-icon" 
+                        <button class="btn btn-icon btn-view" 
                                 onclick="APP_HANDLERS.loadResult(${item.id}, '${filename}')"
-                                title="${LanguageManager.t('history.viewTooltip') || 'Ver'}">
+                                title="Ver análisis">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button class="btn btn-sm btn-icon btn-danger" 
+                        <button class="btn btn-icon btn-delete" 
                                 onclick="APP_HANDLERS.deleteHistoryItem(${item.id}, '${filename}')"
-                                title="${LanguageManager.t('history.deleteTooltip') || 'Eliminar'}">
+                                title="Eliminar">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -381,12 +420,21 @@ class UIManager {
             `;
         }).join('');
 
+        // ✅ CRÍTICO: Asegurar que el contenido se inserta
         historyList.innerHTML = itemsHTML;
+        
+        // ✅ AÑADIR: Forzar visibilidad
+        historyList.style.display = 'block';
+        historyList.style.opacity = '1';
+        historyList.style.visibility = 'visible';
+        
+        console.log('✅ [displayHistory] HTML insertado, verificando...');
+        console.log('✅ Elementos .history-item encontrados:', historyList.querySelectorAll('.history-item').length);
 
-        // Actualizar paginación si existe
+        // Actualizar paginación
         this.updatePagination(historyData.page, historyData.total_pages);
         
-        console.debug(`[UIManager] ${measurements.length} items mostrados en historial`);
+        console.log(`✅ [UIManager] ${measurements.length} items mostrados en historial`);
     }
 
     /**
@@ -513,6 +561,11 @@ class UIManager {
         if (sampleName) {
             sampleName.textContent = results.sample_name || results.filename || 'Muestra Analizada';
         }
+
+        // Mostrar detección de PFAS
+    if (results.pfas_detection) {
+        this.displayPFASDetection(results.pfas_detection);
+    }
         
         // Actualizar valores de flúor y PFAS
         const fluorResult = document.getElementById('fluorResult');
@@ -634,7 +687,7 @@ class UIManager {
         if (!peaks || peaks.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="empty-state">
+                    <td colspan="7" class="empty-state">
                         <i class="fas fa-chart-line"></i>
                         <p>No hay picos analizados aún</p>
                     </td>
@@ -648,12 +701,13 @@ class UIManager {
                 <td>${this.formatNumber(peak.position || peak.ppm, 3)}</td>
                 <td>${this.formatNumber(peak.height || peak.intensity, 2)}</td>
                 <td>${this.formatNumber(peak.area, 2)}</td>
-                <td>${this.formatNumber(peak.width, 2)}</td>
+                <td>${this.formatNumber(peak.width_ppm || peak.width, 3)}</td>
+                <td>${this.formatNumber(peak.width_hz, 1)}</td>
+                <td>${peak.snr ? this.formatNumber(peak.snr, 2) : '--'}</td>
                 <td>${this.escapeHtml(peak.region || peak.assignment || '-')}</td>
             </tr>
         `).join('');
     }
-
     // ============================================================
     // EXPORTACIÓN DE DATOS
     // ============================================================
@@ -721,6 +775,104 @@ class UIManager {
         }
     }
 
+    /**
+     * Muestra la lista de compuestos PFAS detectados, con botones 2D/3D.
+     * @param {object} pfas_detection_data - El objeto pfas_detection de los resultados.
+     */
+    static displayPFASDetection(pfas_detection_data) {
+    
+    // Asignamos el ID del contenedor donde se debe dibujar la lista.
+    const container = document.getElementById('pfasDetectionContainer'); // <--- ¡ESTA ES LA LÍNEA CORRECTA!
+    if (!container) {
+        // Actualizamos el mensaje de error por si acaso
+        console.error("No se encontró el contenedor '#pfasDetectionContainer'");
+        return;
+    }
+
+        container.innerHTML = ''; // Limpiar resultados anteriores
+
+        const compounds = pfas_detection_data?.compounds;
+
+        if (compounds && compounds.length > 0) {
+
+            // Recorremos cada compuesto que el backend nos envió
+            compounds.forEach(compound => {
+                const compoundElement = document.createElement('div');
+                compoundElement.className = 'compound-result-item'; // Clase para CSS
+                
+                let buttonsHTML = '';
+                
+                // --- ¡AQUÍ ESTÁ LA LÓGICA! ---
+                // El backend (app.py) ya ha añadido 'image_2d' y 'file_3d' 
+                // a cada objeto 'compound' si los encontró en su base de datos.
+
+                // Botón 2D: Solo se añade si el backend nos dio un 'image_2d'
+                if (compound.image_2d) {
+                    // Usamos 'data-name' y 'data-file' para pasar la info
+                    buttonsHTML += `
+                        <button class="btn btn-secondary btn-sm btn-ficha-2d" 
+                                data-name="${compound.name}" 
+                                data-file="${compound.image_2d}"
+                                data-formula="${compound.formula}"
+                                data-cas="${compound.cas}">
+                            Ficha 2D
+                        </button>`;
+                }
+
+                // Botón 3D: Solo se añade si el backend nos dio un 'file_3d'
+                if (compound.file_3d) {
+                    buttonsHTML += `
+                        <button class="btn btn-primary btn-sm btn-view-3d" 
+                                data-name="${compound.name}" 
+                                data-file="${compound.file_3d}">
+                            Ver 3D
+                        </button>`;
+                }
+
+                // Construimos el HTML para este compuesto
+                compoundElement.innerHTML = `
+                    <div class="compound-info">
+                        <h5 class="compound-name">${compound.name}</h5>
+                        <div class="compound-confidence">
+                            ${this.formatNumber(compound.confidence, 1)}% confianza
+                        </div>
+                        <div class="compound-details">
+                            <span>Fórmula: ${compound.formula || 'N/A'}</span> | 
+                            <span>CAS: ${compound.cas || 'N/A'}</span>
+                        </div>
+                    </div>
+                    <div class="compound-actions">
+                        ${buttonsHTML || '<span>(Sin vista previa)</span>'}
+                    </div>
+                `;
+                
+                container.appendChild(compoundElement);
+            });
+
+            // --- IMPORTANTE: ASIGNAR EVENTOS ---
+            // Asignamos los 'clicks' a los botones que acabamos de crear.
+            
+            container.querySelectorAll('.btn-ficha-2d').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const data = e.currentTarget.dataset;
+                    // Llamamos a una nueva función para mostrar el 2D
+                    this.showMolecule2D(data.name, data.file, data.formula, data.cas);
+                });
+            });
+
+            container.querySelectorAll('.btn-view-3d').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const data = e.currentTarget.dataset;
+                    // Llamamos a una nueva función para mostrar el 3D
+                    this.showMolecule3D(data.name, data.file);
+                });
+            });
+
+        } else {
+            container.innerHTML = '<p class="text-muted">No se detectaron compuestos PFAS específicos.</p>';
+        }
+    }
+
     // ============================================================
     // UTILIDADES DE FORMATO
     // ============================================================
@@ -733,17 +885,6 @@ class UIManager {
     static formatPercentage(value, decimals = 2) {
         if (value === null || value === undefined) return '--';
         return `${parseFloat(value).toFixed(decimals)}%`;
-    }
-
-    static escapeHtml(unsafe) {
-        if (!unsafe) return '';
-        return unsafe
-            .toString()
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
     }
 
     // ============================================================
@@ -998,36 +1139,176 @@ class UIManager {
         console.debug("[UIManager] Event listeners configurados correctamente");
     }
 
+    /**
+     * Muestra un pop-up (modal) genérico con un título y contenido.
+     * @param {string} title - Título del modal.
+     * @param {string} contentHTML - El HTML que irá dentro del modal.
+     */
+    static showModal(title, contentHTML) {
+        // 1. Crear el elemento del modal
+        const modal = document.createElement('div');
+        modal.className = 'molecule-modal'; // Clase para CSS
+        modal.innerHTML = `
+            <div class="molecule-modal-overlay"></div>
+            <div class="molecule-modal-content">
+                <div class="molecule-modal-header">
+                    <h4 class="molecule-modal-title">${title}</h4>
+                    <button class="molecule-modal-close">&times;</button>
+                </div>
+                <div class="molecule-modal-body">
+                    ${contentHTML}
+                </div>
+            </div>
+        `;
+
+        // 2. Añadirlo al body
+        document.body.appendChild(modal);
+
+        // 3. Añadir eventos de cierre
+        const closeModal = () => document.body.removeChild(modal);
+        modal.querySelector('.molecule-modal-overlay').addEventListener('click', closeModal);
+        modal.querySelector('.molecule-modal-close').addEventListener('click', closeModal);
+
+        // Devolver una referencia al cuerpo del modal, por si NGL lo necesita
+        return modal.querySelector('.molecule-modal-body');
+    }
+
+    /**
+     * Muestra la ficha 2D de una molécula en un modal.
+     * @param {string} name - Nombre de la molécula (ej. "PFOA")
+     * @param {string} imageFile - Ruta a la imagen (ej. "assets/molecules/pfoa_2d.png")
+     * @param {string} formula - Fórmula (ej. "C8HF15O2")
+     * @param {string} cas - Número CAS (ej. "335-67-1")
+     */
+    static showMolecule2D(name, imageFile, formula, cas) {
+        const content = `
+            <div class="molecule-2d-info">
+                <img src="${imageFile}" alt="${name}" style="width:100%; max-width:400px; border: 1px solid #ddd; border-radius: 8px;"/>
+                <ul style="list-style: none; padding-left: 0; margin-top: 15px;">
+                    <li><strong>Fórmula:</strong> ${formula}</li>
+                    <li><strong>CAS:</strong> ${cas}</li>
+                </ul>
+            </div>
+        `;
+        this.showModal(`Ficha 2D - ${name}`, content);
+    }
+
+    /**
+     * Muestra el visor 3D de una molécula en un modal.
+     * @param {string} name - Nombre de la molécula (ej. "PFOA")
+     * @param {string} sdfFile - Ruta al archivo .sdf (ej. "assets/molecules/pfoa.sdf")
+     */
+    static showMolecule3D(name, sdfFile) {
+        // 1. Crear el HTML del contenedor 3D
+        const containerId = 'ngl-viewer-container';
+        const content = `
+            <div id="${containerId}" style="width:100%; height:400px; min-width: 500px; background: #333; border-radius: 8px;">
+                <p style="color:white; padding:10px;">Cargando visor 3D...</p>
+            </div>
+        `;
+
+        // 2. Mostrar el modal
+        const modalBody = this.showModal(`Visor 3D - ${name}`, content);
+
+        // 3. Cargar NGL (DESPUÉS de que el modal sea visible)
+        // Usamos un pequeño 'timeout' para asegurar que el 'div' existe en el DOM
+        setTimeout(() => {
+            try {
+                // Limpiar el texto "Cargando..."
+                modalBody.querySelector(`#${containerId}`).innerHTML = '';
+                
+                // Cargar NGL (asumiendo que NGL está cargado globalmente)
+                const stage = new NGL.Stage(containerId);
+                stage.setParameters({ backgroundColor: "#333" });
+                
+                const filePath = `assets/molecules/${sdfFile}`; // Asume que están en esta carpeta
+                
+                stage.loadFile(filePath).then(component => {
+                    component.addRepresentation("ball+stick", {
+                        multipleBond: "symmetric"
+                    });
+                    component.autoView();
+                }).catch(error => {
+                    console.error("Error al cargar archivo NGL:", error);
+                    modalBody.querySelector(`#${containerId}`).innerHTML = 
+                        `<p style="color:red; padding:10px;">Error al cargar el archivo 3D: ${sdfFile}</p>`;
+                });
+
+            } catch (e) {
+                console.error("Error al inicializar NGL Viewer:", e);
+                modalBody.querySelector(`#${containerId}`).innerHTML = 
+                    `<p style="color:red; padding:10px;">Error al iniciar el visor 3D. (¿Está ngl.js cargado?)</p>`;
+            }
+        }, 10); // 10ms es suficiente para que el DOM se actualice
+    }
+
     // Método auxiliar para cambiar de pestaña
     static switchTab(tabName) {
-        // Ocultar todas las pestañas
+        console.log(`[UIManager] 🔄 Cambiando a pestaña: ${tabName}`);
+        
+        // 1. Ocultar TODAS las pestañas
         document.querySelectorAll('.tab-content').forEach(tab => {
             tab.classList.remove('active');
+            // ✅ CRÍTICO: Establecer estilos inline para asegurar que se ocultan
+            tab.style.display = 'none';
+            tab.style.visibility = 'hidden';
         });
 
-        // Desactivar todos los botones de navegación
+        // 2. Desactivar TODOS los botones de navegación
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.classList.remove('active');
         });
 
-        // Mostrar la pestaña seleccionada
+        // 3. Mostrar la pestaña seleccionada
         const targetTab = document.getElementById(`${tabName}-tab`);
         if (targetTab) {
+            // ✅ CRÍTICO: Establecer estilos inline para forzar visualización
             targetTab.classList.add('active');
+            targetTab.style.display = 'block';
+            targetTab.style.visibility = 'visible';
+            targetTab.style.opacity = '1';
+            
+            // ✅ NUEVO: También asegurar que el contenedor padre esté visible
+            const parent = targetTab.parentElement;
+            if (parent) {
+                parent.classList.remove('hidden');
+                parent.style.display = 'block';
+                parent.style.visibility = 'visible';
+            }
+            
+            console.log(`[UIManager] ✅ Pestaña ${tabName} activada y visible`);
+        } else {
+            console.error(`[UIManager] ❌ No se encontró elemento #${tabName}-tab`);
         }
 
-        // Activar el botón correspondiente
+        // 4. Activar el botón correspondiente
         const targetBtn = document.querySelector(`[data-tab="${tabName}"]`);
         if (targetBtn) {
             targetBtn.classList.add('active');
         }
 
-        // Cargar datos específicos de la pestaña
+        // 5. Cargar datos específicos de la pestaña
         if (tabName === 'history' && window.APP_HANDLERS) {
+            console.log('[UIManager] 📜 Cargando historial...');
             window.APP_HANDLERS.loadHistory(1);
         } else if (tabName === 'dashboard' && window.DashboardManager) {
-            window.DashboardManager.loadData();
+            console.log('[UIManager] 📊 Cargando dashboard...');
+            // Pequeño delay para asegurar que el DOM está listo
+            setTimeout(() => {
+                window.DashboardManager.init();
+            }, 100);
+        } else if (tabName === 'comparison' && window.ComparisonManager) {
+            console.log('[UIManager] ⚖️ Cargando comparación...');
+            // Pequeño delay para asegurar que el DOM está listo
+            setTimeout(() => {
+                window.ComparisonManager.init();
+            }, 100);
         }
+        
+        // 6. Disparar evento personalizado para otros módulos
+        window.dispatchEvent(new CustomEvent('tabChanged', { 
+            detail: { tab: tabName }
+        }));
     }
 
     // Método auxiliar para toggle de secciones
@@ -1038,6 +1319,14 @@ class UIManager {
         const isHidden = container.style.display === 'none' || container.style.display === '';
         container.style.display = isHidden ? 'block' : 'none';
 
+        // ✅ AGREGAR/REMOVER CLASE ACTIVE
+        if (isHidden) {
+            buttonElement.classList.add('active');
+        } else {
+            buttonElement.classList.remove('active');
+        }
+
+        // Actualizar icono y texto
         const icon = buttonElement.querySelector('i');
         const text = buttonElement.querySelector('span');
         
@@ -1046,29 +1335,27 @@ class UIManager {
         }
         
         if (text && text.dataset.i18n) {
-            const currentKey = text.dataset.i18n;
-            let newKey = currentKey;
+            const currentKey = text.dataset.i18n;
+            let newKey = currentKey;
 
-            if (isHidden) {
-                // El contenido ahora es visible, el botón debe decir "Ocultar"
-                newKey = currentKey.replace('.show', '.hide');
-            } else {
-                // El contenido ahora está oculto, el botón debe decir "Mostrar"
-                newKey = currentKey.replace('.hide', '.show');
-            }
-            
-            text.dataset.i18n = newKey; // Ej: "analyzer.hideSpectrum"
+            if (isHidden) {
+                newKey = currentKey.replace('.show', '.hide');
+            } else {
+                newKey = currentKey.replace('.hide', '.show');
+            }
+            
+            text.dataset.i18n = newKey;
 
-            // Re-traducir
-            if (window.LanguageManager) {
-                text.textContent = window.LanguageManager.t(newKey);
-            }
-        }
+            if (window.LanguageManager) {
+                text.textContent = window.LanguageManager.t(newKey);
+            }
+        }
     }
-}
+
+} // ✅ CIERRE DE LA CLASE UIManager
 
 // ============================================================
-// ESTILOS CSS ADICIONALES
+// ESTILOS CSS ADICIONALES (FUERA DE LA CLASE)
 // ============================================================
 
 const additionalStyles = `

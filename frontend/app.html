@@ -31,9 +31,8 @@
     <link rel="stylesheet" href="styles/responsive.css">
     <link rel="stylesheet" href="styles/dashboard.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
-    <!-- Estilos adicionales para el logo de la empresa -->
+    
     <style>
         /* Estilos para el logo de la empresa seleccionada */
         .company-branding {
@@ -92,7 +91,6 @@
     </style>
 </head>
 <body>
-    <!-- Loading Screen -->
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-content">
             <div class="loading-spinner"></div>
@@ -100,16 +98,13 @@
         </div>
     </div>
 
-    <!-- Main Container -->
     <div id="app" class="app-container hidden">
-        <!-- Header -->
         <header class="app-header">
             <div class="header-left">
                 <div class="logo">
                     <img src="assets/images/logo_qubiz.png" alt="Logo Qubiz team" class="logo-img">
                 </div>
                 
-                <!-- 🆕 Branding de la Empresa Seleccionada -->
                 <div class="company-branding" id="companyBranding" style="display: none;">
                     <img id="companyBrandingLogo" 
                          src="" 
@@ -130,15 +125,10 @@
                 </nav>
             </div>
             <div class="header-right">
-                <!-- Language Selector -->
-                <div class="language-selector">
-                    <label for="languageSelector" class="visually-hidden">Selector de Idioma</label>
-                    <select id="languageSelector" class="language-dropdown">
-                        <!-- Opciones se llenan dinámicamente -->
-                    </select>
+                <div class="language-selector">                    
+                    <div id="languageSelectorCustom" class="language-selector-custom"></div>
                 </div>
                 
-                <!-- 🆕 Botón de Cerrar Sesión -->
                 <button class="logout-btn" id="logoutBtn" onclick="logoutToPortal()">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Salir</span>
@@ -146,12 +136,9 @@
             </div>
         </header>
 
-        <!-- Main Content -->
         <main class="main-content">
-            <!-- Analyzer Tab -->
             <div id="analyzer-tab" class="tab-content active">
                 <div class="workspace">
-                    <!-- Left Panel - Controls -->
                     <div class="control-panel">
                         <div class="panel-section">
                             <h3><i class="fas fa-upload"></i> <span data-i18n="analyzer.loadSpectrum">Cargar Espectro</span></h3>
@@ -184,8 +171,8 @@
                         </div>
                     </div>
 
-                    <!-- Right Panel - Results -->
                     <div class="results-panel">
+                        
                         <div class="results-header">
                             <h2 id="sampleName" data-i18n="analyzer.waitingData">Esperando datos...</h2>
                             <div class="result-actions">
@@ -195,8 +182,6 @@
                             </div>
                         </div>
 
-                        <!-- Spectrum Chart with Toggle -->
-                        
                         <div class="chart-section">
                             <div class="chart-header">
                                 <h3><i class="fas fa-chart-area"></i> <span data-i18n="charts.spectrumTitle">Espectro RMN</span></h3>
@@ -204,39 +189,12 @@
                                     <i class="fas fa-eye"></i>
                                     <span data-i18n="analyzer.showSpectrum">Mostrar Espectro RMN</span>
                                 </button>
-
-                                <button class="btn btn-outline btn-toggle-3d" id="toggle3DModelBtn" style="display: none;">
-                                    <i class="fas fa-cube"></i>
-                                    <span>Ver Molécula 3D</span>
-                                </button>
-                                
-                                <button class="btn btn-outline btn-toggle-2d" id="toggle2DInfoBtn" style="display: none;">
-                                    <i class="fas fa-atom"></i>
-                                    <span>Ver Ficha 2D</span>
-                                </button>
-                                                                  
                             </div>
-
                             <div class="chart-container" id="spectrumChartContainer" style="display: none;">
                                 <div id="spectrumChart" class="spectrum-chart"></div>
                             </div>
-                        </div> <div class="chart-container" id="molecule3DContainer" style="display: none; height: 400px; background-color: #000;">
-                        </div>
-                        <div class="chart-container" id="molecule2DContainer" style="display: none; padding: 1.5rem; background-color: #374151; border-radius: 8px;">
-                            <h4 id="moleculeName" style="color: white; font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;"></h4>
-                            <div style="display: flex; flex-wrap: wrap; gap: 1.5rem;">
-                                <div style="flex-shrink: 0;">
-                                    <img id="molecule2DImage" src="" alt="Molécula 2D" style="width: 250px; height: auto; background-color: white; border-radius: 8px; min-height: 150px;">
-                                </div>
-                                <div style="color: #e5e7eb; min-width: 200px;">
-                                    <h5 style="font-size: 1rem; font-weight: 600; border-bottom: 1px solid #4b5563; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">Composición</h5>
-                                    <p style="margin-bottom: 0.5rem; font-size: 0.9rem;"><strong>Fórmula:</strong> <span id="moleculeFormula"></span></p>
-                                    <p style="font-size: 0.9rem;"><strong>Peso Molecular:</strong> <span id="moleculeWeight"></span></p>
-                                </div>
-                            </div>
                         </div>
 
-                        <!-- Analysis Results Cards -->
                         <div class="results-grid">
                             <div class="result-card">
                                 <div class="result-icon fluor">
@@ -273,10 +231,8 @@
                                     </div>
                                 </div>
                             </div>
-
                         </div>
 
-                        <!-- Quick Stats -->
                         <div class="detailed-results">
                             <h3 data-i18n="results.quickStats">Estadísticas Rápidas</h3>
                             <div class="result-row">
@@ -293,7 +249,6 @@
                             </div>
                         </div>
 
-                        <!-- Detailed Statistics Table with Toggle -->
                         <div class="collapsible-section">
                             <div class="section-header">
                                 <h3><i class="fas fa-table"></i> <span data-i18n="results.detailedResults">Resultados Detallados</span></h3>
@@ -326,7 +281,6 @@
                             </div>
                         </div>
 
-                        <!-- Peak Details Table with Toggle -->
                         <div class="collapsible-section">
                             <div class="section-header">
                                 <h3><i class="fas fa-mountain"></i> <span data-i18n="results.peakDetails">Detalles de Picos</span></h3>
@@ -343,15 +297,16 @@
                                                 <th data-i18n="results.position">Posición (ppm)</th>
                                                 <th data-i18n="results.height">Altura</th>
                                                 <th data-i18n="results.area">Área</th>
+                                                <th data-i18n="peaks.width_ppm">Ancho (ppm)</th>
                                                 <th data-i18n="results.width">Ancho (Hz)</th>
+                                                <th>SNR</th>
                                                 <th data-i18n="peaks.region">Región</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr>
-                                                <td colspan="5" class="empty-state">
-                                                    <i class="fas fa-chart-line"></i>
-                                                    <p data-i18n="results.noPeaksYet">No hay picos analizados aún</p>
+                                                <td colspan="7" class="empty-state"> <i class="fas fa-chart-line"></i>
+                                                    <p data-i1acronym="results.noPeaksYet">No hay picos analizados aún</p>
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -359,11 +314,23 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>
+                                    <i class="fas fa-flask"></i>
+                                    <span data-i18n="pfas.detected_compounds">Compuestos Detectados</span>
+                                </h3>
+                            </div>
+                            <div id="pfasDetectionContainer" class="card-body">
+                                <p class="empty-state">No hay análisis aún</p>
+                            </div>
+                        </div>
+                                
+                    </div> 
                 </div>
             </div>
 
-            <!-- History Tab -->
             <div id="history-tab" class="tab-content">
                 <div class="history-container">
                     <div class="history-header">
@@ -387,10 +354,10 @@
                             <p data-i18n="history.empty">No hay análisis guardados</p>
                         </div>
                     </div>
+                    <div id="historyPagination" class="history-pagination"></div>
                 </div>
             </div>
 
-            <!-- Dashboard Tab -->
             <div id="dashboard-tab" class="tab-content">
                 <div class="dashboard-container">
                     <div class="dashboard-header">
@@ -529,7 +496,6 @@
                 </div>
             </div>
             
-            <!-- Comparison Tab -->
             <div id="comparison-tab" class="tab-content">
                 <div class="comparison-container">
                     <div class="comparison-header">
@@ -595,12 +561,11 @@
 
         </main>
 
-        <!-- Notifications System -->
         <div id="notifications" class="notifications-container"></div>
     </div>
 
-    <!-- Scripts -->
     <script src="js/ngl.js"></script>
+    
     <script src="js/config.js"></script>
     <script src="js/i18n/LanguageManager.js"></script>
     <script src="js/apiClient.js"></script>

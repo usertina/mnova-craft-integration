@@ -1,8 +1,6 @@
 // ============================================================================
 // CHART MANAGER - CraftRMN Pro - VERSIÓN CORREGIDA
 // Gestión de gráficos con Plotly + Traducciones dinámicas
-// ✅ ¡CORREGIDO! Usa LanguageManager para los títulos y ejes.
-// ✅ ¡CORREGIDO! Usa los nombres de datos correctos (.ppm e .intensity)
 // ============================================================================
 
 class ChartManager {
@@ -10,65 +8,68 @@ class ChartManager {
     static layout = null;
     static config = null;
     static currentPeaks = []; 
+    static initialized = false; // Añadido para seguridad
 
     /**
-     * FUNCIÓN MODIFICADA: Ahora es 'async' y usa LanguageManager
+     * FUNCIÓN CORREGIDA: Define el layout y config INCLUSO SI EL GRÁFICO ESTÁ OCULTO
      */
     static async init() {
-        // Usamos LanguageManager.t() para obtener el texto traducido
-        this.layout = {
-            title: { text: LanguageManager.t('charts.spectrumTitle'), font: { size: 16, color: '#2c3e50' } },
-            xaxis: {
-                title: { text: LanguageManager.t('charts.ppmAxis'), font: { size: 14, color: '#2c3e50' } },
-                autorange: 'reversed', 
-                gridcolor: '#f0f0f0', 
-                zerolinecolor: '#f0f0f0', 
-                showline: true, 
-                linecolor: '#bdc3c7', 
-                mirror: true
-            },
-            yaxis: {
-                title: { text: LanguageManager.t('charts.intensityAxis'), font: { size: 14, color: '#2c3e50' } },
-                gridcolor: '#f0f0f0', 
-                zerolinecolor: '#f0f0f0', 
-                showline: true, 
-                linecolor: '#bdc3c7', 
-                mirror: true
-            },
-            plot_bgcolor: 'white', 
-            paper_bgcolor: 'white',
-            font: { family: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif', color: '#2c3e50' },
-            margin: { t: 60, r: 40, b: 60, l: 60 },
-            showlegend: true, 
-            legend: { x: 1, y: 1, xanchor: 'right', yanchor: 'top' },
-            hovermode: 'x unified',
-            dragmode: 'zoom'
-        };
+        console.log('[ChartManager] Inicializando...');
         
-        this.config = {
-            responsive: true, 
-            displayModeBar: true, 
-            displaylogo: false,
-            locale: LanguageManager.currentLang || 'es', 
-            modeBarButtonsToRemove: ['lasso2d', 'select2d'], 
-            toImageButtonOptions: { 
-                format: 'png', 
-                filename: 'rmn_spectrum', 
-                height: 500, 
-                width: 800, 
-                scale: 2 
-            },
-            scrollZoom: true
-        };
-        
-        // ✅ ASEGURAR que createEmptyChart se completa antes de continuar
-        await this.createEmptyChart();
-        
-        window.APP_LOGGER.info('Chart manager initialized');
+        try {
+            // 1. Definir el layout y config por defecto PRIMERO
+            this.layout = {
+                title: { 
+                    text: LanguageManager.t('charts.spectrumTitle'),
+                    font: { color: '#e5e7eb' }
+                },
+                xaxis: { 
+                    title: { text: LanguageManager.t('charts.ppmAxis'), font: { color: '#9ca3af' } },
+                    autorange: 'reversed', 
+                    gridcolor: '#4b5563', 
+                    zerolinecolor: '#4b5563',
+                    tickfont: { color: '#9ca3af' }
+                },
+                yaxis: { 
+                    title: { text: LanguageManager.t('charts.intensityAxis'), font: { color: '#9ca3af' } },
+                    gridcolor: '#4b5563', 
+                    zerolinecolor: '#4b5563',
+                    tickfont: { color: '#9ca3af' }
+                },
+                plot_bgcolor: '#1f2937',
+                paper_bgcolor: '#1f2937',
+                showlegend: true,
+                legend: { font: { color: '#e5e7eb' } }
+            };
+
+            this.config = {
+                responsive: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: ['toImage', 'sendDataToCloud', 'select2d', 'lasso2d'],
+                locale: LanguageManager.currentLang || 'es'
+            };
+
+            // 2. Comprobar si el elemento del gráfico existe Y es visible
+            const spectrumElement = document.getElementById('spectrumChart');
+            
+            if (!spectrumElement || spectrumElement.offsetParent === null) {
+                console.warn('[ChartManager] Elemento spectrumChart no encontrado o no visible, se creará cuando sea necesario');
+            } else {
+                 // 3. Si es visible, crear el gráfico vacío
+                await this.createEmptyChart();
+            }
+
+            this.initialized = true;
+            console.log('[ChartManager] Inicializado correctamente');
+            
+        } catch (error) {
+            console.error('[ChartManager] Error en init():', error);
+            this.initialized = false;
+        }
     }
         
     /**
-     * FUNCIÓN MODIFICADA: Ahora es 'async' y usa LanguageManager
+     * Crea el gráfico vacío
      */
     static async createEmptyChart() {
         const trace = {
@@ -81,9 +82,9 @@ class ChartManager {
         this.chart = await Plotly.newPlot('spectrumChart', [trace], this.layout, this.config);
     }
     
-    // ========================================================================
-    // --- ¡FUNCIÓN CORREGIDA! ---
-    // ========================================================================
+    /**
+     * Función principal que actualiza el gráfico con nuevos datos
+     */
     static updateSpectrumChart(spectrumData, peaksData = null) {
     
         if (!spectrumData || !spectrumData.ppm || !spectrumData.intensity) {
@@ -91,10 +92,15 @@ class ChartManager {
             return;
         }
 
-        // ✅ AÑADIR: Verificar que layout existe
+        // --- ¡¡¡ESTA ES LA CORRECCIÓN IMPORTANTE!!! ---
+        // Si 'init()' no definió el layout (porque la pestaña estaba oculta),
+        // el log mostrará un error. Esto es solo informativo.
         if (!this.layout) {
             window.APP_LOGGER.error('Chart layout not initialized. Call init() first.');
-            return;
+            // En este punto, 'init()' ya debería haber sido llamado,
+            // pero si falló, los títulos de los ejes no se cargarán.
+            // Es mejor fallar aquí que continuar.
+            return; 
         }
 
         const spectrumTrace = {
@@ -127,9 +133,9 @@ class ChartManager {
                 },
                 name: LanguageManager.t('charts.peaksTrace'), 
                 hovertemplate: '<b>Pico</b><br>' +
-                            'ppm: %{x:.3f}<br>' +
-                            'Intensidad: %{y:.1f}<br>' +
-                            'Region: %{customdata}<extra></extra>',
+                               'ppm: %{x:.3f}<br>' +
+                               'Intensidad: %{y:.1f}<br>' +
+                               'Region: %{customdata}<extra></extra>',
                 customdata: peaksData.map(p => p.region || 'N/A'), 
                 showlegend: true
             };
@@ -159,24 +165,16 @@ class ChartManager {
                 font: { size: 11, color: '#2c3e50' }
             }));
 
-            // ✅ CORREGIDO: Verificar antes de asignar
-            if (this.layout) {
-                this.layout.annotations = annotations;
-            }
+            this.layout.annotations = annotations;
         } else {
             this.currentPeaks = [];
-            // ✅ CORREGIDO: Verificar antes de asignar
-            if (this.layout) {
-                this.layout.annotations = [];
-            }
+            this.layout.annotations = [];
         }
         
         // Asegurarnos de que los títulos están actualizados
-        if (this.layout) {
-            this.layout.title.text = LanguageManager.t('charts.spectrumTitle');
-            this.layout.xaxis.title.text = LanguageManager.t('charts.ppmAxis');
-            this.layout.yaxis.title.text = LanguageManager.t('charts.intensityAxis');
-        }
+        this.layout.title.text = LanguageManager.t('charts.spectrumTitle');
+        this.layout.xaxis.title.text = LanguageManager.t('charts.ppmAxis');
+        this.layout.yaxis.title.text = LanguageManager.t('charts.intensityAxis');
 
         Plotly.react('spectrumChart', traces, this.layout, this.config)
             .then(() => {
@@ -187,13 +185,13 @@ class ChartManager {
             });
     }
 
-    // (Tu función getCurrentPeaks está bien)
     static getCurrentPeaks() {
         return this.currentPeaks;
     }
 
-    // (Tu función clearPeaks está bien, pero la simplifico)
     static clearPeaks() {
+        if (!this.layout) return; // No hacer nada si no hay layout
+        
         this.currentPeaks = [];
         this.layout.annotations = [];
         
@@ -206,7 +204,6 @@ class ChartManager {
 
     /**
      * Actualiza el texto del gráfico cuando el idioma cambia.
-     * @param {string} lang - El nuevo código de idioma (ej. 'en', 'es', 'eu')
      */
     static refreshTranslations(lang, log = true) {
         const chartDiv = document.getElementById('spectrumChart'); 
@@ -216,14 +213,12 @@ class ChartManager {
         }
 
         try {
-            // 1. Preparamos las actualizaciones del Layout (Títulos, Ejes)
             const updateLayout = {
                 'title.text': LanguageManager.t('charts.spectrumTitle'),
                 'xaxis.title.text': LanguageManager.t('charts.ppmAxis'),
                 'yaxis.title.text': LanguageManager.t('charts.intensityAxis')
             };
 
-            // 2. Preparamos las actualizaciones de las Trazas (Leyenda)
             const updateData = {};
             const traceNames = [];
             
@@ -238,10 +233,8 @@ class ChartManager {
                 updateData.name = traceNames;
             }
 
-            // 3. Actualizamos el 'locale' en la configuración
             this.config.locale = lang;
             
-            // 4. Aplicamos los cambios
             Plotly.update('spectrumChart', updateData, updateLayout)
                 .then(() => {
                     return Plotly.react('spectrumChart', chartDiv.data, chartDiv.layout, this.config);
@@ -263,8 +256,6 @@ class ChartManager {
         }
     }
     
-    // (El resto de tus funciones: addIntegrationRegion, clearIntegrationRegions, etc. están bien)
-    
     static addIntegrationRegion(regionData) {
          const chartDiv = document.getElementById('spectrumChart');
          if (!chartDiv || !chartDiv.layout) {
@@ -272,9 +263,9 @@ class ChartManager {
              return;
          }
         if (!regionData || !Array.isArray(regionData)) {
-            window.APP_LOGGER.warn('Invalid region data for integration regions');
-            return;
-        }
+             window.APP_LOGGER.warn('Invalid region data for integration regions');
+             return;
+         }
         
         const shapes = regionData.map(region => ({
             type: 'rect',
@@ -310,7 +301,7 @@ class ChartManager {
         if (!chartDiv || !chartDiv.layout) {
              window.APP_LOGGER.warn('Chart not ready for clearing integration regions');
              return;
-        }
+         }
        const updatedLayout = {
             shapes: [] 
        };
@@ -329,14 +320,14 @@ class ChartManager {
         if (!chartDiv || !chartDiv.layout) {
              window.APP_LOGGER.warn('Chart not ready for title update');
              return;
-        }
+         }
         
         Plotly.relayout('spectrumChart', { 'title.text': title }) 
             .then(() => {
                 window.APP_LOGGER.debug('Chart title updated');
                 if (this.layout && this.layout.title) {
                      this.layout.title.text = title;
-                }
+                 }
             })
             .catch(error => {
                 window.APP_LOGGER.error('Error updating chart title:', error);
@@ -348,7 +339,7 @@ class ChartManager {
         if (!chartDiv) {
              window.APP_LOGGER.error('Cannot export chart: Chart element not found.');
              return Promise.reject('Chart element not found.'); 
-        }
+         }
        return Plotly.downloadImage('spectrumChart', {
             format: format,
             filename: `rmn_spectrum_${new Date().toISOString().split('T')[0]}`,
@@ -363,7 +354,7 @@ class ChartManager {
         if (!chartDiv) {
              window.APP_LOGGER.error('Cannot get chart data: Chart element not found.');
              return Promise.reject('Chart element not found.');
-        }
+         }
        window.APP_LOGGER.warn('getChartData() triggers a JSON download, it does not return data to JS.');
        return Plotly.downloadImage('spectrumChart', {
             format: 'json', 
@@ -385,7 +376,7 @@ class ChartManager {
             .catch(error => {
                 if (error.message && !error.message.includes('Resize must be passed a plot node')) {
                      window.APP_LOGGER.error('Error resizing chart:', error);
-                }
+                 }
             });
     }
 
@@ -423,6 +414,21 @@ class ChartManager {
      * Convierte los resultados del análisis al formato esperado por updateSpectrumChart
      */
     static plotResults(results) {
+
+        // --- ¡ESTA ES LA CORRECCIÓN PARA EL GRÁFICO! ---
+        // Si el gráfico no existe (porque 'init' no pudo crearlo), lo crea ahora.
+        if (!this.chart && this.initialized) { 
+            window.APP_LOGGER.warn('[ChartManager] Chart not found, creating empty chart now...');
+            // Usamos un wrapper 'async' para llamar a la función 'async'
+            (async () => {
+                await this.createEmptyChart();
+                // Volvemos a llamar a esta misma función ahora que el gráfico existe
+                this.plotResults(results); 
+            })();
+            return; // Salimos por ahora, la función se volverá a llamar
+        }
+        // --- FIN DE LA CORRECCIÓN ---
+
         window.APP_LOGGER.debug('[ChartManager] plotResults llamado con:', results);
 
         if (!results) {
@@ -430,17 +436,14 @@ class ChartManager {
             return;
         }
 
-        // ✅ CORREGIDO: Extraer datos del espectro según estructura del backend
         let spectrumData = null;
         
         if (results.spectrum && results.spectrum.ppm && results.spectrum.intensity) {
-            // Backend devuelve: { spectrum: { ppm: [...], intensity: [...] } }
             spectrumData = {
                 ppm: results.spectrum.ppm,
                 intensity: results.spectrum.intensity
             };
         } else if (results.ppm && results.intensity) {
-            // Formato alternativo directo
             spectrumData = {
                 ppm: results.ppm,
                 intensity: results.intensity
@@ -458,11 +461,9 @@ class ChartManager {
             return;
         }
 
-        // ✅ CORREGIDO: Extraer picos según estructura del backend
         let peaksData = null;
         
         if (results.peaks && Array.isArray(results.peaks) && results.peaks.length > 0) {
-            // Convertir formato de picos del backend al formato del gráfico
             peaksData = results.peaks.map(peak => ({
                 ppm: peak.position || peak.ppm || 0,
                 intensity: peak.height || peak.intensity || 0,
@@ -474,10 +475,9 @@ class ChartManager {
             window.APP_LOGGER.debug(`[ChartManager] ${peaksData.length} picos detectados`);
         }
 
-        // Actualizar el gráfico
+        // Llamada a la función de lógica principal
         this.updateSpectrumChart(spectrumData, peaksData);
 
-        // Actualizar nombre de muestra si existe
         const sampleName = document.getElementById('sampleName');
         if (sampleName && (results.filename || results.sample_name)) {
             sampleName.textContent = results.sample_name || results.filename;

@@ -4,12 +4,8 @@
  * Asume que 'CURRENT_COMPANY_PROFILE' ha sido definido en app.html
  * y que 'LanguageManager', 'UIManager', 'ChartManager' y 'APP_LOGGER' están disponibles globalmente.
 
-/**
- * Aplica TODA la identidad corporativa (logo, nombre, colores, favicon) a la app.
- * Esta es la ÚNICA función de branding que debe existir.
- */
-
-// --- PEGA ESTE BLOQUE AL PRINCIPIO DE TODO EN APP.JS ---
+*/
+ 
 
 let currentHistoryPage = 1;
 let currentAnalysisData = null;
@@ -143,6 +139,7 @@ async function initializeApp() {
 
         // Comprobar conexión y cargar configuración base
         await APIClient.checkConnection();
+        UIManager.setConnectionStatus('connected');
         const config = await APIClient.getConfig();
         
         UIManager.setupAnalysisParameters(config.analysis_parameters);
@@ -228,55 +225,30 @@ async function runAnalysis() {
         UIManager.showLoading(LanguageManager.t('messages.analyzing') || 'Analizando...');
         
         const parameters = UIManager.getCurrentAnalysisParams();
+        
+        // 1. 'results' es el objeto COMPLETO que viene del servidor
         const results = await APIClient.analyzeSpectrum(file, parameters);
 
         APP_LOGGER.info('Análisis completado:', results);
 
-        // ✅ CRÍTICO: Almacenar el análisis completo
-        currentAnalysisData = {
-            filename: results.filename || file.name || 'Muestra',
-            sample_name: results.sample_name || results.filename || file.name || 'Muestra',
-            timestamp: results.timestamp || new Date().toISOString(),
-            
-            analysis: results.analysis || {},
-            
-            fluor_percentage: results.fluor_percentage || results.analysis?.fluor_percentage || 0,
-            pfas_percentage: results.pfas_percentage || results.pifas_percentage || results.analysis?.pfas_percentage || results.analysis?.pifas_percentage || 0,
-            pifas_percentage: results.pifas_percentage || results.analysis?.pifas_percentage || 0,
-            concentration: results.concentration || results.analysis?.pifas_concentration || results.analysis?.pfas_concentration || 0,
-            pifas_concentration: results.analysis?.pifas_concentration || results.concentration || 0,
-            
-            quality_score: results.quality_score || 0,
-            quality_classification: results.quality_classification || 'N/A',
-            signal_to_noise: results.signal_to_noise || results.snr || 0,
-            snr: results.snr || results.signal_to_noise || 0,
-            
-            total_area: results.analysis?.total_area || results.total_area || 0,
-            fluor_area: results.analysis?.fluor_area || 0,
-            pfas_area: results.analysis?.pfas_area || results.analysis?.pifas_area || 0,
-            pifas_area: results.analysis?.pifas_area || 0,
-            sample_concentration: results.sample_concentration || 0,
-            
-            peaks: results.peaks || [],
-            quality_metrics: results.quality_metrics || {},
-            
-            ppm: results.ppm || [],
-            intensity: results.intensity || []
-        };
-
+        // 2. Guardamos 'results' en 'currentAnalysisData'.
+        //    YA NO HACEMOS la normalización complicada. 
+        //    'results' ya tiene la estructura correcta.
+        currentAnalysisData = results; 
+        
         console.log('✅ Datos del análisis almacenados:', currentAnalysisData);
 
         if (window.ChartManager && typeof ChartManager.plotResults === 'function') {
             try {
-                ChartManager.plotResults(results);
+                // 3. Pasamos el objeto 'results' (ahora 'currentAnalysisData')
+                ChartManager.plotResults(currentAnalysisData);
             } catch (chartError) {
                 APP_LOGGER.warn('Error graficando resultados:', chartError);
             }
         }
         
-        UIManager.displayResults(results);
-
-        setupMoleculeViewers(results);
+        // 4. Pasamos el objeto 'results' (ahora 'currentAnalysisData')
+        UIManager.displayResults(currentAnalysisData);
         
         try {
             await loadHistory(1);
@@ -616,65 +588,66 @@ function showExportFormatMenu(exportType = 'single') { // 'single', 'dashboard',
 /**
  * Carga un resultado específico del historial para verlo/compararlo.
  */
+/**
+ * Carga un resultado específico del historial para verlo/compararlo.
+ */
 async function loadResult(measurementId, filename) {
     try {
         console.log(`[loadResult] Cargando medición ${measurementId}...`);
         
         UIManager.showLoading(LanguageManager.t('messages.loading') || 'Cargando...');
         
-        // Obtener la medición completa del servidor
+        // 1. 'measurement' es el objeto crudo de la BD
         const measurement = await APIClient.getMeasurement(measurementId);
-        
-        console.log('[loadResult] Medición obtenida:', measurement);
+        console.log('[loadResult] Medición obtenida (bruto):', measurement);
 
+        // 2. 'analysisBlob' es el objeto JSON que SÍ tiene todos los datos
+        const analysisBlob = measurement.analysis || {};
+
+        // 3. Reconstruimos 'currentAnalysisData' para que se parezca
+        //    al objeto 'results' que genera un análisis nuevo.
         currentAnalysisData = {
-            filename: measurement.filename || measurement.sample_name || 'Muestra',
+            // Datos base
+            filename: measurement.filename || 'Muestra',
             sample_name: measurement.sample_name || measurement.filename || 'Muestra',
-            timestamp: measurement.timestamp || measurement.created_at || new Date().toISOString(),
-            
-            analysis: measurement.analysis || {},
-            
-            fluor_percentage: measurement.fluor_percentage || measurement.analysis?.fluor_percentage || 0,
-            pfas_percentage: measurement.pfas_percentage || measurement.pifas_percentage || measurement.analysis?.pfas_percentage || 0,
-            pifas_percentage: measurement.pifas_percentage || measurement.analysis?.pifas_percentage || 0,
-            concentration: measurement.concentration || measurement.analysis?.pifas_concentration || 0,
-            pifas_concentration: measurement.analysis?.pifas_concentration || measurement.concentration || 0,
-            
+            timestamp: measurement.timestamp || new Date().toISOString(),
             quality_score: measurement.quality_score || 0,
-            quality_classification: measurement.quality_classification || 'N/A',
-            signal_to_noise: measurement.signal_to_noise || measurement.snr || 0,
-            snr: measurement.snr || measurement.signal_to_noise || 0,
+            peaks: (measurement.peaks || []),
+            spectrum: measurement.spectrum || {},
+            ppm: measurement.spectrum?.ppm || [],
+            intensity: measurement.spectrum?.intensity || [],
+
+            // --- ¡AQUÍ ESTÁ LA CLAVE! ---
+            // Re-añadimos los datos que faltan desde el 'analysisBlob'
             
-            total_area: measurement.analysis?.total_area || measurement.total_area || 0,
-            fluor_area: measurement.analysis?.fluor_area || 0,
-            pfas_area: measurement.analysis?.pfas_area || measurement.analysis?.pifas_area || 0,
-            pifas_area: measurement.analysis?.pifas_area || 0,
-            sample_concentration: measurement.sample_concentration || 0,
+            // El objeto 'analysis' (para Integral Total, etc.)
+            analysis: analysisBlob, 
             
-            peaks: measurement.peaks || [],
-            quality_metrics: measurement.quality_metrics || {},
+            // La lista de compuestos
+            pfas_detection: analysisBlob.pfas_detection || null,
             
-            ppm: measurement.ppm || [],
-            intensity: measurement.intensity || []
+            // El S/N
+            signal_to_noise: analysisBlob.signal_to_noise || 0,
+            snr: analysisBlob.signal_to_noise || 0, // Alias
+            
+            // El desglose de calidad
+            quality_breakdown: analysisBlob.quality_breakdown || {}
         };
         
-        console.log('✅ Datos de medición almacenados:', currentAnalysisData);
+        console.log('✅ Datos de medición normalizados:', currentAnalysisData);
         
-        // Cambiar a la pestaña del analizador
+        // 4. Mostrar los datos
         UIManager.switchTab('analyzer');
         
-        // Mostrar los resultados en la interfaz
         if (window.ChartManager && typeof ChartManager.plotResults === 'function') {
             try {
-                ChartManager.plotResults(measurement);
+                ChartManager.plotResults(currentAnalysisData);
             } catch (chartError) {
                 console.warn('[loadResult] Error graficando:', chartError);
             }
         }
         
-        UIManager.displayResults(measurement);
-
-        setupMoleculeViewers(measurement);
+        UIManager.displayResults(currentAnalysisData);
         
         UIManager.hideLoading();
         UIManager.showNotification(
@@ -689,80 +662,6 @@ async function loadResult(measurementId, filename) {
             `No se pudo cargar ${filename}: ${error.message}`,
             'error'
         );
-    }
-}
-
-/**
- * 🆕 NUEVA FUNCIÓN
- * Configura los botones y contenedores de 2D/3D
- * basándose en los resultados del análisis.
- */
-function setupMoleculeViewers(analysisResults) {
-    // Referencias a todos los botones y contenedores
-    const toggle3DBtn = document.getElementById('toggle3DModelBtn');
-    const molecule3DContainer = document.getElementById('molecule3DContainer');
-    const toggle2DBtn = document.getElementById('toggle2DInfoBtn');
-    const molecule2DContainer = document.getElementById('molecule2DContainer');
-
-    // Limpiar/resetear todo
-    molecule3DContainer.innerHTML = '';
-    molecule3DContainer.style.display = 'none';
-    molecule2DContainer.style.display = 'none';
-
-    // Coger la info de la molécula (si existe)
-    // El backend ahora envía 'molecule_info'
-    const moleculeInfo = analysisResults.molecule_info; 
-
-    if (moleculeInfo) {
-        // --- 1. Configurar el Botón 3D ---
-        toggle3DBtn.style.display = 'inline-flex';
-        toggle3DBtn.onclick = () => {
-            const isVisible = molecule3DContainer.style.display === 'block';
-            if (isVisible) {
-                molecule3DContainer.style.display = 'none';
-            } else {
-                molecule3DContainer.style.display = 'block';
-                molecule2DContainer.style.display = 'none'; // Ocultar el 2D
-                if (molecule3DContainer.innerHTML === '') { // Cargar solo una vez
-                    try {
-                        const stage = new NGL.Stage("molecule3DContainer");
-                        const filePath = `assets/molecules/${moleculeInfo.file_3d}`; // Usar el objeto
-                        stage.loadFile(filePath).then(component => {
-                            component.addRepresentation("ball+stick");
-                            component.autoView();
-                        });
-                    } catch(e) { 
-                        console.error("Error al cargar NGL Viewer:", e);
-                        molecule3DContainer.innerHTML = "<p style='color:red;'>Error al cargar molécula 3D.</p>";
-                    }
-                }
-            }
-        };
-
-        // --- 2. Configurar el Botón 2D ---
-        toggle2DBtn.style.display = 'inline-flex';
-        toggle2DBtn.onclick = () => {
-            const isVisible = molecule2DContainer.style.display === 'block';
-            if (isVisible) {
-                molecule2DContainer.style.display = 'none';
-            } else {
-                molecule2DContainer.style.display = 'block';
-                molecule3DContainer.style.display = 'none'; // Ocultar el 3D
-
-                // Rellenar los datos (esto se hace cada vez, es rápido)
-                document.getElementById('moleculeName').textContent = moleculeInfo.name;
-                document.getElementById('molecule2DImage').src = moleculeInfo.image_2d;
-                document.getElementById('moleculeFormula').textContent = moleculeInfo.formula;
-                document.getElementById('moleculeWeight').textContent = moleculeInfo.mol_weight;
-            }
-        };
-
-    } else {
-        // No se detectó molécula, ocultar AMBOS botones
-        toggle3DBtn.style.display = 'none';
-        toggle3DBtn.onclick = null;
-        toggle2DBtn.style.display = 'none';
-        toggle2DBtn.onclick = null;
     }
 }
 

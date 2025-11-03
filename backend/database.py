@@ -1,6 +1,7 @@
 """
 CraftRMN Pro - Módulo de Base de Datos SQLite
 Gestiona todas las operaciones de base de datos local del dispositivo
+(VERSIÓN CORREGIDA Y COMPLETA)
 """
 
 import sqlite3
@@ -33,7 +34,7 @@ class Database:
         return conn
     
     def init_database(self):
-        """Inicializa todas las tablas necesarias"""
+        """Inicializa todas las tablas necesarias (CON MOLECULE_INFO)"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -46,7 +47,7 @@ class Database:
             )
         ''')
         
-        # Tabla de mediciones
+        # Tabla de mediciones (VERSIÓN 2.0 - CON MOLECULE_INFO)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS measurements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,6 +63,7 @@ class Database:
                 raw_data TEXT NOT NULL,
                 spectrum_data TEXT,
                 peaks_data TEXT,
+                molecule_info TEXT, -- <-- COLUMNA NUEVA
                 synced INTEGER DEFAULT 0,
                 sync_attempts INTEGER DEFAULT 0,
                 last_sync_attempt TEXT,
@@ -93,13 +95,7 @@ class Database:
     def execute_query(self, query: str, params: Tuple = ()) -> List[sqlite3.Row]:
         """
         Ejecuta una consulta SQL y devuelve todas las filas.
-        
-        Args:
-            query: Consulta SQL a ejecutar
-            params: Parámetros para la consulta
-            
-        Returns:
-            Lista de filas (sqlite3.Row)
+        (Función auxiliar, sin cambios)
         """
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -119,7 +115,7 @@ class Database:
     def _row_to_dict(self, row: sqlite3.Row) -> Dict:
         """
         Convierte una fila de SQLite a diccionario (versión simplificada).
-        Similar a _row_to_measurement pero devuelve estructura más plana.
+        (Función auxiliar, sin cambios)
         """
         if not row:
             return {}
@@ -131,9 +127,9 @@ class Database:
                 'company_id': row['company_id'],
                 'timestamp': row['timestamp'],
                 'filename': row['filename'],
-                'sample_name': row['filename'],  # Por compatibilidad
+                'sample_name': row['filename'],
                 'fluor_percentage': row['fluor_percentage'],
-                'pfas_percentage': row['pifas_percentage'],  # Alias
+                'pfas_percentage': row['pifas_percentage'],
                 'pifas_percentage': row['pifas_percentage'],
                 'pifas_concentration': row['pifas_concentration'],
                 'concentration': row['concentration'],
@@ -149,6 +145,7 @@ class Database:
     # ==================== CONFIGURACIÓN ====================
     
     def get_config(self, key: str) -> Optional[str]:
+        # (Sin cambios)
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT value FROM device_config WHERE key = ?", (key,))
@@ -157,6 +154,7 @@ class Database:
         return row['value'] if row else None
     
     def set_config(self, key: str, value: str):
+        # (Sin cambios)
         conn = self.get_connection()
         cursor = conn.cursor()
         now = datetime.now().isoformat()
@@ -168,6 +166,7 @@ class Database:
         conn.close()
     
     def get_all_config(self) -> Dict[str, str]:
+        # (Sin cambios)
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT key, value FROM device_config")
@@ -178,7 +177,10 @@ class Database:
     # ==================== MEDICIONES ====================
     
     def save_measurement(self, measurement_data: Dict) -> int:
-        """Guarda una nueva medición en la base de datos"""
+        """
+        Guarda una nueva medición en la base de datos
+        (VERSIÓN CORREGIDA - 18 COLUMNAS)
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
         now = datetime.now().isoformat()
@@ -190,22 +192,28 @@ class Database:
                 fluor_percentage, pifas_percentage, pifas_concentration,
                 concentration, quality_score,
                 raw_data, spectrum_data, peaks_data,
-                synced, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                molecule_info, synced, sync_attempts, last_sync_attempt,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
-            measurement_data.get('device_id', 'unknown'),
-            measurement_data.get('company_id', 'unknown'),
-            measurement_data.get('timestamp', now),
-            measurement_data.get('filename', 'unknown'),
-            analysis.get('fluor_percentage'),
-            analysis.get('pifas_percentage'),
-            analysis.get('pifas_concentration'),
-            analysis.get('concentration'),
-            measurement_data.get('quality_score'),
-            json.dumps(measurement_data),
-            json.dumps(measurement_data.get('spectrum', {})),
-            json.dumps(measurement_data.get('peaks', [])),
-            0, now, now
+            measurement_data.get('device_id', 'unknown'),         # 1
+            measurement_data.get('company_id', 'unknown'),      # 2
+            measurement_data.get('timestamp', now),             # 3
+            measurement_data.get('filename', 'unknown'),        # 4
+            analysis.get('fluor_percentage'),                   # 5
+            analysis.get('pifas_percentage'),                   # 6
+            analysis.get('pifas_concentration'),                # 7
+            analysis.get('concentration'),                      # 8
+            measurement_data.get('quality_score'),              # 9
+            json.dumps(measurement_data),                       # 10 (raw_data)
+            json.dumps(measurement_data.get('spectrum', {})),    # 11 (spectrum_data)
+            json.dumps(measurement_data.get('peaks', [])),      # 12 (peaks_data)
+            json.dumps(measurement_data.get('molecule_info')),  # 13 (molecule_info)
+            0,                                                  # 14 (synced)
+            0,                                                  # 15 (sync_attempts)
+            None,                                               # 16 (last_sync_attempt)
+            now,                                                # 17 (created_at)
+            now                                                 # 18 (updated_at)
         ))
         
         measurement_id = cursor.lastrowid
@@ -223,6 +231,7 @@ class Database:
         conn.close()
         return self._row_to_measurement(row) if row else None
     
+    # --- ¡¡AQUÍ ESTÁ LA FUNCIÓN QUE FALTABA!! ---
     def get_measurements(
         self, 
         company_id: Optional[str] = None,
@@ -271,23 +280,15 @@ class Database:
         """
         Cuenta el total de mediciones para una empresa.
         Si company_id es 'admin' o None, cuenta todas.
-        
-        Args:
-            company_id: ID de la empresa ('admin' para todas)
-            
-        Returns:
-            int: Número total de mediciones
         """
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
             
             if company_id == 'admin' or company_id is None:
-                # Admin ve todas las mediciones
                 query = "SELECT COUNT(*) FROM measurements"
                 cursor.execute(query)
             else:
-                # Empresa específica ve solo sus mediciones
                 query = "SELECT COUNT(*) FROM measurements WHERE company_id = ?"
                 cursor.execute(query, (company_id,))
             
@@ -310,15 +311,6 @@ class Database:
     ) -> Dict:
         """
         Obtiene mediciones con búsqueda por filename.
-        
-        Args:
-            company_id: ID de la empresa
-            search_term: Término de búsqueda
-            limit: Máximo de resultados
-            offset: Offset para paginación
-            
-        Returns:
-            Dict con 'measurements' y 'total'
         """
         try:
             conn = self.get_connection()
@@ -367,13 +359,6 @@ class Database:
     def count_measurements_with_search(self, company_id: str, search_term: str) -> int:
         """
         Cuenta mediciones que coinciden con un término de búsqueda.
-        
-        Args:
-            company_id: ID de la empresa
-            search_term: Término de búsqueda
-            
-        Returns:
-            int: Número de mediciones que coinciden
         """
         try:
             conn = self.get_connection()
@@ -405,20 +390,11 @@ class Database:
     def delete_measurement(self, measurement_id: int, company_id: Optional[str] = None) -> bool:
         """
         Elimina una medición específica.
-        Si se proporciona company_id, verifica que la medición pertenezca a esa empresa.
-        
-        Args:
-            measurement_id: ID de la medición a eliminar
-            company_id: ID de la empresa (para verificación de seguridad)
-            
-        Returns:
-            bool: True si se eliminó, False si no se encontró o no pertenece a la empresa
         """
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            # Si se proporciona company_id, verificar pertenencia
             if company_id and company_id != 'admin':
                 cursor.execute(
                     "SELECT company_id FROM measurements WHERE id = ?", 
@@ -436,7 +412,6 @@ class Database:
                     conn.close()
                     return False
             
-            # Eliminar la medición
             cursor.execute("DELETE FROM measurements WHERE id = ?", (measurement_id,))
             deleted = cursor.rowcount > 0
             
@@ -457,23 +432,14 @@ class Database:
     def delete_all_measurements(self, company_id: Optional[str] = None) -> int:
         """
         Elimina todas las mediciones de una empresa.
-        Si company_id es 'admin' o None, elimina TODAS las mediciones.
-        
-        Args:
-            company_id: ID de la empresa ('admin' para todas)
-            
-        Returns:
-            int: Número de mediciones eliminadas
         """
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
             
             if company_id == 'admin' or company_id is None:
-                # Eliminar todas
                 cursor.execute("DELETE FROM measurements")
             else:
-                # Eliminar solo de una empresa
                 cursor.execute("DELETE FROM measurements WHERE company_id = ?", (company_id,))
             
             deleted_count = cursor.rowcount
@@ -495,7 +461,7 @@ class Database:
     def _row_to_measurement(self, row: sqlite3.Row) -> Dict:
         """
         Convierte una fila de SQLite a diccionario completo de medición.
-        Incluye spectrum y peaks deserializados.
+        (VERSIÓN CORREGIDA - CON MOLECULE_INFO)
         """
         if not row:
             return {}
@@ -503,10 +469,12 @@ class Database:
         try:
             spectrum_data = json.loads(row['spectrum_data']) if row['spectrum_data'] else {}
             peaks_data = json.loads(row['peaks_data']) if row['peaks_data'] else []
+            molecule_info_data = json.loads(row['molecule_info']) if row['molecule_info'] else None
         except json.JSONDecodeError as e:
             logger.error(f"Error decodificando JSON de medición {row['id']}: {e}")
             spectrum_data = {"error": "failed to decode spectrum"}
             peaks_data = []
+            molecule_info_data = None
 
         return {
             'id': row['id'],
@@ -514,20 +482,21 @@ class Database:
             'company_id': row['company_id'],
             'timestamp': row['timestamp'],
             'filename': row['filename'],
-            'sample_name': row['filename'],  # Alias para compatibilidad con frontend
+            'sample_name': row['filename'],
             'analysis': {
                 'fluor_percentage': row['fluor_percentage'],
                 'pifas_percentage': row['pifas_percentage'],
-                'pfas_percentage': row['pifas_percentage'],  # Alias
+                'pfas_percentage': row['pifas_percentage'],
                 'pifas_concentration': row['pifas_concentration'],
                 'concentration': row['concentration']
             },
-            'fluor_percentage': row['fluor_percentage'],  # También en raíz para compatibilidad
+            'fluor_percentage': row['fluor_percentage'],
             'pfas_percentage': row['pifas_percentage'],
             'pifas_percentage': row['pifas_percentage'],
             'quality_score': row['quality_score'],
             'spectrum': spectrum_data,
             'peaks': peaks_data,
+            'molecule_info': molecule_info_data, # <-- Dato añadido
             'synced': bool(row['synced']),
             'sync_attempts': row['sync_attempts'],
             'created_at': row['created_at'],

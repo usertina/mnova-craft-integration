@@ -19,6 +19,8 @@
     "exportReport": "Txostena Esportatu",
     "waitingData": "Datuak itxaroten...",
     "showSpectrum": "Espektroa Erakutsi",
+    "show3D": "Ikusi 3D Molekula",
+    "show2D": "Ikusi 2D Fitxa",
     "showDetailedResults": "Emaitza Xehatuak Erakutsi",
     "showPeakDetails": "Gailurren Xehetasunak Erakutsi",
     "hideSpectrum": "Espektroa Ezkutatu",
@@ -68,7 +70,11 @@
     "none": "Ez da gailurrik detektatu"
   },
   "charts": {
-    "spectrumTitle": "RMN Espektroa"
+    "spectrumTitle": "RMN Espektroa",
+    "ppmAxis": "Desplazamendua (ppm)",
+    "intensityAxis": "Intentsitatea",
+    "spectrumTrace": "Espektroa",
+    "peaksTrace": "Gailurrak"
   },
   "history": {
     "title": "Analisien Historia",

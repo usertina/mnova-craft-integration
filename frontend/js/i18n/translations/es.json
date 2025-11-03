@@ -20,6 +20,8 @@
     "waitingData": "Esperando datos...",
     "showSpectrum": "Mostrar Espectro",
     "hideSpectrum": "Ocultar Espectro",
+    "show3D": "Ver Molécula 3D",
+    "show2D": "Ver Ficha 2D",
     "hideDetailedResults": "Ocultar Resultados Detallados",
     "showDetailedResults": "Mostrar Resultados Detallados",
     "showPeakDetails": "Mostrar Detalles de Picos",
@@ -68,7 +70,11 @@
     "none": "No se detectaron picos"
   },
   "charts": {
-    "spectrumTitle": "Espectro RMN"
+    "spectrumTitle": "Espectro RMN",
+    "ppmAxis": "Desplazamiento (ppm)",
+    "intensityAxis": "Intensidad",
+    "spectrumTrace": "Espectro",
+    "peaksTrace": "Picos"
   },
   "history": {
     "title": "Historial de Análisis",

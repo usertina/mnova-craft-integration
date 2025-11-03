@@ -19,6 +19,8 @@
     "exportReport": "Export Report",
     "waitingData": "Waiting for data...",
     "showSpectrum": "Show Spectrum",
+    "show3D": "View 3D Molecule",
+    "show2D": "View 2D Card",
     "showDetailedResults": "Show Detailed Results",
     "showPeakDetails": "Show Peak Details",
     "hideSpectrum": "Hide Spectrum",
@@ -68,7 +70,11 @@
     "none": "No peaks detected"
   },
   "charts": {
-    "spectrumTitle": "NMR Spectrum"
+    "spectrumTitle": "NMR Spectrum",
+    "ppmAxis": "Shift (ppm)",
+    "intensityAxis": "Intensity",
+    "spectrumTrace": "Spectrum",
+    "peaksTrace": "Peaks"
   },
   "history": {
     "title": "Analysis History",
