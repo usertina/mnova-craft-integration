@@ -89,10 +89,11 @@ class ComparisonManager {
     showLoading(show) {
         const container = document.getElementById('sampleSelectorContainer');
         if (container && show) {
-            container.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#6366f1;"></i><p style="margin-top:10px;color:#9ca3af;">Cargando muestras...</p></div>';
+            // ✅ CORREGIDO: Usa la clave de traducción
+            const loadingText = window.LanguageManager.t('comparison.loadingSamples');
+            container.innerHTML = `<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#6366f1;"></i><p style="margin-top:10px;color:#9ca3af;">${loadingText}</p></div>`;
         }
     }
-
     /**
      * Muestra un mensaje de error
      */
@@ -121,7 +122,7 @@ class ComparisonManager {
             container.innerHTML = `
                 <div class="empty-state-comparison">
                     <i class="fas fa-inbox fa-3x" style="color: #6b7280; margin-bottom: 1rem;"></i>
-                    <p>No hay muestras disponibles</p>
+                    <p>${window.LanguageManager.t('comparison.noSamples')}</p>
                 </div>
             `;
             return;
@@ -285,14 +286,14 @@ class ComparisonManager {
             {
                 x: this.selectedSamples.map(s => s.filename || s.sample_name || 'N/A'),
                 y: this.selectedSamples.map(s => s.fluor_percentage || 0),
-                name: 'Flúor (%)',
+                name: window.LanguageManager.t('results.fluor') + ' (%)',
                 type: 'bar',
                 marker: { color: '#10b981' }
             },
             {
                 x: this.selectedSamples.map(s => s.filename || s.sample_name || 'N/A'),
                 y: this.selectedSamples.map(s => s.pfas_percentage || s.pifas_percentage || 0),
-                name: 'PFAS (%)',
+                name: window.LanguageManager.t('results.pfas') + ' (%)',
                 type: 'bar',
                 marker: { color: '#3b82f6' }
             }
@@ -304,12 +305,12 @@ class ComparisonManager {
             font: { color: '#e5e7eb' },
             barmode: 'group',
             xaxis: {
-                title: 'Muestra',
+                title: window.LanguageManager.t('comparison.sample'),
                 gridcolor: '#374151',
                 color: '#e5e7eb'
             },
             yaxis: {
-                title: 'Porcentaje (%)',
+                title: window.LanguageManager.t('results.percentage') + ' (%)',
                 gridcolor: '#374151',
                 color: '#e5e7eb'
             },
@@ -336,7 +337,7 @@ class ComparisonManager {
         console.log('[Comparison] Actualizando tabla de comparación...');
 
         // Actualizar encabezados
-        thead.innerHTML = '<th>Parámetro</th>' +
+        thead.innerHTML = `<th>${window.LanguageManager.t('results.parameter')}</th>` +
             this.selectedSamples.map(s => 
                 `<th>${this.escapeHtml((s.filename || s.sample_name || 'N/A').substring(0, 15))}</th>`
             ).join('');
@@ -344,23 +345,23 @@ class ComparisonManager {
         // Actualizar filas
         const rows = [
             {
-                label: 'Flúor (%)',
+                label: window.LanguageManager.t('results.fluor') + ' (%)',
                 values: this.selectedSamples.map(s => (s.fluor_percentage || 0).toFixed(2))
             },
             {
-                label: 'PFAS (%)',
+                label: window.LanguageManager.t('results.pfas') + ' (%)',
                 values: this.selectedSamples.map(s => (s.pfas_percentage || s.pifas_percentage || 0).toFixed(2))
             },
             {
-                label: 'Concentración (mM)',
+                label: window.LanguageManager.t('results.concentration') + ' (mM)',
                 values: this.selectedSamples.map(s => ((s.analysis?.pifas_concentration || s.concentration || 0)).toFixed(4))
             },
             {
-                label: 'Calidad (/10)',
+                label: window.LanguageManager.t('results.quality') + ' (/10)',
                 values: this.selectedSamples.map(s => (s.quality_score || 0).toFixed(1))
             },
             {
-                label: 'Fecha',
+                label: window.LanguageManager.t('comparison.date'),
                 values: this.selectedSamples.map(s => new Date(s.timestamp || s.created_at).toLocaleDateString())
             }
         ];
@@ -371,7 +372,7 @@ class ComparisonManager {
                 ${row.values.map(v => `<td>${v}</td>`).join('')}
             </tr>
         `).join('');
-        
+
         console.log('[Comparison] ✅ Tabla de comparación actualizada');
     }
 
@@ -380,12 +381,15 @@ class ComparisonManager {
      */
     clearComparison() {
         console.log('[Comparison] Limpiando visualización...');
-        
+
+        // ✅ CORREGIDO: Usa claves de traducción
+        const emptyText = window.LanguageManager.t('comparison.selectMinSamples');
+
         const chartDiv = document.getElementById('comparisonChart');
         if (chartDiv) {
             chartDiv.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af;">
-                    <p>Selecciona al menos 2 muestras para comparar</p>
+                    <p>${emptyText}</p>
                 </div>
             `;
         }
@@ -395,7 +399,7 @@ class ComparisonManager {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="6" class="empty-state-cell">
-                        Selecciona al menos 2 muestras para comparar
+                        ${emptyText}
                     </td>
                 </tr>
             `;
@@ -430,8 +434,8 @@ class ComparisonManager {
         menu.innerHTML = `
             <div class="export-format-overlay"></div>
             <div class="export-format-dialog">
-                <h3>Exportar Comparación</h3>
-                <p>Selecciona el formato de exportación:</p>
+                <h3>${window.LanguageManager.t('comparison.exportComparison')}</h3>
+                <p>${window.LanguageManager.t('comparison.selectFormat')}</p>
                 <div class="export-format-options">
                     ${formats.map(fmt => `
                         <button class="export-format-btn" data-format="${fmt.value}">
@@ -440,7 +444,7 @@ class ComparisonManager {
                         </button>
                     `).join('')}
                 </div>
-                <button class="export-format-cancel">Cancelar</button>
+                <button class="export-format-cancel">${window.LanguageManager.t('comparison.cancel')}</button>
             </div>
         `;
 

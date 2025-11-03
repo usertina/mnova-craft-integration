@@ -58,7 +58,9 @@
     "total_area": "Área total",
     "fluor_area": "Área do flúor",
     "pfas_area": "Área PFAS",
-    "sample_concentration": "Concentración da mostra"
+    "sample_concentration": "Concentración da mostra",
+    "total_fluor": "Flúor Total",
+    "total_pfas": "PFAS Total"
   },
   "peaks": {
     "title": "Picos",
@@ -66,8 +68,12 @@
     "intensity": "Intensidade",
     "relative_intensity": "Intensidade relativa",
     "width": "Largura",
+    "width_ppm": "Largura (ppm)",
     "region": "Rexión",
     "none": "Non se detectaron picos"
+  },
+  "pfas": {
+    "detected_compounds": "Compostos PFAS detectados"
   },
   "charts": {
     "spectrumTitle": "Espectro RMN",
@@ -147,7 +153,11 @@
     "subtitle": "Comparando {count} mostras",
     "noSamplesSelected": "Non se seleccionaron mostras",
     "exportSuccess": "Comparación exportada correctamente",
-    "exportError": "Erro ao exportar a comparación"
+    "exportError": "Erro ao exportar a comparación",
+    "loadingSamples": "Cargando mostras...",
+    "selectMinSamples": "Selecciona polo menos 2 mostras para comparar",
+    "selectFormat": "Selecciona o formato de exportación:",
+    "cancel": "Cancelar"
   },
   "messages": {
     "initializing": "Inicializando...",
@@ -171,7 +181,9 @@
     "clearHistoryTitle": "Confirmar limpeza",
     "clearHistoryBody": "Estás seguro de que queres eliminar todo o historial?",
     "deleteItemTitle": "Confirmar eliminación",
-    "deleteItemBody": "Estás seguro de que queres eliminar «{filename}»?"
+    "deleteItemBody": "Estás seguro de que queres eliminar «{filename}»?",
+    "ok": "Confirmar",
+    "cancel": "Cancelar"
   },
   "units": {
     "percentage": "%",

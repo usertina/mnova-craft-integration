@@ -58,7 +58,9 @@
     "total_area": "Total Area",
     "fluor_area": "Fluorine Area",
     "pfas_area": "PFAS Area",
-    "sample_concentration": "Sample Concentration"
+    "sample_concentration": "Sample Concentration",
+    "total_fluor": "Total Fluorine",
+    "total_pfas": "Total PFAS"
   },
   "peaks": {
     "title": "Peaks",
@@ -66,8 +68,12 @@
     "intensity": "Intensity",
     "relative_intensity": "Relative Intensity",
     "width": "Width",
+    "width_ppm": "Width (ppm)",
     "region": "Region",
     "none": "No peaks detected"
+  },
+  "pfas": {
+    "detected_compounds": "Detected PFAS Compounds"
   },
   "charts": {
     "spectrumTitle": "NMR Spectrum",
@@ -147,7 +153,11 @@
     "subtitle": "Comparing {count} samples",
     "noSamplesSelected": "No samples selected",
     "exportSuccess": "Comparison exported successfully",
-    "exportError": "Error exporting comparison"
+    "exportError": "Error exporting comparison",
+    "loadingSamples": "Loading samples...",
+    "selectMinSamples": "Select at least 2 samples to compare",
+    "selectFormat": "Select the export format:",
+    "cancel": "Cancel"
   },
   "messages": {
     "initializing": "Initializing...",
@@ -171,7 +181,9 @@
     "clearHistoryTitle": "Confirm Clear",
     "clearHistoryBody": "Are you sure you want to delete all history?",
     "deleteItemTitle": "Confirm Delete",
-    "deleteItemBody": "Are you sure you want to delete '{filename}'?"
+    "deleteItemBody": "Are you sure you want to delete '{filename}'?",
+    "ok": "Confirm",
+    "cancel": "Cancel"
   },
   "units": {
     "percentage": "%",

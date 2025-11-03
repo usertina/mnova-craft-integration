@@ -58,16 +58,22 @@
     "total_area": "Guztirako Area",
     "fluor_area": "Flúor Area",
     "pfas_area": "PFAS Area",
-    "sample_concentration": "Lagin Kontzentrazioa"
+    "sample_concentration": "Lagin Kontzentrazioa",
+    "total_fluor": "Fluor Totala",
+    "total_pfas": "PFAS Totala"
   },
   "peaks": {
     "title": "Gailurrak",
     "ppm": "PPM",
     "intensity": "Intentsitatea",
     "relative_intensity": "Intentsitate Erlatiboa",
+    "width_ppm": "Zabalera (ppm)",
     "width": "Zabalera",
     "region": "Eskualdea",
     "none": "Ez da gailurrik detektatu"
+  },
+  "pfas": {
+    "detected_compounds": "Detektatutako PFAS konposatuak" 
   },
   "charts": {
     "spectrumTitle": "RMN Espektroa",
@@ -147,7 +153,11 @@
     "subtitle": "{count} lagin konparatzen",
     "noSamplesSelected": "Ez da laginik hautatu",
     "exportSuccess": "Konparazioa ondo esportatu da",
-    "exportError": "Errorea konparazioa esportatzean"
+    "exportError": "Errorea konparazioa esportatzean",
+    "loadingSamples": "Laginak kargatzen...",
+    "selectMinSamples": "Hautatu gutxienez 2 lagin alderatzeko",
+    "selectFormat": "Hautatu esportazio-formatua:",
+    "cancel": "Utzi"
   },
   "messages": {
     "initializing": "Hasieratzen...",
@@ -171,7 +181,9 @@
     "clearHistoryTitle": "Garbiketa Baieztatu",
     "clearHistoryBody": "Ziur zaude historia osoa ezabatu nahi duzula?",
     "deleteItemTitle": "Ezabatzea Baieztatu",
-    "deleteItemBody": "Ziur zaude '{filename}' ezabatu nahi duzula?"
+    "deleteItemBody": "Ziur zaude '{filename}' ezabatu nahi duzula?",
+    "ok": "Berretsi",
+    "cancel": "Utzi"
   },
   "units": {
     "percentage": "%",

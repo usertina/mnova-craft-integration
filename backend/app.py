@@ -23,33 +23,34 @@ from company_data import COMPANY_PROFILES # Importar perfiles de empresa
 # Configurar logging (activar DEBUG para ver todo)
 logging.getLogger().setLevel(logging.DEBUG)
 
-# Mini-base de datos de información de moléculas
+# Mini-base de datos de información de moléculas (AMPLIADA)
 MOLECULE_DATA_DB = {
-    "335-67-1": {  # PFOA
-        "name": "PFOA (Ácido perfluorooctanoico)",
-        "file_3d": "pfoa.sdf",
-        "image_2d": "assets/molecules/pfoa_2d.png"
-    },
-    "375-95-1": {  # PFNA
-        "name": "PFNA (Ácido perfluorononanoico)",
-        "file_3d": "pfna.sdf",
-        "image_2d": "assets/molecules/pfna_2d.png"
-    },
-    "335-76-2": {  # PFDA
-        "name": "PFDA (Ácido perfluorodecanoico)",
-        "file_3d": "pfda.sdf",
-        "image_2d": "assets/molecules/pfda_2d.png"
-    },
-    "355-46-4": {  # PFHxS
-        "name": "PFHxS (Sulfonato de perfluorohexano)",
-        "file_3d": "pfhxs.sdf",
-        "image_2d": "assets/molecules/pfhxs_2d.png"
-    },
-    "1763-23-1": {  # PFOS
-        "name": "PFOS (Sulfonato de perfluorooctano)",
-        "file_3d": "pfos.sdf",
-        "image_2d": "assets/molecules/pfos_2d.png"
-    }
+    # === Ácidos Perfluoroalcanoicos (PFCAs) ===
+    "375-22-4": { "name": "PFBA (Ácido Perfluorobutanoico)", "file_3d": "pfba.sdf", "image_2d": "assets/molecules/pfba_2d.png" },
+    "2706-90-3": { "name": "PFPeA (Ácido Perfluoropentanoico)", "file_3d": "pfpea.sdf", "image_2d": "assets/molecules/pfpea_2d.png" },
+    "307-24-4": { "name": "PFHxA (Ácido Perfluorohexanoico)", "file_3d": "pfhxa.sdf", "image_2d": "assets/molecules/pfhxa_2d.png" },
+    "375-85-9": { "name": "PFHpA (Ácido Perfluoroheptanoico)", "file_3d": "pfhpa.sdf", "image_2d": "assets/molecules/pfhpa_2d.png" },
+    "335-67-1": { "name": "PFOA (Ácido Perfluorooctanoico)", "file_3d": "pfoa.sdf", "image_2d": "assets/molecules/pfoa_2d.png" },
+    "375-95-1": { "name": "PFNA (Ácido Perfluorononanoico)", "file_3d": "pfna.sdf", "image_2d": "assets/molecules/pfna_2d.png" },
+    "335-76-2": { "name": "PFDA (Ácido Perfluorodecanoico)", "file_3d": "pfda.sdf", "image_2d": "assets/molecules/pfda_2d.png" },
+    "2058-94-8": { "name": "PFUnDA (Ácido Perfluoroundecanoico)", "file_3d": "pfunda.sdf", "image_2d": "assets/molecules/pfunda_2d.png" },
+    "307-55-1": { "name": "PFDoDA (Ácido Perfluorododecanoico)", "file_3d": "pfdoda.sdf", "image_2d": "assets/molecules/pfdoda_2d.png" },
+    
+    # === Sulfonatos Perfluoroalcanos (PFSAs) ===
+    "375-73-5": { "name": "PFBS (Sulfonato de Perfluorobutano)", "file_3d": "pfbs.sdf", "image_2d": "assets/molecules/pfbs_2d.png" },
+    "355-46-4": { "name": "PFHxS (Sulfonato de Perfluorohexano)", "file_3d": "pfhxs.sdf", "image_2d": "assets/molecules/pfhxs_2d.png" },
+    "375-92-8": { "name": "PFHpS (Sulfonato de Perfluoroheptano)", "file_3d": "pfhps.sdf", "image_2d": "assets/molecules/pfhps_2d.png" },
+    "1763-23-1": { "name": "PFOS (Sulfonato de Perfluorooctano)", "file_3d": "pfos.sdf", "image_2d": "assets/molecules/pfos_2d.png" },
+    "335-77-3": { "name": "PFDS (Sulfonato de Perfluorodecano)", "file_3d": "pfds.sdf", "image_2d": "assets/molecules/pfds_2d.png" },
+
+    # === PFAS Emergentes y Alternativos ===
+    "13252-13-6": { "name": "GenX (HFPO-DA)", "file_3d": "genx.sdf", "image_2d": "assets/molecules/genx_2d.png" },
+    "919005-14-4": { "name": "ADONA", "file_3d": "adona.sdf", "image_2d": "assets/molecules/adona_2d.png" },
+    "73606-19-6": { "name": "F-53B", "file_3d": "f53b.sdf", "image_2d": "assets/molecules/f53b_2d.png" },
+
+    # === Fluorotelómeros (FTOHs) ===
+    "647-42-7": { "name": "6:2 FTOH", "file_3d": "6-2_ftoh.sdf", "image_2d": "assets/molecules/6-2_ftoh_2d.png" },
+    "678-39-7": { "name": "8:2 FTOH", "file_3d": "8-2_ftoh.sdf", "image_2d": "assets/molecules/8-2_ftoh_2d.png" }
 }
 
 
