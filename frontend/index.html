@@ -4,30 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CraftRMN Pro - Activación / Selección</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://rsms.me/">
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #111827; color: #d1d5db; }
-        .company-card { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-        .company-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-        .loading-spinner { border-top-color: #4f46e5; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        #critical-error-container { display: none; }
-    </style>
+    
+    <link rel="stylesheet" href="styles/portal.css">
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen p-4">
 
-    <!-- Pantalla de Carga Inicial -->
+<body class="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-900 text-gray-300">
+
     <div id="loading-view" class="text-center">
-        <div class="loading-spinner w-12 h-12 border-4 border-gray-600 rounded-full mx-auto mb-4"></div>
+        <div class="w-12 h-12 border-4 border-gray-600 border-t-indigo-600 rounded-full mx-auto mb-4 animate-spin"></div>
         <p class="text-lg">Cargando configuración...</p>
     </div>
 
-    <!-- Vista de Activación -->
     <div id="activation-view" class="hidden w-full max-w-md p-8 bg-gray-800 rounded-lg shadow-lg text-center">
-        <!-- Contenido de activación sin cambios -->
         <img src="assets/images/logo_qubiz.png" alt="Logo" class="h-12 mx-auto mb-6">
         <h1 class="text-2xl font-bold mb-2 text-white">Activar Dispositivo</h1>
         <p class="mb-4 text-gray-400">Este dispositivo necesita ser activado por un administrador.</p>
@@ -42,20 +36,16 @@
         <p id="activation-error" class="text-red-400 mt-4 text-sm hidden"></p>
     </div>
 
-    <!-- Vista de Selección de Empresa -->
     <div id="company-selection-view" class="hidden w-full max-w-4xl p-8 bg-gray-800 rounded-lg shadow-lg text-center">
-        <!-- Contenido de selección sin cambios -->
-         <img src="assets/images/logo_qubiz.png" alt="Logo" class="h-12 mx-auto mb-6">
+        <img src="assets/images/logo_qubiz.png" alt="Logo" class="h-12 mx-auto mb-6">
         <h1 class="text-2xl font-bold mb-6 text-white">Selecciona tu Empresa</h1>
         <div id="company-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         <p id="selection-error" class="text-red-400 mt-6 text-sm hidden"></p>
     </div>
 
-    <!-- Contenedor para Errores Críticos -->
     <div id="critical-error-container" class="hidden w-full max-w-md p-8 bg-gray-800 rounded-lg shadow-lg text-center border border-red-500">
-        <!-- Contenido de error sin cambios -->
-         <img src="assets/images/logo_qubiz.png" alt="Logo" class="h-12 mx-auto mb-6 opacity-50">
-         <i class="fas fa-exclamation-triangle fa-3x text-red-500 mb-4"></i>
+        <img src="assets/images/logo_qubiz.png" alt="Logo" class="h-12 mx-auto mb-6 opacity-50">
+        <i class="fas fa-exclamation-triangle fa-3x text-red-500 mb-4"></i>
         <h1 class="text-xl font-bold mb-2 text-red-300">Error Crítico</h1>
         <p id="critical-error-message" class="text-gray-300 mb-6">No se pudo cargar la aplicación.</p>
         <a href="index.html" class="inline-block px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700">
@@ -63,275 +53,6 @@
         </a>
     </div>
 
-    <script>
-        // --- TODO EL JAVASCRIPT ESTÁ AQUÍ DENTRO ---
-
-        // Elementos de la UI
-        const loadingView = document.getElementById('loading-view');
-        const activationView = document.getElementById('activation-view');
-        const companySelectionView = document.getElementById('company-selection-view');
-        const criticalErrorContainer = document.getElementById('critical-error-container');
-        const criticalErrorMessageEl = document.getElementById('critical-error-message');
-        const deviceIdDisplay = document.getElementById('device-id-display');
-        const licenseKeyInput = document.getElementById('license-key');
-        const activateButton = document.getElementById('activate-button');
-        const activateBtnText = document.getElementById('activate-btn-text');
-        const activateBtnLoading = document.getElementById('activate-btn-loading');
-        const activationError = document.getElementById('activation-error');
-        const companyGrid = document.getElementById('company-grid');
-        const selectionError = document.getElementById('selection-error');
-
-        // --- URL Base de la API (Absoluta) ---
-        const API_BASE_URL = window.location.origin; // e.g., http://localhost:5000
-
-        // --- Función para Mostrar Error Crítico ---
-        function showCriticalError(message) {
-            console.error("Mostrando error crítico:", message);
-            if(loadingView) loadingView.style.display = 'none';
-            if(activationView) activationView.classList.add('hidden');
-            if(companySelectionView) companySelectionView.classList.add('hidden');
-            if(criticalErrorContainer) criticalErrorContainer.classList.remove('hidden');
-            if(criticalErrorMessageEl) criticalErrorMessageEl.textContent = message;
-        }
-
-        // --- Función para Mostrar Vista de Activación ---
-        function showActivationView(deviceId) {
-            console.log("Mostrando vista de activación para deviceId:", deviceId);
-            if(loadingView) loadingView.style.display = 'none';
-            if(companySelectionView) companySelectionView.classList.add('hidden');
-            if(criticalErrorContainer) criticalErrorContainer.classList.add('hidden');
-            if(activationView) activationView.classList.remove('hidden');
-            if(deviceIdDisplay) deviceIdDisplay.textContent = deviceId || 'No disponible';
-        }
-
-         // --- Función para Manejar Selección de Empresa (definida antes) ---
-        // --- Función para Manejar Selección de Empresa (NUEVA VERSIÓN CON PIN) ---
-        async function selectCompany(companyProfile) {
-            console.log("selectCompany (con PIN) ejecutada para:", companyProfile);
-
-            const companyId = companyProfile.company_id;
-            if (!companyId) {
-                console.error("Perfil inválido, sin company_id", companyProfile);
-                if(selectionError) {
-                    selectionError.textContent = 'Error interno: Perfil inválido.';
-                    selectionError.classList.remove('hidden');
-                }
-                return;
-            }
-
-            // 1. Pedir el PIN al usuario
-            const pin = prompt(`Por favor, introduce el PIN para ${companyProfile.company_name}:`);
-
-            if (pin === null) {
-                // El usuario pulsó "Cancelar"
-                console.log("Validación de PIN cancelada.");
-                return; 
-            }
-
-            // Limpiar errores antiguos
-            if(selectionError) selectionError.classList.add('hidden');
-
-            try {
-                // 2. Llamar a la nueva API de validación que creamos en app.py
-                const validateUrl = `${API_BASE_URL}/api/validate_pin`; // Usa tu constante global
-                const response = await fetch(validateUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        company_id: companyId,
-                        pin: pin
-                    })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    // Si la respuesta es 403 (Prohibido), 404, etc.
-                    throw new Error(data.error || 'PIN o empresa incorrectos');
-                }
-
-                // 3. ¡ÉXITO! Guardamos el perfil en el navegador
-                // Usamos 'CURRENT_COMPANY_PROFILE' para ser consistentes con app.html
-                sessionStorage.setItem('CURRENT_COMPANY_PROFILE', JSON.stringify(data.profile));
-
-                // 4. Redirigir a la app
-                console.log("PIN validado. Perfil guardado. Redirigiendo a app.html...");
-                window.location.href = 'app.html';
-
-            } catch (err) {
-                console.error('Error al validar PIN:', err);
-                // Mostrar el error en la UI
-                if(selectionError) {
-                    selectionError.textContent = `Error: ${err.message}`;
-                    selectionError.classList.remove('hidden');
-                } else {
-                    alert(`Error: ${err.message}`); // Fallback
-                }
-            }
-        } 
-
-        // --- Función para CREAR una Tarjeta de Empresa ---
-        function createCompanyCard(company) {
-             // console.log("Creando tarjeta para:", company.company_id); // Log opcional
-             try {
-                    if (!company || typeof company !== 'object' || !company.company_id) {
-                         console.warn("createCompanyCard: Saltando empresa inválida:", company);
-                         return null;
-                    }
-                    const card = document.createElement('div');
-                    card.className = 'company-card bg-gray-700 p-4 rounded-lg shadow-md flex flex-col items-center cursor-pointer hover:bg-gray-600';
-                    card.setAttribute('data-company-id', company.company_id);
-
-                    const logo = document.createElement('img');
-                    logo.src = company.logo_url || 'https://placehold.co/100x50/7f7f7f/ffffff?text=Logo';
-                    logo.alt = `${company.company_name || 'Unknown'} Logo`;
-                    logo.className = 'h-16 w-auto object-contain mb-3';
-                    logo.onerror = (e) => { e.target.src = 'https://placehold.co/100x50/7f7f7f/ffffff?text=Logo'; };
-
-                    const name = document.createElement('p');
-                    name.className = 'text-sm font-semibold text-center text-white';
-                    name.textContent = company.company_name || 'Unnamed';
-
-                    card.appendChild(logo);
-                    card.appendChild(name);
-
-                    // Listener - ¡CAMBIO! Log directo aquí
-                    card.addEventListener('click', (event) => {
-                         // LOG INMEDIATO AL HACER CLICK
-                         console.log(`¡CLICK DETECTADO en ${company.company_id}!`, event);
-                         // Ahora llamar a la función original
-                         selectCompany(company);
-                    });
-                    // console.log("Listener de click añadido para:", company.company_id); // Log opcional
-
-                    return card;
-                } catch(e) {
-                     console.error("Error creando tarjeta para:", company, e);
-                     return null;
-                }
-        }
-
-        // --- Función para Mostrar Vista de Selección ---
-        function showCompanySelectionView(companies) {
-            console.log("Mostrando vista de selección con:", companies);
-            if(loadingView) loadingView.style.display = 'none';
-            if(activationView) activationView.classList.add('hidden');
-            if(criticalErrorContainer) criticalErrorContainer.classList.add('hidden');
-            if(companySelectionView) companySelectionView.classList.remove('hidden');
-            if(!companyGrid) return showCriticalError("Error: No se encontró el contenedor de empresas.");
-
-            companyGrid.innerHTML = '';
-
-            if (!Array.isArray(companies)) {
-                 console.error("showCompanySelectionView: companies no es un array!", companies);
-                 return showCriticalError("Error interno: Formato de datos de empresas inválido.");
-            }
-            if (companies.length === 0) {
-                 if(selectionError) {
-                     selectionError.textContent = 'No hay empresas configuradas.';
-                     selectionError.classList.remove('hidden');
-                 }
-                 return;
-            }
-
-            companies.forEach(company => {
-                const cardElement = createCompanyCard(company);
-                if (cardElement) {
-                    companyGrid.appendChild(cardElement);
-                }
-            });
-            console.log("Tarjetas de empresa añadidas al DOM.");
-        }
-
-
-        // --- Función para Manejar Activación ---
-        async function handleActivation() {
-            if (!activateButton || !licenseKeyInput || !activationError || !activateBtnText || !activateBtnLoading) return;
-            console.log("Intentando activar...");
-            const licenseKey = licenseKeyInput.value.trim();
-            if (!licenseKey) {
-                activationError.textContent = 'Introduce la clave de licencia.';
-                activationError.classList.remove('hidden');
-                return;
-            }
-
-            activationError.classList.add('hidden');
-            activateButton.disabled = true;
-            activateBtnText.classList.add('hidden');
-            activateBtnLoading.classList.remove('hidden');
-
-            try {
-                // --- CAMBIO: Usar URL absoluta ---
-                const activateUrl = `${API_BASE_URL}/api/activate`;
-                console.log("Enviando petición de activación a:", activateUrl);
-                const response = await fetch(activateUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ license_key: licenseKey })
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || `Error ${response.status}`);
-                console.log("Activación OK. Recargando...");
-                window.location.reload();
-            } catch (error) {
-                console.error("Error de activación:", error);
-                activationError.textContent = `Error: ${error.message}`;
-                activationError.classList.remove('hidden');
-            } finally {
-                activateButton.disabled = false;
-                activateBtnText.classList.remove('hidden');
-                activateBtnLoading.classList.add('hidden');
-            }
-        }
-         // Añadir listener al botón de activación
-         if (activateButton) {
-             activateButton.addEventListener('click', handleActivation);
-             // console.log("Listener añadido al botón de activación."); // Log opcional
-         } else {
-             console.warn("El botón de activación no se encontró.");
-         }
-
-        // --- Función Principal de Arranque ---
-        async function initializePortal() {
-            console.log("Iniciando initializePortal...");
-            try {
-                 // --- CAMBIO: Usar URL absoluta ---
-                 const configUrl = `${API_BASE_URL}/api/config`;
-                 console.log("Solicitando configuración desde:", configUrl);
-                const response = await fetch(configUrl);
-                console.log("Respuesta de /api/config:", response.status);
-                if (!response.ok) throw new Error(`Error ${response.status} del servidor.`);
-                const config = await response.json();
-                console.log("Configuración recibida:", config);
-
-                if (!config || typeof config.activated === 'undefined') {
-                    throw new Error("Respuesta de configuración inválida.");
-                }
-
-                if (!config.activated) {
-                    showActivationView(config.device_id);
-                } else {
-                    if (!Array.isArray(config.available_companies)) {
-                         console.error("initializePortal: available_companies NO es array:", config.available_companies);
-                         throw new Error("'available_companies' no es un array.");
-                    }
-                    showCompanySelectionView(config.available_companies);
-                }
-            } catch (error) {
-                console.error("Error fatal en initializePortal:", error);
-                // Mostrar el error original en la consola para más detalles
-                console.error("Detalles del error:", error);
-                showCriticalError(`No se pudo cargar: ${error.message}`);
-            }
-        }
-
-        // --- Ejecutar al cargar el DOM ---
-        console.log("Esperando DOMContentLoaded...");
-        document.addEventListener('DOMContentLoaded', initializePortal);
-        console.log("Listener DOMContentLoaded añadido.");
-
-    </script>
+    <script src="js/portal.js"></script>
 </body>
 </html>

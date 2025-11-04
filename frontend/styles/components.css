@@ -28,8 +28,12 @@
 }
 .card-header {
     padding: 1.25rem 1.5rem;
-    background: var(--light-bg);
-    border-bottom: 1px solid var(--border-color);
+    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+    border-bottom: 1px solid var(--primary-color);
+    color: white;
+}
+.card-header h3 {
+    color: white;
 }
 .card-body {
     padding: 1.5rem;
@@ -361,4 +365,198 @@
 .molecule-modal-body {
     padding: 20px;
     overflow-y: auto;
+}
+
+/* ============================================================
+   ESTILOS DE COMPONENTES DE UI (Movidos desde uiComponents.js)
+   ============================================================ */
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    border-radius: inherit;
+}
+
+.loading-overlay .loading-content {
+    text-align: center;
+}
+
+.loading-state, .error-state {
+    text-align: center;
+    padding: 40px;
+    color: #9ca3af;
+}
+
+.loading-state .loading-spinner {
+    margin: 0 auto 16px;
+}
+
+.error-icon {
+    font-size: 3rem;
+    color: #ef4444;
+    margin-bottom: 16px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #9ca3af;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+/* ============================================================
+   ESTILOS MOVIDOS DESDE main.css
+   ============================================================ */
+
+/* File List */
+.file-list, .batch-file-list {
+    margin-top: 1rem;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--light-bg);
+    border-radius: var(--border-radius);
+    margin-bottom: 0.5rem;
+    transition: var(--transition);
+}
+
+.file-item:hover {
+    background: #e9ecef;
+}
+
+.file-item i {
+    color: var(--secondary-color);
+}
+
+.file-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.file-size {
+    color: var(--text-light);
+    font-size: 0.875rem;
+}
+
+/* Connection Status */
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    margin-top: 1rem;
+    font-size: 0.875rem;
+}
+
+.connection-status.connecting {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.connection-status.connected {
+    background: #d1edff;
+    color: var(--secondary-color);
+}
+
+.connection-status.disconnected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.connection-dot {
+    font-size: 0.5rem;
+}
+
+.connection-dot.connected {
+    color: var(--success-color);
+}
+
+.connection-dot.connecting {
+    color: var(--warning-color);
+}
+
+.connection-dot.disconnected {
+    color: var(--danger-color);
+}
+
+/* Results Grid */
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.result-card {
+    background: var(--light-bg);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    text-align: center;
+    border-left: 4px solid var(--secondary-color);
+    transition: var(--transition);
+}
+
+.result-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.result-card.fluor { border-left-color: #e74c3c; }
+.result-card.pifas { border-left-color: #3498db; }
+.result-card.concentration { border-left-color: #27ae60; }
+.result-card.quality { border-left-color: #f39c12; }
+
+.result-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--secondary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.result-card .fluor .result-icon { background: #e74c3c; }
+.result-card .pifas .result-icon { background: #3498db; }
+.result-card .concentration .result-icon { background: #27ae60; }
+.result-card .quality .result-icon { background: #f39c12; }
+
+.result-content h4 {
+    color: var(--text-dark);
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.result-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.result-unit {
+    color: var(--text-light);
+    font-size: 0.9rem;
 }

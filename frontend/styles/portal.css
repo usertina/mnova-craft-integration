@@ -1,0 +1,11 @@
+body { font-family: 'Inter', sans-serif; }
+.company-card { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+.company-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+.loading-spinner { border-top-color: #4f46e5; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#critical-error-container { display: none; }
+
+/* NOTA: Dejamos el "body { background-color: #111827; color: #d1d5db; }" 
+en el HTML (con clases de Tailwind) para que se aplique 
+instantáneamente, evitando un "flash" de fondo blanco.
+*/

@@ -65,7 +65,7 @@
     align-items: center;
     margin-bottom: 1rem;
     padding: 0.75rem 1rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
     border-radius: var(--border-radius);
     color: white;
 }
@@ -264,7 +264,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem 1.25rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
     color: white;
 }
 .section-header h3 {
@@ -390,7 +390,7 @@
     min-height: 400px;
 }
 .history-item {
-    background-color: var(--company-brand-color, #1f2937);
+    background-color: var(--primary-color);
     color: #ffffff;
     padding: 16px;
     border-radius: 8px;
@@ -423,7 +423,7 @@
     transition: var(--transition);
 }
 .history-item-content:hover {
-    background: rgba(52, 152, 219, 0.05);
+    background: rgba(255, 255, 255, 0.08);
 }
 .history-item-actions {
     display: flex;
@@ -461,7 +461,7 @@
 .history-item-actions .btn-view {
     background-color: #ffffff; 
     border-color: #ffffff;
-    color: var(--company-brand-color, #3b82f6); 
+    color: var(--secondary-color);  
 }
 .history-item-actions .btn-view:hover {
     background-color: #f0f0f0; 
@@ -713,4 +713,49 @@
 .pagination-ellipsis {
     color: var(--text-light);
     padding: 0 4px;
+}
+
+/* ============================================================
+   ESTILOS MOVIDOS DESDE main.css
+   ============================================================ */
+
+/* Batch Processing */
+.batch-container {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    box-shadow: var(--shadow);
+}
+
+.batch-upload {
+    margin-bottom: 2rem;
+}
+
+.batch-actions {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.batch-results {
+    margin-top: 2rem;
+}
+
+.batch-results-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.batch-results-table th,
+.batch-results-table td {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+}
+
+.batch-results-table th {
+    background: var(--primary-color);
+    color: white;
 }
