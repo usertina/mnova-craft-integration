@@ -10,6 +10,12 @@
     .main-content {
         padding: 1.5rem;
     }
+
+    /* --- INICIO MOVIDO DESDE dashboard.css --- */
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+    /* --- FIN MOVIDO DESDE dashboard.css --- */
 }
 
 /* Tablets and small desktops */
@@ -42,6 +48,40 @@
         font-size: 0.9rem;
     }
 }
+
+/* --- INICIO MOVIDO DESDE dashboard.css --- */
+@media (max-width: 1024px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .dashboard-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .date-range-selector {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .date-input {
+        width: 100%;
+    }
+}
+/* --- FIN MOVIDO DESDE dashboard.css --- */
+
+/* --- INICIO MOVIDO DESDE responsive.css (Cabecera) --- */
+@media (max-width: 1024px) {
+    .logo-text {
+        font-size: 1.1rem; 
+    }
+    .main-nav .nav-btn {
+        padding: 0.5rem 0.8rem; 
+    }
+}
+/* --- FIN MOVIDO DESDE responsive.css (Cabecera) --- */
 
 /* Tablets */
 @media (max-width: 768px) {
@@ -92,6 +132,105 @@
         min-width: auto;
         width: 100%;
     }
+
+    /* --- INICIO MOVIDO DESDE components.css --- */
+    .btn-toggle-spectrum,
+    .btn-toggle-3d,
+    .btn-toggle-2d {
+        min-width: 140px;
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+    .section-header {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+    .btn-toggle-section {
+        width: 100%;
+        justify-content: center;
+    }
+    .history-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .history-item-actions {
+        flex-direction: row;
+        justify-content: center;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        padding: 1rem;
+    }
+    .history-item-actions .btn-icon {
+        flex: 1;
+        max-width: 120px;
+    }
+    /* --- FIN MOVIDO DESDE components.css --- */
+
+    /* --- INICIO MOVIDO DESDE dashboard.css --- */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+    .chart-container-dash {
+        height: 300px;
+    }
+    .sample-selector-grid {
+        grid-template-columns: 1fr;
+    }
+    .comparison-actions {
+        flex-direction: column;
+    }
+    .comparison-actions button {
+        width: 100%;
+    }
+    #comparisonTable {
+        font-size: 0.9rem;
+    }
+    #comparisonTable th,
+    #comparisonTable td {
+        padding: 0.75rem 0.5rem;
+    }
+    .date-filter-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .filter-select {
+        width: 100%;
+    }
+    .date-input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .date-label {
+        justify-content: flex-start;
+    }
+    /* --- FIN MOVIDO DESDE dashboard.css --- */
+
+    /* --- INICIO MOVIDO DESDE responsive.css (Cabecera) --- */
+    .app-header {
+        flex-direction: column; 
+        align-items: flex-start; 
+        padding: 0.75rem 1rem;
+    }
+    .header-left {
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+    }
+    .main-nav {
+        margin-top: 0.75rem; 
+        width: 100%;
+        overflow-x: auto; 
+    }
+    .header-right {
+        justify-content: flex-start;
+        margin-top: 0.75rem;
+        width: 100%;
+    }
+    /* --- FIN MOVIDO DESDE responsive.css (Cabecera) --- */
 }
 
 /* Mobile phones */
@@ -170,6 +309,37 @@
         width: 95%;
         margin: 10% auto;
     }
+
+    /* --- INICIO MOVIDO DESDE components.css --- */
+    .format-options {
+        grid-template-columns: 1fr;
+    }
+    /* --- FIN MOVIDO DESDE components.css --- */
+
+    /* --- INICIO MOVIDO DESDE dashboard.css --- */
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    .stat-card {
+        padding: 1rem;
+    }
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    .dashboard-header,
+    .comparison-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .dashboard-actions,
+    .comparison-header > div {
+        width: 100%;
+    }
+    .dashboard-actions button {
+        flex: 1;
+    }
+    /* --- FIN MOVIDO DESDE dashboard.css --- */
 }
 
 /* Very small phones */
@@ -197,6 +367,17 @@
         display: none;
     }
 }
+
+/* --- INICIO MOVIDO DESDE responsive.css (Cabecera) --- */
+@media (max-width: 480px) {
+    .logo-text {
+        display: none; 
+    }
+    .logo {
+        margin-bottom: 0.5rem;
+    }
+}
+/* --- FIN MOVIDO DESDE responsive.css (Cabecera) --- */
 
 /* High DPI screens */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
@@ -297,61 +478,42 @@
         max-height: 250px;
     }
 }
-/* --- Media Queries para Cabecera Responsive --- */
 
-/* Para tablets y pantallas medianas (menos de 1024px) */
-@media (max-width: 1024px) {
-    .logo-text {
-        font-size: 1.1rem; /* Hacemos el texto del logo un poco más pequeño */
-    }
-    .main-nav .nav-btn {
-        padding: 0.5rem 0.8rem; /* Botones de navegación más pequeños */
-    }
-}
-
-
-/* Para móviles (menos de 768px) */
-@media (max-width: 768px) {
-    
-    .app-header {
-        /* Apila las secciones (izquierda y derecha) verticalmente */
-        flex-direction: column; 
-        align-items: flex-start; /* Alinea todo a la izquierda */
-        padding: 0.75rem 1rem;
-    }
-
-    .header-left {
-        /* La sección de logo + nav también se apila */
-        flex-direction: column;
-        align-items: flex-start;
-        width: 100%;
-    }
-
-    .main-nav {
-        margin-top: 0.75rem; /* Espacio entre el logo y la navegación */
-        width: 100%;
-        /* Permite que los botones se deslicen horizontalmente si no caben */
-        overflow-x: auto; 
-    }
-
-    .header-right {
-        /* La sección de idioma/usuario se alinea a la izquierda */
-        justify-content: flex-start;
-        margin-top: 0.75rem;
-        width: 100%;
-    }
-}
-
-
-/* Para móviles muy pequeños (menos de 480px) */
-@media (max-width: 480px) {
-    .logo-text {
-        /* En pantallas muy pequeñas, ocultamos el texto largo */
-        display: none; 
+/* Print styles */
+@media print {
+    .app-header,
+    .control-panel,
+    .btn {
+        display: none !important;
     }
     
-    .logo {
-        /* Damos un poco más de espacio al logo cuando el texto desaparece */
-        margin-bottom: 0.5rem;
+    .workspace {
+        grid-template-columns: 1fr;
+        height: auto;
     }
+    
+    .results-panel {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+
+    /* --- INICIO MOVIDO DESDE dashboard.css --- */
+    .dashboard-actions,
+    .comparison-header > div,
+    .sample-selector-section,
+    .btn {
+        display: none !important;
+    }
+    .dashboard-container,
+    .comparison-container {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+    .chart-container-dash {
+        height: 400px;
+    }
+    /* --- FIN MOVIDO DESDE dashboard.css --- */
 }
