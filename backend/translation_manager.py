@@ -14,11 +14,10 @@ from typing import Dict, Optional
 class TranslationManager:
     """
     Gestor de traducciones que carga archivos JSON de idiomas
-    y proporciona una interfaz simple para obtener textos traducidos
+    y proporciona una interfaz simple para obtener textos traducidos.
     """
     
     # Directorio donde están los archivos de traducción
-    # Ajusta esta ruta según tu estructura de proyecto
     TRANSLATIONS_DIR = Path(__file__).parent / 'i18n'
     
     # Idiomas soportados
@@ -37,6 +36,7 @@ class TranslationManager:
         self.language = language if language in self.SUPPORTED_LANGUAGES else self.DEFAULT_LANGUAGE
         self.translations: Dict = {}
         self._load_translations()
+        self.t = self.get  # Agregar el alias 't' para acceder a las traducciones
     
     def _load_translations(self) -> None:
         """Carga el archivo de traducción correspondiente al idioma"""
@@ -65,6 +65,7 @@ class TranslationManager:
                         print(f"✅ Traducciones cargadas desde: {alt_path}")
                         return
                     except Exception as e:
+                        print(f"❌ Error al cargar desde la ruta alternativa {alt_path}: {e}")
                         continue
             
             print(f"❌ No se pudo cargar el archivo de traducción para {self.language}")
@@ -96,6 +97,10 @@ class TranslationManager:
             >>> t.get('report.subtitle')
             'Detección y Cuantificación de PFAS'
         """
+        if not self.translations:
+            print(f"⚠️  No se han cargado traducciones para el idioma {self.language}.")
+            return f"[{key}]"
+        
         parts = key.split('.')
         value = self.translations
         
@@ -179,76 +184,3 @@ class TranslationManager:
     def get_all_translations(self) -> Dict:
         """Devuelve todas las traducciones cargadas (útil para debugging)"""
         return self.translations.copy()
-
-
-# ============================================================================
-# FUNCIÓN AUXILIAR PARA USO RÁPIDO
-# ============================================================================
-
-def create_translator(language: str = 'es') -> TranslationManager:
-    """
-    Función auxiliar para crear rápidamente un traductor
-    
-    Args:
-        language: Código del idioma
-    
-    Returns:
-        Instancia de TranslationManager
-    
-    Example:
-        >>> t = create_translator('es')
-        >>> t('report.title')
-        'Informe de Análisis RMN'
-    """
-    return TranslationManager(language)
-
-
-# ============================================================================
-# EJEMPLO DE USO
-# ============================================================================
-
-if __name__ == "__main__":
-    print("=" * 70)
-    print("DEMOSTRACIÓN DEL TRANSLATION MANAGER")
-    print("=" * 70)
-    print()
-    
-    # Crear traductor en español
-    t = TranslationManager('es')
-    
-    if t.is_loaded():
-        print(f"✅ Idioma actual: {t.get_current_language()}")
-        print()
-        
-        # Ejemplos de uso
-        print("Ejemplos de traducciones:")
-        print("-" * 70)
-        
-        test_keys = [
-            'report.title',
-            'report.subtitle',
-            'report.sample',
-            'report.date',
-            'results.fluor',
-            'results.pfas',
-            'results.concentration',
-            'units.percentage',
-            'units.millimolar',
-            'peaks.title'
-        ]
-        
-        for key in test_keys:
-            translation = t(key)
-            print(f"{key:30s} → {translation}")
-        
-        print()
-        print("-" * 70)
-        
-        # Ejemplo con placeholders
-        print("\nEjemplo con placeholders:")
-        comparison_text = t.translate('comparison.subtitle', count=5)
-        print(f"comparison.subtitle (count=5) → {comparison_text}")
-        
-    else:
-        print("❌ No se pudieron cargar las traducciones")
-        print("   Verifica que los archivos JSON estén en el directorio correcto")

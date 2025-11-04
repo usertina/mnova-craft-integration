@@ -10,6 +10,15 @@
     "dashboard": "Aginte-panela",
     "comparison": "Konparazioa"
   },
+  "compounds": {
+    "name": "Izena",
+    "cas": "CAS Zenbakia",
+    "formula": "Formula",
+    "concentration": "Kontzentrazioa",
+    "confidence": "Fidagarritasuna",
+    "detected": "Detektatua",
+    "none": "Ez da PFAS konposatu espezifikorik detektatu."
+  },
   "analyzer": {
     "loadSpectrum": "Espektroa Kargatu",
     "dragDrop": "Arrastatu fitxategiak hona edo",

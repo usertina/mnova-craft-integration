@@ -10,6 +10,15 @@
     "dashboard": "Panel de control",
     "comparison": "Comparación"
   },
+  "compounds": {
+    "name": "Nome",
+    "cas": "Número CAS",
+    "formula": "Fórmula",
+    "concentration": "Concentración",
+    "confidence": "Confianza",
+    "detected": "Detectado",
+    "none": "Non se detectaron compostos PFAS específicos."
+  },
   "analyzer": {
     "loadSpectrum": "Cargar espectro",
     "dragDrop": "Arrastra ficheiros aquí ou",

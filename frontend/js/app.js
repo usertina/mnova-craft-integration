@@ -394,6 +394,7 @@ async function exportReport(format = null) {
 
         const companyProfile = window.CURRENT_COMPANY_PROFILE || {};
 
+        // Capturar imagen del gráfico
         let chartImage = null;
         if (window.ChartManager && typeof ChartManager.getChartAsBase64 === 'function') {
             try {
@@ -403,38 +404,75 @@ async function exportReport(format = null) {
             }
         }
 
-        // ✅ USAR LOS DATOS ALMACENADOS
+        // ✅ CONFIGURACIÓN CORREGIDA - Enviar TODOS los datos necesarios
         const exportConfig = {
             type: 'single',
             format: format,
-            lang: LanguageManager.currentLang || 'es',
+            lang: LanguageManager.currentLang || 'es',  // ✅ Idioma para traducciones
             
+            // ✅ ENVIAR EL OBJETO results COMPLETO
             results: {
-                filename: currentAnalysisData.filename,
-                sample_name: currentAnalysisData.sample_name,
-                timestamp: currentAnalysisData.timestamp,
+                // Información básica
+                filename: currentAnalysisData.filename || 'Muestra',
+                sample_name: currentAnalysisData.sample_name || currentAnalysisData.filename,
+                timestamp: currentAnalysisData.timestamp || new Date().toISOString(),
                 
-                analysis: {
-                    fluor_percentage: currentAnalysisData.fluor_percentage,
-                    pfas_percentage: currentAnalysisData.pfas_percentage,
-                    pifas_percentage: currentAnalysisData.pifas_percentage,
-                    pifas_concentration: currentAnalysisData.pifas_concentration,
-                    pfas_concentration: currentAnalysisData.concentration,
-                    total_area: currentAnalysisData.total_area,
-                    fluor_area: currentAnalysisData.fluor_area,
-                    pfas_area: currentAnalysisData.pfas_area,
-                    pifas_area: currentAnalysisData.pifas_area
+                // ✅ CRÍTICO: Enviar el objeto 'analysis' COMPLETO
+                // Este objeto contiene todos los porcentajes y áreas
+                analysis: currentAnalysisData.analysis || {
+                    fluor_percentage: currentAnalysisData.fluor_percentage || 0,
+                    pfas_percentage: currentAnalysisData.pfas_percentage || currentAnalysisData.pifas_percentage || 0,
+                    pifas_percentage: currentAnalysisData.pifas_percentage || currentAnalysisData.pfas_percentage || 0,
+                    pfas_concentration: currentAnalysisData.pfas_concentration || currentAnalysisData.pifas_concentration || 0,
+                    pifas_concentration: currentAnalysisData.pifas_concentration || currentAnalysisData.pfas_concentration || 0,
+                    concentration: currentAnalysisData.concentration || 0,
+                    total_area: currentAnalysisData.total_area || currentAnalysisData.total_integral || 0,
+                    total_integral: currentAnalysisData.total_integral || currentAnalysisData.total_area || 0,
+                    fluor_area: currentAnalysisData.fluor_area || 0,
+                    pfas_area: currentAnalysisData.pfas_area || currentAnalysisData.pifas_area || 0,
+                    pifas_area: currentAnalysisData.pifas_area || currentAnalysisData.pfas_area || 0,
+                    signal_to_noise: currentAnalysisData.signal_to_noise || currentAnalysisData.snr || 0
                 },
                 
-                quality_score: currentAnalysisData.quality_score,
-                quality_classification: currentAnalysisData.quality_classification,
-                signal_to_noise: currentAnalysisData.snr,
-                snr: currentAnalysisData.snr,
+                // ✅ CRÍTICO: Enviar pfas_detection con los compuestos
+                pfas_detection: currentAnalysisData.pfas_detection || {
+                    total_pfas_concentration: 0,
+                    compounds: []
+                },
                 
-                sample_concentration: currentAnalysisData.sample_concentration,
+                // Calidad
+                quality_score: currentAnalysisData.quality_score || 0,
+                quality_classification: currentAnalysisData.quality_classification || 'N/A',
+                quality_breakdown: currentAnalysisData.quality_breakdown || {},
                 
-                // ✅ PICOS CON TODOS LOS DATOS
-                peaks: currentAnalysisData.peaks.map(peak => ({
+                // Métricas de calidad
+                quality_metrics: currentAnalysisData.quality_metrics || {
+                    snr: currentAnalysisData.signal_to_noise || currentAnalysisData.snr || 0
+                },
+                
+                // S/N en nivel raíz (para compatibilidad)
+                signal_to_noise: currentAnalysisData.signal_to_noise || currentAnalysisData.snr || 0,
+                snr: currentAnalysisData.snr || currentAnalysisData.signal_to_noise || 0,
+                
+                // Parámetros de la muestra
+                parameters: {
+                    concentration: currentAnalysisData.sample_concentration || 
+                                 currentAnalysisData.concentration || 
+                                 currentAnalysisData.analysis?.concentration || 1.0
+                },
+                sample_concentration: currentAnalysisData.sample_concentration || 
+                                    currentAnalysisData.concentration || 1.0,
+                
+                // Espectro
+                spectrum: currentAnalysisData.spectrum || {
+                    ppm: currentAnalysisData.ppm || [],
+                    intensity: currentAnalysisData.intensity || [],
+                    ppm_min: Math.min(...(currentAnalysisData.ppm || [0])),
+                    ppm_max: Math.max(...(currentAnalysisData.ppm || [0]))
+                },
+                
+                // ✅ PICOS CON TODOS LOS CAMPOS
+                peaks: (currentAnalysisData.peaks || []).map(peak => ({
                     ppm: peak.ppm || peak.position || 0,
                     position: peak.position || peak.ppm || 0,
                     intensity: peak.intensity || peak.height || 0,
@@ -446,24 +484,28 @@ async function exportReport(format = null) {
                     area: peak.area || 0,
                     snr: peak.snr || 0,
                     region: peak.region || 'N/A'
-                })),
-                
-                quality_metrics: currentAnalysisData.quality_metrics || {}
+                }))
             },
             
+            // ✅ Imagen del gráfico
             chart_image: chartImage,
             
+            // ✅ DATOS DE LA EMPRESA para el branding
             company_data: {
-                name: companyProfile.company_name,
-                logo: companyProfile.logo_url,
-                address: companyProfile.company_address,
-                phone: companyProfile.contact_phone,
-                email: companyProfile.contact_email
+                name: companyProfile.company_name || 'CraftRMN Pro',
+                logo: companyProfile.logo_url || '',  // URL del logo
+                address: companyProfile.company_address || '',
+                phone: companyProfile.contact_phone || '',
+                email: companyProfile.contact_email || ''
             }
         };
 
-        console.log('📦 Configuración de exportación:', exportConfig);
+        console.log('📦 Configuración de exportación COMPLETA:', exportConfig);
+        console.log('📊 Analysis enviado:', exportConfig.results.analysis);
+        console.log('🧪 PFAS Detection enviado:', exportConfig.results.pfas_detection);
+        console.log('🌐 Idioma:', exportConfig.lang);
 
+        // Llamar al API
         await APIClient.exportData(exportConfig);
         
         UIManager.hideLoading();
@@ -597,75 +639,138 @@ async function loadResult(measurementId, filename) {
         
         UIManager.showLoading(LanguageManager.t('messages.loading') || 'Cargando...');
         
-        // 1. 'measurement' es el objeto crudo de la BD
+        // 1. Obtener la medición de la BD
         const measurement = await APIClient.getMeasurement(measurementId);
-        console.log('[loadResult] Medición obtenida (bruto):', measurement);
+        console.log('[loadResult] Medición obtenida:', measurement);
 
-        // 2. 'analysisBlob' es el objeto JSON que SÍ tiene todos los datos
-        const analysisBlob = measurement.analysis || {};
-
-        // 3. CORRECCIÓN: Reconstruir currentAnalysisData con la estructura correcta
-        // Asegurarnos de que el objeto analysis tenga todos los campos necesarios
+        // 2. ✅ CORRECCIÓN: Reconstruir currentAnalysisData con la estructura correcta
+        // El objeto 'measurement.analysis' de la BD contiene todos los datos de análisis
+        const analysisData = measurement.analysis || {};
+        
         currentAnalysisData = {
-            // Datos base del análisis
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // INFORMACIÓN BÁSICA
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             filename: measurement.filename || 'Muestra',
             sample_name: measurement.sample_name || measurement.filename || 'Muestra',
             timestamp: measurement.timestamp || new Date().toISOString(),
             measurement_id: measurementId,
             
-            // Puntuación de calidad
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // PUNTUACIÓN DE CALIDAD
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             quality_score: measurement.quality_score || 0,
-            quality_breakdown: analysisBlob.quality_breakdown || {},
+            quality_classification: analysisData.quality_classification || 'N/A',
+            quality_breakdown: analysisData.quality_breakdown || {},
             
-            // Datos del espectro
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // DATOS DEL ESPECTRO
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             spectrum: measurement.spectrum || {},
             ppm: measurement.spectrum?.ppm || [],
             intensity: measurement.spectrum?.intensity || [],
             
-            // Picos detectados
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // PICOS DETECTADOS
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             peaks: measurement.peaks || [],
             
-            // CRÍTICO: El objeto 'analysis' debe contener TODOS los campos de análisis
-            // No podemos usar simplemente analysisBlob porque puede que no tenga la estructura completa
-            // Nota: Usamos 'pfas' como nombre estándar pero mantenemos 'pifas' para compatibilidad
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ✅ CRÍTICO: OBJETO 'analysis'
+            // Este objeto debe contener TODOS los campos de análisis
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             analysis: {
-                fluor_percentage: analysisBlob.fluor_percentage || 0,
-                pfas_percentage: analysisBlob.pfas_percentage || analysisBlob.pifas_percentage || 0,  // pfas primero
-                pifas_percentage: analysisBlob.pifas_percentage || analysisBlob.pfas_percentage || 0,  // alias
-                pfas_concentration: analysisBlob.pfas_concentration || analysisBlob.pifas_concentration || 0,  // pfas primero
-                pifas_concentration: analysisBlob.pifas_concentration || analysisBlob.pfas_concentration || 0,  // alias
-                total_integral: analysisBlob.total_integral || 0,
-                concentration: analysisBlob.concentration || analysisBlob.pfas_concentration || analysisBlob.pifas_concentration || 0,
-                signal_to_noise: analysisBlob.signal_to_noise || 0,
-                // Incluir todos los demás campos que puedan existir
-                ...analysisBlob
+                // Porcentajes
+                fluor_percentage: analysisData.fluor_percentage || 0,
+                pfas_percentage: analysisData.pfas_percentage || analysisData.pifas_percentage || 0,
+                pifas_percentage: analysisData.pifas_percentage || analysisData.pfas_percentage || 0,
+                
+                // Concentraciones
+                pfas_concentration: analysisData.pfas_concentration || analysisData.pifas_concentration || 0,
+                pifas_concentration: analysisData.pifas_concentration || analysisData.pfas_concentration || 0,
+                concentration: analysisData.concentration || analysisData.pfas_concentration || 0,
+                
+                // Áreas
+                total_area: analysisData.total_area || analysisData.total_integral || 0,
+                total_integral: analysisData.total_integral || analysisData.total_area || 0,
+                fluor_area: analysisData.fluor_area || 0,
+                pfas_area: analysisData.pfas_area || analysisData.pifas_area || 0,
+                pifas_area: analysisData.pifas_area || analysisData.pfas_area || 0,
+                
+                // S/N
+                signal_to_noise: analysisData.signal_to_noise || 0,
+                
+                // Incluir cualquier otro campo que pueda existir
+                ...analysisData
             },
             
-            // Detección de compuestos PFAS
-            pfas_detection: analysisBlob.pfas_detection || null,
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ✅ CRÍTICO: DETECCIÓN DE COMPUESTOS PFAS
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            pfas_detection: analysisData.pfas_detection || null,
             
-            // S/N en el nivel raíz (para compatibilidad)
-            signal_to_noise: analysisBlob.signal_to_noise || 0,
-            snr: analysisBlob.signal_to_noise || 0
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // MÉTRICAS DE CALIDAD
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            quality_metrics: {
+                snr: analysisData.signal_to_noise || 0,
+                ...analysisData.quality_metrics
+            },
+            
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // S/N EN NIVEL RAÍZ (para compatibilidad)
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            signal_to_noise: analysisData.signal_to_noise || 0,
+            snr: analysisData.signal_to_noise || 0,
+            
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // CONCENTRACIÓN DE LA MUESTRA
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            sample_concentration: analysisData.concentration || 1.0,
+            concentration: analysisData.concentration || 0,
+            
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // COMPATIBILIDAD: Campos en nivel raíz
+            // (algunos componentes pueden buscar aquí)
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            fluor_percentage: analysisData.fluor_percentage || 0,
+            pfas_percentage: analysisData.pfas_percentage || analysisData.pifas_percentage || 0,
+            pifas_percentage: analysisData.pifas_percentage || analysisData.pfas_percentage || 0,
+            total_area: analysisData.total_area || analysisData.total_integral || 0,
+            total_integral: analysisData.total_integral || analysisData.total_area || 0,
+            fluor_area: analysisData.fluor_area || 0,
+            pfas_area: analysisData.pfas_area || analysisData.pifas_area || 0,
+            pifas_area: analysisData.pifas_area || analysisData.pfas_area || 0
         };
         
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // LOGS DE DEBUGGING
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         console.log('✅ Datos de medición normalizados:', currentAnalysisData);
         console.log('📊 Analysis object:', currentAnalysisData.analysis);
-        console.log('📈 Total Integral:', currentAnalysisData.analysis?.total_integral);
+        console.log('📈 Total Area:', currentAnalysisData.analysis?.total_area);
         console.log('📡 Signal to Noise:', currentAnalysisData.signal_to_noise);
         console.log('🔬 PFAS Detection:', currentAnalysisData.pfas_detection);
+        console.log('🧪 Compounds:', currentAnalysisData.pfas_detection?.compounds?.length || 0);
         
-        // 4. Mostrar los datos
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // MOSTRAR LOS DATOS EN LA UI
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        
+        // Cambiar a la pestaña del analizador
         UIManager.switchTab('analyzer');
         
+        // Graficar si ChartManager está disponible
         if (window.ChartManager && typeof ChartManager.plotResults === 'function') {
             try {
                 ChartManager.plotResults(currentAnalysisData);
+                console.log('✅ Gráfico generado correctamente');
             } catch (chartError) {
                 console.warn('[loadResult] Error graficando:', chartError);
             }
         }
         
+        // Mostrar resultados en la UI
         UIManager.displayResults(currentAnalysisData);
         
         UIManager.hideLoading();
@@ -683,6 +788,7 @@ async function loadResult(measurementId, filename) {
         );
     }
 }
+
 
 // --- Exponer funciones al scope global para ser llamadas desde el HTML (onclick="...") ---
 // (Es mejor que UIManager.setupEventListeners() las asigne, pero esto funciona)
