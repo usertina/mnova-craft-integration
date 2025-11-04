@@ -25,7 +25,11 @@
     "showPeakDetails": "Gailurren Xehetasunak Erakutsi",
     "hideSpectrum": "Espektroa Ezkutatu",
     "hideDetailedResults": "Emaitza Zehatzak Ezkutatu",
-    "hidePeakDetails": "Gailur Xehetasunak Ezkutatu"
+    "hidePeakDetails": "Gailur Xehetasunak Ezkutatu",
+    "confidence": "konfiantza",
+    "formula": "Formula",
+    "cas": "CAS",
+    "noPreview": "(Ez dago aurrebistarik)"
   },
   "connection": {
     "connected": "Konektatuta",
@@ -80,7 +84,10 @@
     "ppmAxis": "Desplazamendua (ppm)",
     "intensityAxis": "Intentsitatea",
     "spectrumTrace": "Espektroa",
-    "peaksTrace": "Gailurrak"
+    "peaksTrace": "Gailurrak",
+    "tooltipPeak": "Gailurra",
+    "tooltipIntensity": "Intentsitatea",
+    "tooltipRegion": "Eskualdea"
   },
   "history": {
     "title": "Analisien Historia",

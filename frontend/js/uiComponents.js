@@ -1,6 +1,7 @@
 class UIManager {
     static notifications = [];
     static notificationId = 0;
+    static lastPfasData = null;
 
     // ============================================================
     // SISTEMA DE NOTIFICACIONES
@@ -344,9 +345,10 @@ class UIManager {
         return searchInput ? searchInput.value.trim() : '';
     }
 
+    // REEMPLAZA ESTA FUNCIÓN ENTERA EN uiComponents.js
     static displayHistory(historyData) {
         const historyList = document.getElementById('historyList');
-        
+
         if (!historyList) {
             console.error('❌ [UIManager] Elemento historyList no encontrado');
             return;
@@ -355,9 +357,9 @@ class UIManager {
         console.log('🎨 [displayHistory] Datos recibidos:', historyData);
 
         const measurements = historyData?.measurements || historyData?.data || historyData || [];
-        
+
         console.log('🎨 [displayHistory] Measurements:', measurements.length);
-        
+
         if (!Array.isArray(measurements) || measurements.length === 0) {
             historyList.innerHTML = `
                 <div class="empty-state">
@@ -369,6 +371,16 @@ class UIManager {
             return;
         }
 
+        // =======================================================
+        // --- ✅ Traducciones pre-cargadas antes del bucle ---
+        // =======================================================
+        const t_fluor = window.LanguageManager.t('results.fluor');
+        const t_pfas = window.LanguageManager.t('results.pfas');
+        const t_quality = window.LanguageManager.t('results.quality');
+        const t_view = window.LanguageManager.t('history.viewTooltip');
+        const t_delete = window.LanguageManager.t('history.deleteTooltip');
+        // =======================================================
+
         // Construir HTML
         const itemsHTML = measurements.map(item => {
             const filename = UIManager.escapeHtml(item.filename || item.sample_name || 'Sin nombre');
@@ -376,7 +388,7 @@ class UIManager {
             const fluorPercentage = item.fluor_percentage?.toFixed(2) || 'N/A';
             const pfasPercentage = (item.pfas_percentage || item.pifas_percentage)?.toFixed(2) || 'N/A';
             const qualityScore = item.quality_score?.toFixed(1) || 'N/A';
-            
+
             return `
                 <div class="history-item" data-id="${item.id}" data-filename="${filename}">
                     <div class="history-item-content">
@@ -391,15 +403,15 @@ class UIManager {
                         </div>
                         <div class="history-item-stats">
                             <div class="stat-item">
-                                <span class="stat-label">Flúor:</span>
+                                <span class="stat-label">${t_fluor}:</span>
                                 <span class="stat-value">${fluorPercentage}%</span>
                             </div>
                             <div class="stat-item">
-                                <span class="stat-label">PFAS:</span>
+                                <span class="stat-label">${t_pfas}:</span>
                                 <span class="stat-value">${pfasPercentage}%</span>
                             </div>
                             <div class="stat-item">
-                                <span class="stat-label">Calidad:</span>
+                                <span class="stat-label">${t_quality}:</span>
                                 <span class="stat-value">${qualityScore}/10</span>
                             </div>
                         </div>
@@ -407,12 +419,12 @@ class UIManager {
                     <div class="history-item-actions">
                         <button class="btn btn-icon btn-view" 
                                 onclick="APP_HANDLERS.loadResult(${item.id}, '${filename}')"
-                                title="Ver análisis">
+                                title="${t_view}">
                             <i class="fas fa-eye"></i>
                         </button>
                         <button class="btn btn-icon btn-delete" 
                                 onclick="APP_HANDLERS.deleteHistoryItem(${item.id}, '${filename}')"
-                                title="Eliminar">
+                                title="${t_delete}">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -420,22 +432,23 @@ class UIManager {
             `;
         }).join('');
 
-        // ✅ CRÍTICO: Asegurar que el contenido se inserta
+        // ✅ Insertar contenido
         historyList.innerHTML = itemsHTML;
-        
-        // ✅ AÑADIR: Forzar visibilidad
+
+        // ✅ Asegurar visibilidad
         historyList.style.display = 'block';
         historyList.style.opacity = '1';
         historyList.style.visibility = 'visible';
-        
+
         console.log('✅ [displayHistory] HTML insertado, verificando...');
         console.log('✅ Elementos .history-item encontrados:', historyList.querySelectorAll('.history-item').length);
 
         // Actualizar paginación
         this.updatePagination(historyData.page, historyData.total_pages);
-        
+
         console.log(`✅ [UIManager] ${measurements.length} items mostrados en historial`);
     }
+
 
     /**
  * Configura la paginación del historial
@@ -780,82 +793,78 @@ class UIManager {
      * @param {object} pfas_detection_data - El objeto pfas_detection de los resultados.
      */
     static displayPFASDetection(pfas_detection_data) {
-    
-    // Asignamos el ID del contenedor donde se debe dibujar la lista.
-    const container = document.getElementById('pfasDetectionContainer'); // <--- ¡ESTA ES LA LÍNEA CORRECTA!
-    if (!container) {
-        // Actualizamos el mensaje de error por si acaso
-        console.error("No se encontró el contenedor '#pfasDetectionContainer'");
-        return;
-    }
+        // Guardamos los datos por si el usuario cambia de idioma
+        UIManager.lastPfasData = pfas_detection_data;
+
+        const container = document.getElementById('pfasDetectionContainer');
+        if (!container) {
+            console.error("No se encontró el contenedor '#pfasDetectionContainer'");
+            return;
+        }
 
         container.innerHTML = ''; // Limpiar resultados anteriores
 
         const compounds = pfas_detection_data?.compounds;
 
         if (compounds && compounds.length > 0) {
+            // --- OBTENER TRADUCCIONES PRIMERO ---
+            const t_show2D = window.LanguageManager.t('analyzer.show2D');
+            const t_show3D = window.LanguageManager.t('analyzer.show3D');
+            const t_confidence = window.LanguageManager.t('analyzer.confidence');
+            const t_formula = window.LanguageManager.t('analyzer.formula');
+            const t_cas = window.LanguageManager.t('analyzer.cas');
+            const t_noPreview = window.LanguageManager.t('analyzer.noPreview');
+            // --- FIN TRADUCCIONES ---
 
-            // Recorremos cada compuesto que el backend nos envió
             compounds.forEach(compound => {
                 const compoundElement = document.createElement('div');
-                compoundElement.className = 'compound-result-item'; // Clase para CSS
-                
-                let buttonsHTML = '';
-                
-                // --- ¡AQUÍ ESTÁ LA LÓGICA! ---
-                // El backend (app.py) ya ha añadido 'image_2d' y 'file_3d' 
-                // a cada objeto 'compound' si los encontró en su base de datos.
+                compoundElement.className = 'compound-result-item';
 
-                // Botón 2D: Solo se añade si el backend nos dio un 'image_2d'
+                let buttonsHTML = '';
+
                 if (compound.image_2d) {
-                    // Usamos 'data-name' y 'data-file' para pasar la info
                     buttonsHTML += `
                         <button class="btn btn-secondary btn-sm btn-ficha-2d" 
                                 data-name="${compound.name}" 
                                 data-file="${compound.image_2d}"
                                 data-formula="${compound.formula}"
                                 data-cas="${compound.cas}">
-                            Ficha 2D
+                            ${t_show2D}
                         </button>`;
                 }
 
-                // Botón 3D: Solo se añade si el backend nos dio un 'file_3d'
                 if (compound.file_3d) {
                     buttonsHTML += `
                         <button class="btn btn-primary btn-sm btn-view-3d" 
                                 data-name="${compound.name}" 
                                 data-file="${compound.file_3d}">
-                            Ver 3D
+                            ${t_show3D}
                         </button>`;
                 }
 
-                // Construimos el HTML para este compuesto
                 compoundElement.innerHTML = `
                     <div class="compound-info">
                         <h5 class="compound-name">${compound.name}</h5>
                         <div class="compound-confidence">
-                            ${this.formatNumber(compound.confidence, 1)}% confianza
+                            ${this.formatNumber(compound.confidence, 1)}% ${t_confidence}
                         </div>
                         <div class="compound-details">
-                            <span>Fórmula: ${compound.formula || 'N/A'}</span> | 
-                            <span>CAS: ${compound.cas || 'N/A'}</span>
+                            <span>${t_formula}: ${compound.formula || 'N/A'}</span> | 
+                            <span>${t_cas}: ${compound.cas || 'N/A'}</span>
                         </div>
                     </div>
                     <div class="compound-actions">
-                        ${buttonsHTML || '<span>(Sin vista previa)</span>'}
+                        ${buttonsHTML || `<span>(${t_noPreview})</span>`}
                     </div>
                 `;
-                
+
                 container.appendChild(compoundElement);
             });
 
-            // --- IMPORTANTE: ASIGNAR EVENTOS ---
-            // Asignamos los 'clicks' a los botones que acabamos de crear.
-            
+            // Asignar eventos
             container.querySelectorAll('.btn-ficha-2d').forEach(button => {
                 button.addEventListener('click', (e) => {
                     const data = e.currentTarget.dataset;
-                    // Llamamos a una nueva función para mostrar el 2D
                     this.showMolecule2D(data.name, data.file, data.formula, data.cas);
                 });
             });
@@ -863,15 +872,16 @@ class UIManager {
             container.querySelectorAll('.btn-view-3d').forEach(button => {
                 button.addEventListener('click', (e) => {
                     const data = e.currentTarget.dataset;
-                    // Llamamos a una nueva función para mostrar el 3D
                     this.showMolecule3D(data.name, data.file);
                 });
             });
 
         } else {
-            container.innerHTML = '<p class="text-muted">No se detectaron compuestos PFAS específicos.</p>';
+            // Usamos la clave que ya existe
+            container.innerHTML = `<p class="text-muted">${window.LanguageManager.t('pfas.detected_compounds')}</p>`;
         }
     }
+
 
     // ============================================================
     // UTILIDADES DE FORMATO
@@ -1009,6 +1019,25 @@ class UIManager {
                 this.switchTab(tabName);
             });
         });
+        window.addEventListener('languageChanged', (event) => {
+            // Comprobar si la pestaña del analizador está activa
+            const tab = document.getElementById('analyzer-tab');
+            if (tab && tab.classList.contains('active')) {
+
+                console.log(`[UIManager] 🗣️ Evento 'languageChanged' detectado. Refrescando UI de Analizador.`);
+
+                // 1. Refrescar los compuestos PFAS si ya se han cargado
+                if (UIManager.lastPfasData) {
+                    this.displayPFASDetection(UIManager.lastPfasData);
+                }
+
+                // 2. (Opcional) Refrescar la tabla de picos y resultados
+                   if (window.APP_HANDLERS && APP_HANDLERS.currentResult) {
+                       this.displayResults(APP_HANDLERS.currentResult);
+                    }
+            }
+        });
+
 
         // === CARGA DE ARCHIVOS ===
         const fileInput = document.getElementById('fileInput');
@@ -1267,6 +1296,10 @@ class UIManager {
             targetTab.style.display = 'block';
             targetTab.style.visibility = 'visible';
             targetTab.style.opacity = '1';
+
+            if (window.LanguageManager) {
+                window.LanguageManager.applyTranslations(targetTab);
+            }
             
             // ✅ NUEVO: También asegurar que el contenedor padre esté visible
             const parent = targetTab.parentElement;

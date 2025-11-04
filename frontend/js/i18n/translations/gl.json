@@ -25,7 +25,11 @@
     "showPeakDetails": "Amosar detalles dos picos",
     "hideSpectrum": "Ocultar espectro",
     "hideDetailedResults": "Ocultar resultados detallados",
-    "hidePeakDetails": "Ocultar detalles dos picos"
+    "hidePeakDetails": "Ocultar detalles dos picos",
+    "confidence": "confianza",
+    "formula": "Fórmula",
+    "cas": "CAS",
+    "noPreview": "(Sen vista previa)"
   },
   "connection": {
     "connected": "Conectado",
@@ -80,7 +84,10 @@
     "ppmAxis": "Desprazamento (ppm)",
     "intensityAxis": "Intensidade",
     "spectrumTrace": "Espectro",
-    "peaksTrace": "Picos"
+    "peaksTrace": "Picos",
+    "tooltipPeak": "Pico",
+    "tooltipIntensity": "Intensidade",
+    "tooltipRegion": "Rexión"
   },
   "history": {
     "title": "Historial de análises",

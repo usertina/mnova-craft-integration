@@ -108,6 +108,10 @@ class LanguageManager {
 
             console.log(`✅ [LanguageManager] Idioma cambiado a: ${langCode}`);
 
+            window.dispatchEvent(new CustomEvent('languageChanged', { 
+                detail: { lang: langCode }
+            }));
+
         } catch (error) {
             console.error('[LanguageManager] Error al cambiar idioma:', error);
             console.error('[LanguageManager] Ruta intentada:', `js/i18n/translations/${langCode}.json`);

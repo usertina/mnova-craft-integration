@@ -1,5 +1,5 @@
 // ============================================================================
-// COMPARISON MANAGER - Gestión de comparación de muestras (VERSIÓN CORREGIDA)
+// COMPARISON MANAGER - Gestión de comparación de muestras (LIMPIA + OPTIMIZADA)
 // ============================================================================
 
 class ComparisonManager {
@@ -15,93 +15,91 @@ class ComparisonManager {
      * Inicializa el módulo de comparación
      */
     async init() {
-        // Evitar múltiples inicializaciones
         if (this.initialized) {
-            console.log('[Comparison] Ya está inicializado, solo recargando muestras...');
+            // Si ya está inicializado, recargar muestras (por si hay datos nuevos)
             await this.loadSamples();
             return;
         }
-
-        console.log('[Comparison] Inicializando por primera vez...');
         this.setupEventListeners();
         this.initialized = true;
         await this.loadSamples();
     }
 
     /**
-     * Configura los event listeners
+     * Configura los event listeners relevantes
      */
     setupEventListeners() {
         const exportBtn = document.getElementById('exportComparisonBtn');
         if (exportBtn) {
             exportBtn.addEventListener('click', () => this.exportComparison());
         }
+
+        window.addEventListener('languageChanged', (event) => {
+            const tab = document.getElementById('comparison-tab');
+            if (!(tab && tab.classList.contains('active'))) return;
+
+            // Refrescar UI y traducciones al cambiar idioma
+            this.updateUI();
+            if (window.LanguageManager && typeof window.LanguageManager.applyTranslations === 'function') {
+                window.LanguageManager.applyTranslations(tab);
+            }
+        });
     }
 
     /**
-     * Carga todas las muestras disponibles
+     * Carga todas las muestras disponibles desde APIClient
      */
     async loadSamples() {
         try {
-            console.log('[Comparison] 🔄 Iniciando carga de muestras...');
-            
-            // Validar que existe el perfil de empresa
-            if (!window.CURRENT_COMPANY_PROFILE || !window.CURRENT_COMPANY_PROFILE.company_id) {
-                console.error('[Comparison] ❌ No hay empresa seleccionada');
+            if (!window.CURRENT_COMPANY_PROFILE?.company_id) {
                 this.showError('No hay empresa seleccionada. Por favor, vuelve a iniciar sesión.');
                 return;
             }
 
             const companyId = window.CURRENT_COMPANY_PROFILE.company_id;
-            console.log('[Comparison] 📊 Cargando muestras para empresa:', companyId);
-
-            // Mostrar indicador de carga
             this.showLoading(true);
 
-            // Cargar todas las mediciones
-            console.log('[Comparison] 🔍 Llamando a APIClient.getHistory...');
+            // Traer historial (paginación amplia por defecto)
             const response = await APIClient.getHistory(1, 1000);
-            
-            console.log('[Comparison] ✅ Respuesta recibida:', response);
-            
-            if (!response) {
-                throw new Error('No se recibió respuesta del servidor');
-            }
-            
+            if (!response) throw new Error('No se recibió respuesta del servidor');
+
             this.allSamples = response.measurements || [];
-            
-            console.log(`[Comparison] ✅ ${this.allSamples.length} muestras cargadas correctamente`);
-            
             this.renderSampleSelector();
-            
         } catch (error) {
-            console.error('[Comparison] ❌ Error cargando muestras:', error);
-            console.error('[Comparison] Stack trace:', error.stack);
-            this.showError(`Error al cargar muestras: ${error.message}`);
+            this.showError(`Error al cargar muestras: ${error?.message || error}`);
+            console.error('[Comparison] loadSamples error:', error);
         } finally {
             this.showLoading(false);
         }
     }
 
     /**
-     * Muestra un estado de carga
+     * Muestra/oculta estado de carga en el contenedor del selector
      */
     showLoading(show) {
         const container = document.getElementById('sampleSelectorContainer');
-        if (container && show) {
-            // ✅ CORREGIDO: Usa la clave de traducción
-            const loadingText = window.LanguageManager.t('comparison.loadingSamples');
-            container.innerHTML = `<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#6366f1;"></i><p style="margin-top:10px;color:#9ca3af;">${loadingText}</p></div>`;
+        if (!container) return;
+
+        if (show) {
+            const loadingText = window.LanguageManager?.t('comparison.loadingSamples') || 'Cargando muestras...';
+            container.innerHTML = `
+                <div style="text-align:center;padding:40px;">
+                    <i class="fas fa-spinner fa-spin fa-2x" style="color:#6366f1;"></i>
+                    <p style="margin-top:10px;color:#9ca3af;">${this.escapeHtml(loadingText)}</p>
+                </div>
+            `;
         }
     }
+
     /**
-     * Muestra un mensaje de error
+     * Mostrar mensaje de error (UIManager si existe, fallback a alert)
      */
     showError(message) {
-        console.error('[Comparison] Error:', message);
         if (window.UIManager && typeof UIManager.showNotification === 'function') {
             UIManager.showNotification(message, 'error');
         } else {
+            // Nota: preferimos console.error + alert solo si no hay UIManager
+            console.error('[Comparison] Error:', message);
             alert(message);
         }
     }
@@ -112,53 +110,53 @@ class ComparisonManager {
     renderSampleSelector() {
         const container = document.getElementById('sampleSelectorContainer');
         if (!container) {
-            console.warn('[Comparison] No se encontró sampleSelectorContainer');
+            console.warn('[Comparison] sampleSelectorContainer no encontrado');
             return;
         }
 
-        console.log('[Comparison] Renderizando', this.allSamples.length, 'muestras');
-
-        if (this.allSamples.length === 0) {
+        if (!Array.isArray(this.allSamples) || this.allSamples.length === 0) {
+            const noSamplesText = window.LanguageManager?.t('comparison.noSamples') || 'No hay muestras';
             container.innerHTML = `
                 <div class="empty-state-comparison">
                     <i class="fas fa-inbox fa-3x" style="color: #6b7280; margin-bottom: 1rem;"></i>
-                    <p>${window.LanguageManager.t('comparison.noSamples')}</p>
+                    <p>${this.escapeHtml(noSamplesText)}</p>
                 </div>
             `;
             return;
         }
 
         container.innerHTML = this.allSamples.map(sample => {
-            const isSelected = this.selectedSamples.find(s => s.id === sample.id);
+            const isSelected = !!this.selectedSamples.find(s => s.id === sample.id);
             const displayName = sample.filename || sample.sample_name || 'N/A';
-            const date = new Date(sample.timestamp || sample.created_at).toLocaleDateString();
-            
+            const date = new Date(sample.timestamp || sample.created_at || Date.now()).toLocaleDateString();
+            const fluorVal = Number(sample.fluor_percentage || 0).toFixed(2);
+            const pfasVal = Number(sample.pfas_percentage ?? sample.pifas_percentage ?? 0).toFixed(2);
+            const qualityVal = Number(sample.quality_score ?? 0).toFixed(1);
+
             return `
                 <div class="sample-card ${isSelected ? 'selected' : ''}" data-sample-id="${sample.id}">
                     <div class="sample-card-header">
-                        <input type="checkbox" 
-                            class="sample-checkbox" 
+                        <input type="checkbox"
+                            class="sample-checkbox"
                             data-sample-id="${sample.id}"
                             ${isSelected ? 'checked' : ''}
                             ${!isSelected && this.selectedSamples.length >= this.maxSamples ? 'disabled' : ''}>
                         <label class="sample-name">${this.escapeHtml(displayName)}</label>
                     </div>
                     <div class="sample-card-body">
-                        <div class="sample-info">
-                            <small>${date}</small>
-                        </div>
+                        <div class="sample-info"><small>${this.escapeHtml(date)}</small></div>
                         <div class="sample-metrics">
                             <div class="metric">
-                                <span class="metric-label">Flúor:</span>
-                                <span class="metric-value">${(sample.fluor_percentage || 0).toFixed(2)}%</span>
+                                <span class="metric-label">${this.escapeHtml(window.LanguageManager?.t('results.fluor') || 'Flúor')}:</span>
+                                <span class="metric-value">${fluorVal}%</span>
                             </div>
                             <div class="metric">
-                                <span class="metric-label">PFAS:</span>
-                                <span class="metric-value">${(sample.pfas_percentage || sample.pifas_percentage || 0).toFixed(2)}%</span>
+                                <span class="metric-label">${this.escapeHtml(window.LanguageManager?.t('results.pfas') || 'PFAS')}:</span>
+                                <span class="metric-value">${pfasVal}%</span>
                             </div>
                             <div class="metric">
-                                <span class="metric-label">Calidad:</span>
-                                <span class="metric-value">${(sample.quality_score || 0).toFixed(1)}/10</span>
+                                <span class="metric-label">${this.escapeHtml(window.LanguageManager?.t('results.quality') || 'Calidad')}:</span>
+                                <span class="metric-value">${qualityVal}/10</span>
                             </div>
                         </div>
                     </div>
@@ -166,44 +164,37 @@ class ComparisonManager {
             `;
         }).join('');
 
-        // ✅ CORREGIDO: Añadir event listeners correctamente
+        // Listeners: checkbox change
         container.querySelectorAll('.sample-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', (e) => {
-                e.stopPropagation(); // Evitar propagación
-                const sampleId = parseInt(e.target.getAttribute('data-sample-id'));
-                console.log('[Comparison] Checkbox clicked:', sampleId);
-                this.toggleSample(sampleId);
+                e.stopPropagation();
+                const id = parseInt(checkbox.getAttribute('data-sample-id'), 10);
+                this.toggleSample(id);
             });
         });
 
-        // También hacer clickeable toda la tarjeta
+        // Listeners: clicking card toggles checkbox
         container.querySelectorAll('.sample-card').forEach(card => {
             card.addEventListener('click', (e) => {
-                // Solo si no se hizo click en el checkbox directamente
-                if (e.target.classList.contains('sample-checkbox')) return;
-                
+                if (e.target && e.target.classList && e.target.classList.contains('sample-checkbox')) return;
                 const checkbox = card.querySelector('.sample-checkbox');
-                if (checkbox && !checkbox.disabled) {
-                    checkbox.checked = !checkbox.checked;
-                    const sampleId = parseInt(checkbox.getAttribute('data-sample-id'));
-                    console.log('[Comparison] Card clicked:', sampleId);
-                    this.toggleSample(sampleId);
-                }
+                if (!checkbox || checkbox.disabled) return;
+                checkbox.checked = !checkbox.checked;
+                const id = parseInt(checkbox.getAttribute('data-sample-id'), 10);
+                this.toggleSample(id);
             });
         });
-        
-        console.log('[Comparison] ✅ Selector de muestras renderizado');
     }
-    
+
     /**
      * Escapa HTML para prevenir XSS
      */
-    escapeHtml(text) {
+    escapeHtml(text = '') {
         if (window.UIManager && typeof UIManager.escapeHtml === 'function') {
             return UIManager.escapeHtml(text);
         }
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = String(text);
         return div.innerHTML;
     }
 
@@ -213,55 +204,42 @@ class ComparisonManager {
     toggleSample(sampleId) {
         const sample = this.allSamples.find(s => s.id === sampleId);
         if (!sample) {
-            console.warn('[Comparison] No se encontró la muestra con ID:', sampleId);
+            console.warn('[Comparison] Muestra no encontrada:', sampleId);
             return;
         }
 
-        const index = this.selectedSamples.findIndex(s => s.id === sampleId);
-
-        if (index > -1) {
-            // Deseleccionar
-            this.selectedSamples.splice(index, 1);
-            console.log('[Comparison] Muestra deseleccionada:', sampleId);
+        const idx = this.selectedSamples.findIndex(s => s.id === sampleId);
+        if (idx > -1) {
+            this.selectedSamples.splice(idx, 1);
         } else {
-            // Seleccionar (si no se alcanzó el máximo)
             if (this.selectedSamples.length >= this.maxSamples) {
                 this.showError(`Máximo ${this.maxSamples} muestras permitidas`);
                 return;
             }
             this.selectedSamples.push(sample);
-            console.log('[Comparison] Muestra seleccionada:', sampleId);
         }
-
-        console.log(`[Comparison] Muestras seleccionadas: ${this.selectedSamples.length}`);
 
         this.updateUI();
     }
 
     /**
-     * Actualiza la interfaz según las muestras seleccionadas
+     * Actualiza la UI: contador, export button, re-render del selector, gráfico y tabla
      */
     updateUI() {
-        console.log('[Comparison] Actualizando UI...');
-        
-        // Actualizar contador
         const countDisplay = document.getElementById('selectedCountDisplay');
         if (countDisplay) {
-            countDisplay.setAttribute('data-params-count', this.selectedSamples.length);
-            countDisplay.setAttribute('data-params-max', this.maxSamples);
-            countDisplay.textContent = `${this.selectedSamples.length} de ${this.maxSamples} seleccionadas`;
+            countDisplay.setAttribute('data-params-count', String(this.selectedSamples.length));
+            countDisplay.setAttribute('data-params-max', String(this.maxSamples));
+            const countText = `${this.selectedSamples.length} de ${this.maxSamples} seleccionadas`;
+            countDisplay.textContent = this.escapeHtml(countText);
         }
 
-        // Habilitar/deshabilitar botón de exportación
         const exportBtn = document.getElementById('exportComparisonBtn');
-        if (exportBtn) {
-            exportBtn.disabled = this.selectedSamples.length < 2;
-        }
+        if (exportBtn) exportBtn.disabled = this.selectedSamples.length < 2;
 
-        // Re-renderizar selector para actualizar estados
+        // Re-render para actualizar estados (checkbox, disabled, etc.)
         this.renderSampleSelector();
 
-        // Actualizar gráfico y tabla
         if (this.selectedSamples.length >= 2) {
             this.updateComparisonChart();
             this.updateComparisonTable();
@@ -271,32 +249,19 @@ class ComparisonManager {
     }
 
     /**
-     * Actualiza el gráfico de comparación
+     * Actualiza el gráfico de comparación (barras)
      */
     updateComparisonChart() {
         const chartDiv = document.getElementById('comparisonChart');
-        if (!chartDiv) {
-            console.warn('[Comparison] No se encontró comparisonChart');
-            return;
-        }
+        if (!chartDiv) return;
 
-        console.log('[Comparison] Actualizando gráfico de comparación...');
+        const labels = this.selectedSamples.map(s => s.filename || s.sample_name || 'N/A');
+        const fluor = this.selectedSamples.map(s => Number(s.fluor_percentage || 0));
+        const pfas = this.selectedSamples.map(s => Number(s.pfas_percentage ?? s.pifas_percentage ?? 0));
 
         const traces = [
-            {
-                x: this.selectedSamples.map(s => s.filename || s.sample_name || 'N/A'),
-                y: this.selectedSamples.map(s => s.fluor_percentage || 0),
-                name: window.LanguageManager.t('results.fluor') + ' (%)',
-                type: 'bar',
-                marker: { color: '#10b981' }
-            },
-            {
-                x: this.selectedSamples.map(s => s.filename || s.sample_name || 'N/A'),
-                y: this.selectedSamples.map(s => s.pfas_percentage || s.pifas_percentage || 0),
-                name: window.LanguageManager.t('results.pfas') + ' (%)',
-                type: 'bar',
-                marker: { color: '#3b82f6' }
-            }
+            { x: labels, y: fluor, name: (window.LanguageManager?.t('results.fluor') || 'Flúor') + ' (%)', type: 'bar', marker: { color: '#10b981' } },
+            { x: labels, y: pfas, name: (window.LanguageManager?.t('results.pfas') || 'PFAS') + ' (%)', type: 'bar', marker: { color: '#3b82f6' } }
         ];
 
         const layout = {
@@ -304,22 +269,13 @@ class ComparisonManager {
             plot_bgcolor: 'transparent',
             font: { color: '#e5e7eb' },
             barmode: 'group',
-            xaxis: {
-                title: window.LanguageManager.t('comparison.sample'),
-                gridcolor: '#374151',
-                color: '#e5e7eb'
-            },
-            yaxis: {
-                title: window.LanguageManager.t('results.percentage') + ' (%)',
-                gridcolor: '#374151',
-                color: '#e5e7eb'
-            },
+            xaxis: { title: window.LanguageManager?.t('comparison.sample') || 'Muestra', gridcolor: '#374151', color: '#e5e7eb' },
+            yaxis: { title: (window.LanguageManager?.t('results.percentage') || 'Porcentaje') + ' (%)', gridcolor: '#374151', color: '#e5e7eb' },
             margin: { t: 20, r: 20, b: 80, l: 60 },
             showlegend: true
         };
 
         Plotly.newPlot('comparisonChart', traces, layout, { responsive: true });
-        console.log('[Comparison] ✅ Gráfico de comparación actualizado');
     }
 
     /**
@@ -328,68 +284,39 @@ class ComparisonManager {
     updateComparisonTable() {
         const thead = document.querySelector('#comparisonTable thead tr');
         const tbody = document.querySelector('#comparisonTable tbody');
-        
-        if (!thead || !tbody) {
-            console.warn('[Comparison] No se encontró thead o tbody de comparisonTable');
-            return;
-        }
+        if (!thead || !tbody) return;
 
-        console.log('[Comparison] Actualizando tabla de comparación...');
+        const maxTitleLen = 15;
+        thead.innerHTML = `<th>${this.escapeHtml(window.LanguageManager?.t('results.parameter') || 'Parámetro')}</th>` +
+            this.selectedSamples.map(s => `<th>${this.escapeHtml((s.filename || s.sample_name || 'N/A').substring(0, maxTitleLen))}</th>`).join('');
 
-        // Actualizar encabezados
-        thead.innerHTML = `<th>${window.LanguageManager.t('results.parameter')}</th>` +
-            this.selectedSamples.map(s => 
-                `<th>${this.escapeHtml((s.filename || s.sample_name || 'N/A').substring(0, 15))}</th>`
-            ).join('');
-
-        // Actualizar filas
         const rows = [
-            {
-                label: window.LanguageManager.t('results.fluor') + ' (%)',
-                values: this.selectedSamples.map(s => (s.fluor_percentage || 0).toFixed(2))
-            },
-            {
-                label: window.LanguageManager.t('results.pfas') + ' (%)',
-                values: this.selectedSamples.map(s => (s.pfas_percentage || s.pifas_percentage || 0).toFixed(2))
-            },
-            {
-                label: window.LanguageManager.t('results.concentration') + ' (mM)',
-                values: this.selectedSamples.map(s => ((s.analysis?.pifas_concentration || s.concentration || 0)).toFixed(4))
-            },
-            {
-                label: window.LanguageManager.t('results.quality') + ' (/10)',
-                values: this.selectedSamples.map(s => (s.quality_score || 0).toFixed(1))
-            },
-            {
-                label: window.LanguageManager.t('comparison.date'),
-                values: this.selectedSamples.map(s => new Date(s.timestamp || s.created_at).toLocaleDateString())
-            }
+            { label: (window.LanguageManager?.t('results.fluor') || 'Flúor') + ' (%)', values: this.selectedSamples.map(s => (Number(s.fluor_percentage || 0)).toFixed(2)) },
+            { label: (window.LanguageManager?.t('results.pfas') || 'PFAS') + ' (%)', values: this.selectedSamples.map(s => (Number(s.pfas_percentage ?? s.pifas_percentage ?? 0)).toFixed(2)) },
+            { label: (window.LanguageManager?.t('results.concentration') || 'Concentración') + ' (mM)', values: this.selectedSamples.map(s => (Number(s.analysis?.pifas_concentration ?? s.concentration ?? 0)).toFixed(4)) },
+            { label: (window.LanguageManager?.t('results.quality') || 'Calidad') + ' (/10)', values: this.selectedSamples.map(s => (Number(s.quality_score ?? 0)).toFixed(1)) },
+            { label: (window.LanguageManager?.t('comparison.date') || 'Fecha'), values: this.selectedSamples.map(s => new Date(s.timestamp || s.created_at || Date.now()).toLocaleDateString()) }
         ];
 
         tbody.innerHTML = rows.map(row => `
             <tr>
-                <td><strong>${row.label}</strong></td>
-                ${row.values.map(v => `<td>${v}</td>`).join('')}
+                <td><strong>${this.escapeHtml(row.label)}</strong></td>
+                ${row.values.map(v => `<td>${this.escapeHtml(String(v))}</td>`).join('')}
             </tr>
         `).join('');
-
-        console.log('[Comparison] ✅ Tabla de comparación actualizada');
     }
 
     /**
-     * Limpia el gráfico y la tabla
+     * Limpia la visualización cuando hay < 2 muestras seleccionadas
      */
     clearComparison() {
-        console.log('[Comparison] Limpiando visualización...');
-
-        // ✅ CORREGIDO: Usa claves de traducción
-        const emptyText = window.LanguageManager.t('comparison.selectMinSamples');
+        const emptyText = window.LanguageManager?.t('comparison.selectMinSamples') || 'Selecciona al menos 2 muestras';
 
         const chartDiv = document.getElementById('comparisonChart');
         if (chartDiv) {
             chartDiv.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af;">
-                    <p>${emptyText}</p>
+                <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;">
+                    <p>${this.escapeHtml(emptyText)}</p>
                 </div>
             `;
         }
@@ -397,30 +324,24 @@ class ComparisonManager {
         const tbody = document.querySelector('#comparisonTable tbody');
         if (tbody) {
             tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="empty-state-cell">
-                        ${emptyText}
-                    </td>
-                </tr>
+                <tr><td colspan="6" class="empty-state-cell">${this.escapeHtml(emptyText)}</td></tr>
             `;
         }
     }
 
     /**
-     * Exporta la comparación
+     * Exporta la comparación mostrando un menú de formatos
      */
     async exportComparison() {
         if (this.selectedSamples.length < 2) {
-            this.showError('Selecciona al menos 2 muestras para exportar');
+            this.showError(window.LanguageManager?.t('comparison.selectMinSamples') || 'Selecciona al menos 2 muestras para exportar');
             return;
         }
-
-        // Mostrar menú de opciones de formato
         this.showExportFormatMenu();
     }
 
     /**
-     * Muestra el menú de selección de formato
+     * Muestra diálogo simple de selección de formato de exportación
      */
     showExportFormatMenu() {
         const formats = [
@@ -434,82 +355,68 @@ class ComparisonManager {
         menu.innerHTML = `
             <div class="export-format-overlay"></div>
             <div class="export-format-dialog">
-                <h3>${window.LanguageManager.t('comparison.exportComparison')}</h3>
-                <p>${window.LanguageManager.t('comparison.selectFormat')}</p>
+                <h3>${this.escapeHtml(window.LanguageManager?.t('comparison.exportComparison') || 'Exportar comparación')}</h3>
+                <p>${this.escapeHtml(window.LanguageManager?.t('comparison.selectFormat') || 'Selecciona un formato')}</p>
                 <div class="export-format-options">
                     ${formats.map(fmt => `
                         <button class="export-format-btn" data-format="${fmt.value}">
                             <i class="fas ${fmt.icon}"></i>
-                            <span>${fmt.label}</span>
+                            <span>${this.escapeHtml(fmt.label)}</span>
                         </button>
                     `).join('')}
                 </div>
-                <button class="export-format-cancel">${window.LanguageManager.t('comparison.cancel')}</button>
+                <button class="export-format-cancel">${this.escapeHtml(window.LanguageManager?.t('comparison.cancel') || 'Cancelar')}</button>
             </div>
         `;
-
         document.body.appendChild(menu);
 
-        // Event listeners
+        const removeMenu = () => { if (menu && menu.parentNode) menu.parentNode.removeChild(menu); };
+
         menu.querySelectorAll('.export-format-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const format = btn.dataset.format;
-                document.body.removeChild(menu);
+                removeMenu();
                 await this.performExport(format);
             });
         });
 
-        menu.querySelector('.export-format-cancel').addEventListener('click', () => {
-            document.body.removeChild(menu);
-        });
-
-        menu.querySelector('.export-format-overlay').addEventListener('click', () => {
-            document.body.removeChild(menu);
-        });
+        menu.querySelector('.export-format-cancel')?.addEventListener('click', removeMenu);
+        menu.querySelector('.export-format-overlay')?.addEventListener('click', removeMenu);
     }
 
     /**
-     * Realiza la exportación
+     * Realiza la exportación: prepara datos, captura gráfico y llama a APIClient.exportData
      */
     async performExport(format) {
         try {
-            if (window.UIManager) {
-                UIManager.showLoading('Exportando comparación...');
-            }
+            UIManager?.showLoading?.('Exportando comparación...');
 
-            // Preparar datos para exportación
             const samples = this.selectedSamples.map(s => ({
                 filename: s.filename || s.sample_name,
-                fluor: s.fluor_percentage || 0,
-                pfas: s.pfas_percentage || s.pifas_percentage || 0,
-                concentration: s.analysis?.pifas_concentration || s.concentration || 0,
-                quality: s.quality_score || 0,
-                date: new Date(s.timestamp || s.created_at).toISOString()
+                fluor: Number(s.fluor_percentage || 0),
+                pfas: Number(s.pfas_percentage ?? s.pifas_percentage ?? 0),
+                concentration: Number(s.analysis?.pifas_concentration ?? s.concentration ?? 0),
+                quality: Number(s.quality_score ?? 0),
+                date: new Date(s.timestamp || s.created_at || Date.now()).toISOString()
             }));
 
-            // Capturar gráfico
             let chartImage = null;
             try {
                 const chartDiv = document.getElementById('comparisonChart');
                 if (chartDiv && window.Plotly) {
-                    chartImage = await Plotly.toImage(chartDiv, {
-                        format: 'png',
-                        width: 800,
-                        height: 500
-                    });
+                    chartImage = await Plotly.toImage(chartDiv, { format: 'png', width: 800, height: 500 });
                 }
-            } catch (error) {
-                console.warn('[Comparison] No se pudo capturar gráfico:', error);
+            } catch (err) {
+                console.warn('[Comparison] No se pudo capturar gráfico:', err);
             }
 
-            // Obtener datos de la empresa
             const companyProfile = window.CURRENT_COMPANY_PROFILE || {};
 
             const exportConfig = {
                 type: 'comparison',
-                format: format,
+                format,
                 lang: window.LanguageManager?.currentLang || 'es',
-                samples: samples,
+                samples,
                 chart_image: chartImage,
                 company_data: {
                     name: companyProfile.company_name,
@@ -521,39 +428,26 @@ class ComparisonManager {
             };
 
             await APIClient.exportData(exportConfig);
-            
-            if (window.UIManager) {
-                UIManager.hideLoading();
-                UIManager.showNotification('Comparación exportada correctamente', 'success');
-            }
-
+            UIManager?.hideLoading?.();
+            UIManager?.showNotification?.(window.LanguageManager?.t('comparison.exportSuccess') || 'Comparación exportada correctamente', 'success');
         } catch (error) {
-            console.error('[Comparison] Error exportando:', error);
-            if (window.UIManager) {
-                UIManager.hideLoading();
-                UIManager.showNotification('Error al exportar comparación', 'error');
-            }
+            UIManager?.hideLoading?.();
+            this.showError(window.LanguageManager?.t('comparison.exportError') || 'Error al exportar comparación');
+            console.error('[Comparison] performExport error:', error);
         }
     }
 }
 
-// Instancia global
+// Instancia global y listener para inicializar cuando se active la pestaña
 window.ComparisonManager = new ComparisonManager();
 
-// Inicializar cuando se active la pestaña
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[Comparison] DOM cargado, configurando listener de pestaña...');
-    
     const comparisonTab = document.querySelector('[data-tab="comparison"]');
     if (comparisonTab) {
-        console.log('[Comparison] Pestaña de comparación encontrada, añadiendo listener');
         comparisonTab.addEventListener('click', () => {
-            console.log('[Comparison] Click en pestaña de comparación');
-            if (window.ComparisonManager) {
-                window.ComparisonManager.init();
-            }
+            window.ComparisonManager?.init();
         });
     } else {
-        console.warn('[Comparison] No se encontró la pestaña de comparación');
+        console.warn('[Comparison] Pestaña de comparación no encontrada');
     }
 });

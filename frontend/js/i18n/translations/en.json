@@ -25,7 +25,11 @@
     "showPeakDetails": "Show Peak Details",
     "hideSpectrum": "Hide Spectrum",
     "hideDetailedResults": "Hide Detailed Results",
-    "hidePeakDetails": "Hide Peak Details"
+    "hidePeakDetails": "Hide Peak Details",
+    "confidence": "confidence",
+    "formula": "Formula",
+    "cas": "CAS",
+    "noPreview": "(No preview available)"
   },
   "connection": {
     "connected": "Connected",
@@ -80,7 +84,10 @@
     "ppmAxis": "Shift (ppm)",
     "intensityAxis": "Intensity",
     "spectrumTrace": "Spectrum",
-    "peaksTrace": "Peaks"
+    "peaksTrace": "Peaks",
+    "tooltipPeak": "Peak",
+    "tooltipIntensity": "Intensity",
+    "tooltipRegion": "Region"
   },
   "history": {
     "title": "Analysis History",
