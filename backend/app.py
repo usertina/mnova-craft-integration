@@ -15,6 +15,8 @@ import logging
 import requests
 import threading
 
+from pfas_database import get_molecule_visualization
+
 # Importar dependencias locales
 from database import get_db
 from config_manager import get_config_manager, LicenseValidator
@@ -22,36 +24,6 @@ from company_data import COMPANY_PROFILES # Importar perfiles de empresa
 
 # Configurar logging (activar DEBUG para ver todo)
 logging.getLogger().setLevel(logging.DEBUG)
-
-# Mini-base de datos de información de moléculas (AMPLIADA)
-MOLECULE_DATA_DB = {
-    # === Ácidos Perfluoroalcanoicos (PFCAs) ===
-    "375-22-4": { "name": "PFBA (Ácido Perfluorobutanoico)", "file_3d": "pfba.sdf", "image_2d": "assets/molecules/pfba_2d.png" },
-    "2706-90-3": { "name": "PFPeA (Ácido Perfluoropentanoico)", "file_3d": "pfpea.sdf", "image_2d": "assets/molecules/pfpea_2d.png" },
-    "307-24-4": { "name": "PFHxA (Ácido Perfluorohexanoico)", "file_3d": "pfhxa.sdf", "image_2d": "assets/molecules/pfhxa_2d.png" },
-    "375-85-9": { "name": "PFHpA (Ácido Perfluoroheptanoico)", "file_3d": "pfhpa.sdf", "image_2d": "assets/molecules/pfhpa_2d.png" },
-    "335-67-1": { "name": "PFOA (Ácido Perfluorooctanoico)", "file_3d": "pfoa.sdf", "image_2d": "assets/molecules/pfoa_2d.png" },
-    "375-95-1": { "name": "PFNA (Ácido Perfluorononanoico)", "file_3d": "pfna.sdf", "image_2d": "assets/molecules/pfna_2d.png" },
-    "335-76-2": { "name": "PFDA (Ácido Perfluorodecanoico)", "file_3d": "pfda.sdf", "image_2d": "assets/molecules/pfda_2d.png" },
-    "2058-94-8": { "name": "PFUnDA (Ácido Perfluoroundecanoico)", "file_3d": "pfunda.sdf", "image_2d": "assets/molecules/pfunda_2d.png" },
-    "307-55-1": { "name": "PFDoDA (Ácido Perfluorododecanoico)", "file_3d": "pfdoda.sdf", "image_2d": "assets/molecules/pfdoda_2d.png" },
-    
-    # === Sulfonatos Perfluoroalcanos (PFSAs) ===
-    "375-73-5": { "name": "PFBS (Sulfonato de Perfluorobutano)", "file_3d": "pfbs.sdf", "image_2d": "assets/molecules/pfbs_2d.png" },
-    "355-46-4": { "name": "PFHxS (Sulfonato de Perfluorohexano)", "file_3d": "pfhxs.sdf", "image_2d": "assets/molecules/pfhxs_2d.png" },
-    "375-92-8": { "name": "PFHpS (Sulfonato de Perfluoroheptano)", "file_3d": "pfhps.sdf", "image_2d": "assets/molecules/pfhps_2d.png" },
-    "1763-23-1": { "name": "PFOS (Sulfonato de Perfluorooctano)", "file_3d": "pfos.sdf", "image_2d": "assets/molecules/pfos_2d.png" },
-    "335-77-3": { "name": "PFDS (Sulfonato de Perfluorodecano)", "file_3d": "pfds.sdf", "image_2d": "assets/molecules/pfds_2d.png" },
-
-    # === PFAS Emergentes y Alternativos ===
-    "13252-13-6": { "name": "GenX (HFPO-DA)", "file_3d": "genx.sdf", "image_2d": "assets/molecules/genx_2d.png" },
-    "919005-14-4": { "name": "ADONA", "file_3d": "adona.sdf", "image_2d": "assets/molecules/adona_2d.png" },
-    "73606-19-6": { "name": "F-53B", "file_3d": "f53b.sdf", "image_2d": "assets/molecules/f53b_2d.png" },
-
-    # === Fluorotelómeros (FTOHs) ===
-    "647-42-7": { "name": "6:2 FTOH", "file_3d": "6-2_ftoh.sdf", "image_2d": "assets/molecules/6-2_ftoh_2d.png" },
-    "678-39-7": { "name": "8:2 FTOH", "file_3d": "8-2_ftoh.sdf", "image_2d": "assets/molecules/8-2_ftoh_2d.png" }
-}
 
 
 # Inicializar componentes
@@ -254,27 +226,25 @@ def analyze_spectrum():
         logging.debug(f"Analysis raw results: {results}")
 
         # --- INICIO DEL ENRIQUECIMIENTO 3D/2D ---
-        # ✅ IMPORTANTE: Esto debe ir ANTES de guardar en la BD
-        #    para que los datos 2D/3D se guarden y estén disponibles en el historial
-        
         logging.info("  🧬  Enriqueciendo lista de compuestos con datos 2D/3D...")
-        
+
         if 'pfas_detection' in results and 'compounds' in results['pfas_detection']:
             for compound in results['pfas_detection']['compounds']:
                 cas_number = compound.get('cas')
-                molecule_files = MOLECULE_DATA_DB.get(cas_number)
+                molecule_viz = get_molecule_visualization(cas_number)  # ✅ Cambio de nombre
                 
-                if molecule_files:
-                    compound['file_3d'] = molecule_files.get('file_3d')
-                    compound['image_2d'] = molecule_files.get('image_2d')
-                    logging.debug(f"     -> Añadidos datos 2D/3D para {cas_number}: {molecule_files}")
+                # ✅ Siempre asignar (puede ser None si no existe)
+                compound['file_3d'] = molecule_viz.get('file_3d')
+                compound['image_2d'] = molecule_viz.get('image_2d')
+                
+                # ✅ Verificar si encontró ALGÚN archivo
+                if molecule_viz.get('file_3d') or molecule_viz.get('image_2d'):
+                    logging.debug(f"     -> Añadidos datos 2D/3D para {cas_number}: {molecule_viz['name']}")
                 else:
-                    compound['file_3d'] = None
-                    compound['image_2d'] = None
                     logging.warning(f"     -> No se encontraron datos 2D/3D para CAS: {cas_number}")
-        
-        # --- FIN DEL ENRIQUECIMIENTO 3D/2D ---
 
+        # --- FIN DEL ENRIQUECIMIENTO 3D/2D ---
+        
         # GUARDAR EN JSON (Opcional, pero útil para debug)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         result_filename = f"{Path(file.filename).stem}_{company_id}_analysis_{timestamp}.json"

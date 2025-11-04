@@ -5,7 +5,7 @@ import re # ### NUEVO ### Importar regex para parsear límites
 from pathlib import Path
 from typing import Dict, List, Tuple
 from scipy.signal import find_peaks, peak_widths
-from pfas_detector import PFASDetector
+from pfas_detector_enhanced import PFASDetectorEnhanced as PFASDetector
 
 
 class SpectrumAnalyzer:
@@ -126,9 +126,10 @@ class SpectrumAnalyzer:
 
         try:
             
-            detector = PFASDetector()
+            detector = PFASDetector(confidence_threshold=0.55)
             pfas_detection = detector.detect_pfas(peaks, results)
             results["pfas_detection"] = pfas_detection
+
         except Exception as e:
             print(f"⚠️ Error en detección de PFAS: {e}")
             results["pfas_detection"] = {"detected": False, "error": str(e)}
