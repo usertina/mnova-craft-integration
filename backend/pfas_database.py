@@ -707,6 +707,49 @@ MOLECULE_VISUALIZATIONS = {
         "name": "8:2 FTCA",
         "file_3d": "8-2_ftca.sdf",
         "image_2d": "assets/molecules/8-2_ftca_2d.png"
+    },
+    
+    # === CATEGORÍAS GENÉRICAS (sin CAS específico) ===
+    # Para compuestos detectados pero no identificados específicamente
+    "GENERIC_PERFLUOROETHER": {
+        "name": "Perfluoroether Carboxylic Acid (Genérico)",
+        "file_3d": "perfluoroether_generic.sdf",
+        "image_2d": "assets/molecules/perfluoroether_generic_2d.png"
+    },
+    "GENERIC_PERFLUOROALKYL": {
+        "name": "Perfluoroalkyl Substance (Genérico)",
+        "file_3d": "perfluoroalkyl_generic.sdf",
+        "image_2d": "assets/molecules/perfluoroalkyl_generic_2d.png"
+    },
+    "GENERIC_FTOH": {
+        "name": "Fluorotelomer Alcohol (Genérico)",
+        "file_3d": "ftoh_generic.sdf",
+        "image_2d": "assets/molecules/ftoh_generic_2d.png"
+    },
+    "GENERIC_FTCA": {
+        "name": "Fluorotelomer Carboxylic Acid (Genérico)",
+        "file_3d": "ftca_generic.sdf",
+        "image_2d": "assets/molecules/ftca_generic_2d.png"
+    },
+    "GENERIC_PFCA": {
+        "name": "Perfluorocarboxylic Acid (Genérico)",
+        "file_3d": "pfca_generic.sdf",
+        "image_2d": "assets/molecules/pfca_generic_2d.png"
+    },
+    "GENERIC_PFSA": {
+        "name": "Perfluorosulfonic Acid (Genérico)",
+        "file_3d": "pfsa_generic.sdf",
+        "image_2d": "assets/molecules/pfsa_generic_2d.png"
+    },
+    "GENERIC_PFAS_UNKNOWN": {
+        "name": "PFAS Desconocido",
+        "file_3d": "pfas_unknown.sdf",
+        "image_2d": "assets/molecules/pfas_unknown_2d.png"
+    },
+    "GENERIC_PFAS_MIXTURE": {
+        "name": "Mezcla de PFAS",
+        "file_3d": "pfas_mixture.sdf",
+        "image_2d": "assets/molecules/pfas_mixture_2d.png"
     }
 }
 
@@ -716,7 +759,7 @@ def get_molecule_visualization(cas_number: str) -> dict:
     Obtiene datos de visualización 3D/2D para un número CAS.
     
     Args:
-        cas_number: Número CAS del compuesto
+        cas_number: Número CAS del compuesto, o identificador genérico
     
     Returns:
         Dict con file_3d, image_2d y name. 
@@ -726,8 +769,70 @@ def get_molecule_visualization(cas_number: str) -> dict:
         >>> viz = get_molecule_visualization("335-67-1")
         >>> print(viz["name"])  # "PFOA (Ácido Perfluorooctanoico)"
         >>> print(viz["file_3d"])  # "pfoa.sdf"
+        
+        >>> # Para categorías genéricas
+        >>> viz = get_molecule_visualization("Various")
+        >>> print(viz["name"])  # "PFAS Desconocido"
     """
+    # Casos especiales para categorías genéricas
+    if not cas_number or cas_number.lower() in ['various', 'variable', 'generic', 'unknown']:
+        return MOLECULE_VISUALIZATIONS.get("GENERIC_PFAS_UNKNOWN", {
+            "name": None,
+            "file_3d": None,
+            "image_2d": None
+        })
+    
+    # Buscar por CAS normal
     return MOLECULE_VISUALIZATIONS.get(cas_number, {
+        "name": None,
+        "file_3d": None,
+        "image_2d": None
+    })
+
+
+def get_generic_visualization_by_name(compound_name: str) -> dict:
+    """
+    Obtiene visualización genérica basada en el nombre del compuesto.
+    
+    Útil cuando el detector identifica una categoría genérica.
+    
+    Args:
+        compound_name: Nombre del compuesto (ej: "Perfluoroether Carboxylic Acid")
+    
+    Returns:
+        Dict con visualización genérica apropiada
+    
+    Ejemplo:
+        >>> viz = get_generic_visualization_by_name("Perfluoroether Carboxylic Acid")
+        >>> print(viz["image_2d"])  # "assets/molecules/perfluoroether_generic_2d.png"
+    """
+    name_lower = compound_name.lower()
+    
+    # Mapeo de palabras clave a categorías genéricas
+    mappings = {
+        "perfluoroether": "GENERIC_PERFLUOROETHER",
+        "perfluoroalkyl": "GENERIC_PERFLUOROALKYL",
+        "fluorotelomer alcohol": "GENERIC_FTOH",
+        "ftoh": "GENERIC_FTOH",
+        "fluorotelomer carboxylic": "GENERIC_FTCA",
+        "ftca": "GENERIC_FTCA",
+        "perfluorocarboxylic": "GENERIC_PFCA",
+        "perfluorosulfonic": "GENERIC_PFSA",
+        "mixture": "GENERIC_PFAS_MIXTURE",
+        "mezcla": "GENERIC_PFAS_MIXTURE",
+    }
+    
+    # Buscar coincidencia
+    for keyword, generic_id in mappings.items():
+        if keyword in name_lower:
+            return MOLECULE_VISUALIZATIONS.get(generic_id, {
+                "name": None,
+                "file_3d": None,
+                "image_2d": None
+            })
+    
+    # Por defecto, retornar "PFAS Desconocido"
+    return MOLECULE_VISUALIZATIONS.get("GENERIC_PFAS_UNKNOWN", {
         "name": None,
         "file_3d": None,
         "image_2d": None
