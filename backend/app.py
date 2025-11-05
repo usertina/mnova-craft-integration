@@ -285,6 +285,7 @@ def analyze_spectrum():
             'quality_score': results.get('quality_score'),
             'spectrum': results.get('spectrum', {}), 
             'peaks': results.get('peaks', []),
+            'quality_metrics': results.get('quality_metrics', {}),
         }
         measurement_id = db.save_measurement(measurement_data)
         logging.info(f"  📊 Measurement saved to DB. ID: {measurement_id} for Company: {company_id}")

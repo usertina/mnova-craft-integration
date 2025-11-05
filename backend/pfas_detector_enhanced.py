@@ -248,10 +248,17 @@ class PFASDetectorEnhanced:
         
         peak_positions = [p.get("ppm", 0) for p in peaks]
         weighted_matches = 0
+        # Convertir key_peaks a lista de floats si son dicts
+        peak_values = []
+        for kp in key_peaks:
+            if isinstance(kp, dict):
+                peak_values.append(kp.get("ppm", 0))
+            else:
+                peak_values.append(float(kp))
         total_weight = 0
         
         # Ponderar picos: CF3 terminal es más importante
-        for i, key_peak in enumerate(key_peaks):
+        for i, key_peak in enumerate(peak_values):
             # Primer pico (CF3) tiene más peso
             weight = 1.5 if i == 0 else 1.0
             total_weight += weight

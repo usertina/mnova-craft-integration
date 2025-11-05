@@ -142,17 +142,54 @@ class SpectrumAnalyzer:
             
         return results    
             
+    def _find_best_column(self, all_rows, num_cols):
+        """Encuentra la mejor columna de intensidad en archivos multi-columna."""
+        column_stats = []
+        
+        for col_idx in range(1, num_cols):
+            intensities = []
+            for row in all_rows:
+                if len(row) > col_idx and row[col_idx].strip():
+                    try:
+                        intensities.append(float(row[col_idx].strip()))
+                    except:
+                        pass
+            
+            if len(intensities) < 100:
+                continue
+            
+            data = np.array(intensities)
+            mean_val = np.mean(data)
+            std_val = np.std(data)
+            max_val = np.max(np.abs(data))
+            min_val = np.min(data)
+            signal = max_val - min_val
+            snr = signal / std_val if std_val > 0 else 0
+            valid_ratio = len(intensities) / len(all_rows)
+            
+            column_stats.append({
+                'column': col_idx,
+                'snr': snr,
+                'valid_ratio': valid_ratio,
+                'score': snr * valid_ratio
+            })
+        
+        if column_stats:
+            best = max(column_stats, key=lambda x: x['score'])
+            return best['column']
+        return 1  # Default
+    
     def _read_spectrum(self, file_path: Path):
-        """Lee archivo CSV y guarda como numpy arrays."""
+        """Lee archivo CSV y guarda como numpy arrays, detectando automáticamente la mejor columna."""
         _ppm_data = []
         _intensity_data = []
         
         try:
-            with open(file_path, 'r', encoding='utf-8') as f: # Añadir encoding
+            with open(file_path, 'r', encoding='utf-8') as f:
                 sample = f.read(2048)
                 f.seek(0)
                 
-                dialect = csv.Sniffer().sniff(sample, delimiters=',\t')
+                dialect = csv.Sniffer().sniff(sample, delimiters=',	')
                 has_header = csv.Sniffer().has_header(sample)
                 
                 reader = csv.reader(f, dialect)
@@ -161,26 +198,42 @@ class SpectrumAnalyzer:
                     print("   ℹ️  Detectado encabezado, saltando primera línea")
                     next(reader)
                 
-                row_count = 0
-                for row in reader:
-                    row_count += 1
+                # Leer todas las filas primero
+                all_rows = list(reader)
+                if len(all_rows) == 0:
+                    print("   ❌ Error: No hay datos en el archivo")
+                    return
+                
+                # Detectar número de columnas
+                num_cols = max(len(row) for row in all_rows if len(row) > 0)
+                print(f"   ℹ️  Detectadas {num_cols} columnas")
+                
+                # Encontrar mejor columna si hay múltiples
+                best_col = 1
+                if num_cols > 2:
+                    print("   🔍 Archivo multi-columna detectado, buscando mejor señal...")
+                    best_col = self._find_best_column(all_rows, num_cols)
+                    print(f"   ✅ Usando columna {best_col} (mejor SNR)")
+                
+                # Leer datos con la mejor columna
+                for row in all_rows:
                     if len(row) >= 2:
                         try:
                             ppm = float(row[0].strip())
-                            intensity = float(row[1].strip())
-                            _ppm_data.append(ppm)
-                            _intensity_data.append(intensity)
+                            if len(row) > best_col and row[best_col].strip():
+                                intensity = float(row[best_col].strip())
+                                _ppm_data.append(ppm)
+                                _intensity_data.append(intensity)
                         except (ValueError, IndexError):
-                             print(f"   ⚠️  Advertencia: Ignorando fila {row_count} inválida: {row}")
-                             continue # Ignorar filas no numéricas o incompletas
+                             continue
             
-            # Convertir a numpy arrays al final
+            # Convertir a numpy arrays
             self.ppm_data = np.array(_ppm_data)
             self.intensity_data = np.array(_intensity_data)
 
             if len(self.ppm_data) == 0:
                  print("   ❌ Error: No se pudieron leer datos numéricos del archivo.")
-                 return # Salir si no hay datos
+                 return
 
             print(f"   ✅ Leídos {len(self.ppm_data):,} puntos de datos")
             print(f"   ℹ️  Delimitador detectado: '{dialect.delimiter}'")
@@ -189,14 +242,12 @@ class SpectrumAnalyzer:
 
         except csv.Error as e:
              print(f"   ❌ Error de CSV Sniffer: {e}. Asegúrate que el archivo usa comas o tabs.")
-             # Dejar arrays vacíos para indicar fallo
              self.ppm_data = np.array([])
              self.intensity_data = np.array([])
         except Exception as e:
             print(f"   ❌ Error inesperado al leer el archivo: {e}")
             self.ppm_data = np.array([])
             self.intensity_data = np.array([])
-            # raise # Opcional: relanzar para detener ejecución si es crítico
 
     def _correct_baseline(self):
         """Corrección de baseline simple restando el percentil 5."""
