@@ -593,8 +593,8 @@ class UIManager {
             pifasResult.textContent = this.formatNumber(pfasValue, 2);
         }
         
-        // Actualizar calidad
-        this.updateQualityDisplay(results.quality_score || 0);
+        // Actualizar calidad (pasando también el desglose)
+        this.updateQualityDisplay(results.quality_score || 0, results.quality_breakdown || {});
         
         // Actualizar estadísticas rápidas
         const peaksCount = document.getElementById('peaksCount');
@@ -625,14 +625,16 @@ class UIManager {
         }
     }
 
-    static updateQualityDisplay(qualityScore) {
+    static updateQualityDisplay(qualityScore, breakdown = {}) {
         const progressBar = document.getElementById('qualityProgressBar');
+        
+        // 1. Actualizar la barra (como antes)
         if (progressBar) {
             const bar = progressBar.querySelector('.progress-bar');
             if (bar) {
                 const percentage = (qualityScore / 10) * 100;
                 bar.style.width = `${percentage}%`;
-                bar.textContent = `${qualityScore}/10`;
+                bar.textContent = ``; // Borramos el texto de DENTRO de la barra
                 bar.setAttribute('aria-valuenow', qualityScore);
                 
                 // Cambiar color según el score
@@ -646,8 +648,48 @@ class UIManager {
                 }
             }
         }
-    }
+        
+        // 2. AÑADIR el texto Y EL DESGLOSE
+        const breakdownContainer = document.getElementById('qualityBreakdownContainer');
+        if (breakdownContainer) {
+            // Formatear el score final
+            const scoreText = (qualityScore || 0).toFixed(1);
+            
+            // Mapear claves técnicas a claves de idioma (o fallbacks)
+            const breakdownKeys = {
+                snr: window.LanguageManager.t('quality.snr', {}, 'S/N'),
+                baseline: window.LanguageManager.t('quality.baseline', {}, 'Baseline'),
+                peaks: window.LanguageManager.t('quality.peaks', {}, 'Picos'),
+                resolution: window.LanguageManager.t('quality.resolution', {}, 'Resolución')
+            };
 
+            let breakdownHTML = '';
+            // Construir el HTML para cada item del desglose
+            for (const key in breakdownKeys) {
+                if (breakdown[key] !== undefined) {
+                    const score = (breakdown[key] || 0).toFixed(0);
+                    // Añadimos estilos inline simples para que se vea bien sin CSS extra
+                    breakdownHTML += `
+                        <div class="quality-breakdown-item" style="display: flex; justify-content: space-between; font-size: 0.8rem; opacity: 0.9; border-bottom: 1px solid #4b5563; padding: 2px 0;">
+                            <span>${breakdownKeys[key]}:</span>
+                            <strong style="min-width: 60px; text-align: right;">${score} / 100</strong>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Combinar todo en el contenedor
+            breakdownContainer.innerHTML = `
+                <div class="quality-score-text" style="text-align: right; font-weight: bold; margin-top: 8px; margin-bottom: 8px; font-size: 1.1rem;">
+                    <span>${scoreText} / 10.0</span>
+                </div>
+                <div class="quality-breakdown-grid" style="display: flex; flex-direction: column; gap: 4px;">
+                    ${breakdownHTML}
+                </div>
+            `;
+        }
+    }
+    
     static updateResultsTable(analysis) {
         const tbody = document.querySelector('#resultsTable tbody');
         if (!tbody) return;
@@ -804,7 +846,7 @@ class UIManager {
 
         container.innerHTML = ''; // Limpiar resultados anteriores
 
-        const compounds = pfas_detection_data?.compounds;
+        const compounds = pfas_detection_data?.detected_pfas;
 
         if (compounds && compounds.length > 0) {
             // --- OBTENER TRADUCCIONES PRIMERO ---

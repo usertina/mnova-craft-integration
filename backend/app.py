@@ -228,8 +228,12 @@ def analyze_spectrum():
         # --- INICIO DEL ENRIQUECIMIENTO 3D/2D ---
         logging.info("  🧬  Enriqueciendo lista de compuestos con datos 2D/3D...")
 
-        if 'pfas_detection' in results and 'compounds' in results['pfas_detection']:
-            for compound in results['pfas_detection']['compounds']:
+        if 'pfas_detection' in results and 'detected_pfas' in results['pfas_detection']:
+            for compound in results['pfas_detection']['detected_pfas']:
+                # Multiplicamos la confianza por 100 para el frontend
+                # Convertimos de ratio (0.6) a porcentaje (60.0)
+                if 'confidence' in compound:
+                    compound['confidence'] = round(compound['confidence'] * 100, 2)
                 cas_number = compound.get('cas')
                 molecule_viz = get_molecule_visualization(cas_number)  # ✅ Cambio de nombre
                 
@@ -261,7 +265,7 @@ def analyze_spectrum():
         
         # 1. Obtenemos el diccionario 'analysis' base
         # (Usamos .copy() para no modificar el objeto 'results' original)
-        analysis_data_to_save = results.get('analysis', {}).copy()
+        analysis_data_to_save = results.copy()
         
         # 2. Le añadimos la lista de compuestos detectados
         if 'pfas_detection' in results:
@@ -281,12 +285,22 @@ def analyze_spectrum():
             'company_id': company_id,
             'filename': file.filename,
             'timestamp': datetime.now().isoformat(),
-            'analysis': analysis_data_to_save, # <-- ¡USAMOS EL OBJETO CORREGIDO!
+            
+            # Guardar el objeto aplanado completo en 'analysis'
+            'analysis': analysis_data_to_save,
+            
+            # Añadir campos clave al nivel superior para acceso rápido del Dashboard
             'quality_score': results.get('quality_score'),
-            'spectrum': results.get('spectrum', {}), 
+            'fluor_percentage': results.get('fluor_percentage'),
+            'pfas_percentage': results.get('pfas_percentage'),
+            'pifas_percentage': results.get('pifas_percentage'),  # Por si acaso
+            
+            # Guardar los datos grandes por separado
+            'spectrum': results.get('spectrum', {}),
             'peaks': results.get('peaks', []),
             'quality_metrics': results.get('quality_metrics', {}),
         }
+
         measurement_id = db.save_measurement(measurement_data)
         logging.info(f"  📊 Measurement saved to DB. ID: {measurement_id} for Company: {company_id}")
         

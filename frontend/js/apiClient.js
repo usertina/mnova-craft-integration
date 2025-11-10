@@ -1,15 +1,14 @@
 class APIClient {
     static get baseURL() {
-        // Asegura que CURRENT_COMPANY_PROFILE exista, aunque aquí no se use directamente
+        // Asegura que CURRENT_COMPANY_PROFILE exista
         if (typeof CURRENT_COMPANY_PROFILE === 'undefined') {
             console.warn("CURRENT_COMPANY_PROFILE no está definido aún.");
         }
-        // Usar el origen actual sin '/api' al final, lo añadimos en cada endpoint
         return window.location.origin;
     }
 
     /**
-     * ✅ NUEVO: Obtiene el company_id del perfil actual
+     * ✅ Obtiene el company_id del perfil actual
      */
     static getCompanyId() {
         if (!window.CURRENT_COMPANY_PROFILE || !window.CURRENT_COMPANY_PROFILE.company_id) {
@@ -19,12 +18,40 @@ class APIClient {
     }
 
     /**
-     * ✅ NUEVO: Headers comunes para todas las peticiones
+     * ✅ Headers comunes para todas las peticiones
      */
     static getHeaders() {
         return {
             'Content-Type': 'application/json'
         };
+    }
+
+    /**
+     * ✅ NUEVO: Helper para parsear errores del backend
+     */
+    static parseBackendError(result, response) {
+        // Intentar obtener el error del backend en diferentes formatos
+        if (result.error) {
+            // Error simple
+            return result.error;
+        }
+        
+        if (result.traceback) {
+            // Error con traceback de Python
+            console.error('Backend traceback:', result.traceback);
+            return `Error del servidor: ${result.message || result.error || 'Error desconocido'}\n\nVer consola para detalles técnicos.`;
+        }
+        
+        if (result.message) {
+            return result.message;
+        }
+        
+        if (result.details) {
+            return `Error: ${JSON.stringify(result.details)}`;
+        }
+        
+        // Fallback
+        return `Error ${response.status}: ${response.statusText}`;
     }
 
     static async checkConnection() {
@@ -49,8 +76,11 @@ class APIClient {
         }
     }
 
+    /**
+     * ✅ MEJORADO: Análisis con mejor manejo de errores
+     */
     static async analyzeSpectrum(file, parameters) {
-        // Asegurarse de que tenemos el perfil de la empresa actual
+        // ... (el código de validación y formData no cambia) ...
         if (!CURRENT_COMPANY_PROFILE || !CURRENT_COMPANY_PROFILE.company_id) {
             const errorMsg = LanguageManager?.t('errors.noCompanySelected') || 'No se ha seleccionado una empresa.';
             window.APP_LOGGER.error('analyzeSpectrum: No company selected.');
@@ -64,8 +94,14 @@ class APIClient {
             formData.append('parameters', JSON.stringify(parameters));
         }
         
-        // ¡AÑADIR COMPANY_ID!
         formData.append('company_id', CURRENT_COMPANY_PROFILE.company_id);
+
+        window.APP_LOGGER.debug('Sending analysis request:', {
+            filename: file.name,
+            size: file.size,
+            company_id: CURRENT_COMPANY_PROFILE.company_id,
+            parameters: parameters
+        });
 
         try {
             const response = await fetch(`${this.baseURL}/api/analyze`, {
@@ -73,29 +109,72 @@ class APIClient {
                 body: formData
             });
 
-            const result = await response.json();
+            // ... (el parseo de 'result' no cambia) ...
+            let result;
+            const contentType = response.headers.get('content-type');
+            
+            if (contentType && contentType.includes('application/json')) {
+                result = await response.json();
+            } else {
+                const text = await response.text();
+                window.APP_LOGGER.error('Non-JSON response:', text);
+                throw new Error(`Respuesta inesperada del servidor (no JSON). Status: ${response.status}`);
+            }
 
+            // ... (el manejo de errores no cambia) ...
             if (!response.ok) {
-                const backendError = result.error || `Error ${response.status}`;
-                const clientErrorMsg = LanguageManager?.t('errors.analysisFailed', { error: backendError }) || `Error en análisis: ${backendError}`;
+                const backendError = this.parseBackendError(result, response);
+                
+                window.APP_LOGGER.error('Backend analysis error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    error: result.error,
+                    message: result.message,
+                    traceback: result.traceback,
+                    details: result.details
+                });
+                
+                const clientErrorMsg = LanguageManager?.t('errors.analysisFailed', { 
+                    error: backendError 
+                }) || `Error en análisis: ${backendError}`;
+                
                 throw new Error(clientErrorMsg);
             }
 
-            window.APP_LOGGER.debug(`Analysis successful for company ${CURRENT_COMPANY_PROFILE.company_id}:`, result);
-            return result;
+            // --- INICIO DEL CAMBIO ---
+            // EL BLOQUE QUE ENVUELVE 'results' HA SIDO ELIMINADO
+            
+            window.APP_LOGGER.debug(`Analysis successful for company ${CURRENT_COMPANY_PROFILE.company_id}:`, {
+                filename: result.file_name, // Acceso directo
+                peaks: result.peaks?.length || 0,
+                pfas_detected: result.pfas_detection?.total_detected || 0
+            });
+            
+            return result; // Devolver el objeto 'result' plano
+            // --- FIN DEL CAMBIO ---
 
         } catch (error) {
             window.APP_LOGGER.error('Analysis request failed:', error);
-            throw error;
+            
+            if (error.message.includes('Error en análisis:') || 
+                error.message.includes('Respuesta')) {
+                throw error;
+            }
+            
+            const errorMsg = LanguageManager?.t('errors.analysisFailed', { 
+                error: error.message 
+            }) || `Error al comunicarse con el servidor: ${error.message}`;
+            
+            throw new Error(errorMsg);
         }
     }
 
     /**
-     * ✅ CORREGIDO: Obtiene el historial de mediciones
+     * ✅ Obtiene el historial de mediciones
      */
     static async getHistory(page = 1, pageSize = 50, searchTerm = '') {
         try {
-            const companyId = this.getCompanyId(); // ✅ Ahora existe
+            const companyId = this.getCompanyId();
             
             const params = new URLSearchParams({
                 company_id: companyId,
@@ -111,7 +190,7 @@ class APIClient {
 
             const response = await fetch(`${this.baseURL}/api/history?${params}`, {
                 method: 'GET',
-                headers: this.getHeaders() // ✅ Ahora existe
+                headers: this.getHeaders()
             });
 
             const data = await response.json();
@@ -200,43 +279,6 @@ class APIClient {
     }
 
     /**
-     * Limpia todo el historial de la empresa actual
-     */
-    static async clearAllHistory() {
-        if (!CURRENT_COMPANY_PROFILE || !CURRENT_COMPANY_PROFILE.company_id) {
-            const errorMsg = LanguageManager?.t('errors.noCompanySelected') || 'No se ha seleccionado una empresa.';
-            window.APP_LOGGER.error('clearAllHistory: No company selected.');
-            throw new Error(errorMsg);
-        }
-
-        const companyId = CURRENT_COMPANY_PROFILE.company_id;
-
-        try {
-            const url = new URL(`${this.baseURL}/api/analysis/clear-all`);
-            url.searchParams.append('company', companyId);
-
-            const response = await fetch(url, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || `Error ${response.status}`);
-            }
-
-            window.APP_LOGGER.info(`History cleared for company ${companyId}: ${result.deleted_count} files deleted`);
-            return result;
-
-        } catch (error) {
-            window.APP_LOGGER.error('Failed to clear history:', error);
-            const errorMsg = LanguageManager?.t('errors.clearHistoryFailed', { error: error.message }) || `No se pudo limpiar el historial: ${error.message}`;
-            throw new Error(errorMsg);
-        }
-    }
-
-    /**
      * Obtener resultado de análisis específico
      */
     static async getAnalysisResult(filename) {
@@ -259,14 +301,17 @@ class APIClient {
 
         } catch (error) {
             window.APP_LOGGER.error(`Failed to load analysis result ${filename}:`, error);
-            const errorMsg = LanguageManager?.t('errors.loadResultFailed', { filename: filename, error: error.message }) || `No se pudo cargar el resultado ${filename}: ${error.message}`;
+            const errorMsg = LanguageManager?.t('errors.loadResultFailed', { 
+                filename: filename, 
+                error: error.message 
+            }) || `No se pudo cargar el resultado ${filename}: ${error.message}`;
             throw new Error(errorMsg);
         }
     }
 
     /**
- * Elimina una medición del historial (desde la BD)
- */
+     * Elimina una medición del historial (desde la BD)
+     */
     static async deleteHistoryItem(measurementId, filename) {
         if (!CURRENT_COMPANY_PROFILE || !CURRENT_COMPANY_PROFILE.company_id) {
             const errorMsg = LanguageManager?.t('errors.noCompanySelected') || 'No se ha seleccionado una empresa.';
@@ -342,8 +387,8 @@ class APIClient {
     }
 
     /**
- * Obtiene una medición específica por ID
- */
+     * Obtiene una medición específica por ID
+     */
     static async getMeasurement(measurementId) {
         try {
             const companyId = this.getCompanyId();
@@ -369,7 +414,6 @@ class APIClient {
         }
     }
     
-
     /**
      * Obtiene la configuración del servidor
      */

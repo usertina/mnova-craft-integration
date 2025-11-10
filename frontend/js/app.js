@@ -226,30 +226,61 @@ async function runAnalysis() {
         
         const parameters = UIManager.getCurrentAnalysisParams();
         
-        // 1. 'results' es el objeto COMPLETO que viene del servidor
-        const results = await APIClient.analyzeSpectrum(file, parameters);
-
-        APP_LOGGER.info('Análisis completado:', results);
-
-        // 2. Guardamos 'results' en 'currentAnalysisData'.
-        //    YA NO HACEMOS la normalización complicada. 
-        //    'results' ya tiene la estructura correcta.
-        currentAnalysisData = results; 
+        // --- INICIO DEL CAMBIO ---
+        // 1. Obtener respuesta del servidor (ahora es plana)
+        const analysisData = await APIClient.analyzeSpectrum(file, parameters);
         
-        console.log('✅ Datos del análisis almacenados:', currentAnalysisData);
-
-        if (window.ChartManager && typeof ChartManager.plotResults === 'function') {
-            try {
-                // 3. Pasamos el objeto 'results' (ahora 'currentAnalysisData')
-                ChartManager.plotResults(currentAnalysisData);
-            } catch (chartError) {
-                APP_LOGGER.warn('Error graficando resultados:', chartError);
-            }
+        APP_LOGGER.info('Respuesta del servidor (plana):', analysisData);
+        
+        // EL BLOQUE DE DESANIDACIÓN HA SIDO ELIMINADO
+        // --- FIN DEL CAMBIO ---
+        if (analysisData.error) {
+            // Si el backend devolvió un error, muéstralo y detente.
+            throw new Error(`Error del servidor: ${analysisData.error}`);
+        }
+        // VALIDACIÓN ADICIONAL
+        if (!analysisData.spectrum) {
+            console.error('❌ Falta campo "spectrum" en los datos');
+            console.log('Estructura recibida:', Object.keys(analysisData));
         }
         
-        // 4. Pasamos el objeto 'results' (ahora 'currentAnalysisData')
-        UIManager.displayResults(currentAnalysisData);
+        if (!analysisData.peaks || !Array.isArray(analysisData.peaks)) {
+            console.warn('⚠️ Campo "peaks" faltante o inválido');
+        }
         
+        // 2. Guardar en variable global
+        currentAnalysisData = analysisData;
+        
+        console.log('✅ Datos del análisis normalizados:', {
+            filename: analysisData.file_name || analysisData.filename,
+            hasPeaks: !!analysisData.peaks,
+            peaksCount: analysisData.peaks?.length || 0,
+            hasSpectrum: !!analysisData.spectrum,
+            spectrumPoints: analysisData.spectrum?.ppm?.length || 0,
+            hasPFAS: !!analysisData.pfas_detection,
+            pfasDetected: analysisData.pfas_detection?.total_detected || 0
+        });
+        
+        // 3. Graficar con ChartManager
+        if (window.ChartManager && typeof ChartManager.plotResults === 'function') {
+            try {
+                console.log('📊 Graficando resultados...');
+                ChartManager.plotResults(analysisData);
+                console.log('✅ Gráfico generado');
+            } catch (chartError) {
+                console.error('❌ Error graficando:', chartError);
+                APP_LOGGER.warn('Error graficando resultados:', chartError);
+            }
+        } else {
+            console.error('❌ ChartManager no disponible');
+        }
+        
+        // 4. Mostrar en UI
+        console.log('🎨 Mostrando resultados en UI...');
+        UIManager.displayResults(analysisData); // UIManager ya tiene el código para mostrar PFAS
+        console.log('✅ Resultados mostrados');
+        
+        // 5. Recargar historial
         try {
             await loadHistory(1);
         } catch (histError) {
@@ -265,6 +296,7 @@ async function runAnalysis() {
         FileProcessor.clearFiles();
 
     } catch (error) {
+        console.error("❌ Error en runAnalysis:", error);
         APP_LOGGER.error("Error en runAnalysis:", error);
         UIManager.hideLoading();
         UIManager.showNotification(error.message, 'error');
