@@ -142,10 +142,6 @@ class NMRDataReader:
         
         try:
             # 💡 SOLUCIÓN V19: Forzar que lea el FID crudo, ignorando el 1r procesado
-            if False and (path / 'pdata' / '1' / '1r').exists():
-                dic, data = ng.bruker.read_pdata(str(path / 'pdata' / '1'))
-                is_processed = True
-            else:
                 logging.info("  ✅ Leyendo FID crudo (ignorando 1r)...")
                 dic, data = ng.bruker.read(str(path))
                 logging.info("  ✅ FID crudo leído - procesando...")
