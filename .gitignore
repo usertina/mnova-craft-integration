@@ -1,44 +1,102 @@
-# Entorno virtual
+# -------------------
+# Entorno y variables
+# -------------------
 venv/
 .env
+.env.*
 
+# -------------------
 # Python
+# -------------------
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-*.pyc
+*.pyd
 
+# -------------------
 # Configuración de editor
+# -------------------
 .vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
 
-# Archivos de logs
+# -------------------
+# Logs
+# -------------------
 *.log
 
-# Carpeta de almacenamiento de resultados
+# -------------------
+# Bases de datos y cachés
+# -------------------
+*.db
+*.sqlite
+*.sqlite3
 backend/storage/
+*.h5   # HDF5 files
+*.hdf5
+*.npz   # NumPy compressed
+*.npy   # NumPy binary
+*.mat   # MATLAB files
+*.pkl   # Pickle files
 
-# Salidas de análisis, archivos temporales
+# -------------------
+# Archivos temporales y backups
+# -------------------
+*.tmp
+*.bak
+*.swp
+*.swo
+*.~*
+
+# -------------------
+# Salidas de análisis y datos
+# -------------------
 *.zip
-*.fid
+*.tar
+*.tar.gz
 *.csv
+*.fid
+*.out
+*.dat
+*.mol
+*.sdf
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.gif
+*.pdf
 
-# OS específicos
+# -------------------
+# Jupyter / notebooks
+# -------------------
+.ipynb_checkpoints/
+*.ipynb
+*.nbconvert.ipynb
+*.nb.html
+
+# -------------------
+# Frontend / Node.js
+# -------------------
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.parcel-cache/
+frontend/.next/
+frontend/out/
+
+# -------------------
+# Archivos del sistema operativo
+# -------------------
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Cachés y bases de datos temporales
-*.db
-*.sqlite3
-*.sqlite
-
-# Otros archivos generados automáticamente
-*.tmp
-*.bak
-
-# Base de datos local
-backend/storage/*.db
+# -------------------
+# Cachés de librerías científicas
+# -------------------
+.molcache/
+.rdkit_cache/
+.tmp_cache/
