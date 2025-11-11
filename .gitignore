@@ -39,3 +39,6 @@ desktop.ini
 # Otros archivos generados automáticamente
 *.tmp
 *.bak
+
+# Base de datos local
+backend/storage/*.db
