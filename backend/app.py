@@ -15,6 +15,9 @@ import logging
 import requests
 import threading
 
+import zipfile
+import shutil
+
 from pfas_database import get_molecule_visualization
 
 # Importar dependencias locales
@@ -82,6 +85,7 @@ print(f"   Output: {OUTPUT_DIR}")
 print(f"   Analysis: {ANALYSIS_DIR}")
 print(f"   Craft Exports: {CRAFT_EXPORTS_DIR}")
 print("=" * 60)
+
 
 # ============================================================================
 # FRONTEND - Servir archivos estáticos (index.html, app.html, js/, styles/, etc.)
@@ -166,6 +170,95 @@ def push_to_google_cloud(url, payload, encoder):
         logging.warning(f"  ⚠️  Failed to push measurement to cloud (Network/Timeout): {str(cloud_err)}")
 
 # ============================================================================
+# extraer zip
+# ============================================================================
+
+def extract_and_find_data(file_path: Path) -> Path:
+    """
+    Extrae archivos ZIP y encuentra el directorio/archivo de datos NMR.
+    Si no es ZIP, devuelve la ruta original.
+    
+    Args:
+        file_path: Ruta al archivo subido (puede ser ZIP, CSV, FID, etc.)
+    
+    Returns:
+        Path al archivo/directorio de datos a analizar
+    """
+    # Si no es ZIP, devolver tal cual
+    if file_path.suffix.lower() != '.zip':
+        logging.debug(f"Archivo no es ZIP, usando directamente: {file_path.name}")
+        return file_path
+    
+    logging.info(f"📦 Archivo ZIP detectado: {file_path.name}")
+    
+    # Crear directorio de extracción
+    extract_dir = file_path.parent / f"{file_path.stem}_extracted"
+    
+    # Limpiar si ya existe
+    if extract_dir.exists():
+        logging.debug(f"Limpiando directorio de extracción previo: {extract_dir}")
+        shutil.rmtree(extract_dir)
+    
+    extract_dir.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # Extraer ZIP
+        with zipfile.ZipFile(file_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_dir)
+        
+        logging.info(f"   ✅ ZIP extraído a: {extract_dir}")
+        
+        # --- BÚSQUEDA INTELIGENTE DE DATOS NMR ---
+        
+        # 1. Buscar estructura Bruker (carpeta con 'fid' o 'ser')
+        for root, dirs, files in os.walk(extract_dir):
+            root_path = Path(root)
+            
+            # Buscar archivo 'fid' o 'ser' (datos Bruker)
+            if 'fid' in files or 'ser' in files:
+                logging.info(f"   🔍 Datos Bruker encontrados en: {root_path}")
+                return root_path
+            
+            # Buscar carpeta numerada típica de Bruker (1, 2, 10, etc.)
+            for dir_name in dirs:
+                if dir_name.isdigit():
+                    exp_dir = root_path / dir_name
+                    if (exp_dir / 'fid').exists() or (exp_dir / 'ser').exists():
+                        logging.info(f"   🔍 Experimento Bruker encontrado: {exp_dir}")
+                        return exp_dir
+        
+        # 2. Buscar estructura Varian (.fid con 'procpar')
+        for root, dirs, files in os.walk(extract_dir):
+            root_path = Path(root)
+            if 'procpar' in files and 'fid' in files:
+                logging.info(f"   🔍 Datos Varian encontrados en: {root_path}")
+                return root_path
+        
+        # 3. Buscar archivos conocidos (.csv, .txt, .jdf, etc.)
+        for root, dirs, files in os.walk(extract_dir):
+            root_path = Path(root)
+            for file in files:
+                file_path_candidate = root_path / file
+                ext = file_path_candidate.suffix.lower()
+                
+                # Archivos de datos conocidos
+                if ext in ['.csv', '.txt', '.jdf', '.jdx', '.ft', '.ft1', '.ft2']:
+                    logging.info(f"   🔍 Archivo de datos encontrado: {file_path_candidate}")
+                    return file_path_candidate
+        
+        # 4. Si no encontró nada específico, devolver el directorio raíz
+        logging.warning(f"   ⚠️  No se encontró estructura conocida, usando directorio raíz")
+        return extract_dir
+        
+    except zipfile.BadZipFile:
+        logging.error(f"   ❌ Archivo ZIP corrupto o inválido")
+        raise ValueError("El archivo ZIP está corrupto o no es válido")
+    except Exception as e:
+        logging.error(f"   ❌ Error extrayendo ZIP: {e}")
+        raise
+
+
+# ============================================================================
 # API - Análisis de Espectros
 # ============================================================================
 
@@ -182,6 +275,19 @@ def analyze_spectrum():
         file = request.files["file"]
         if file.filename == "":
             return jsonify({"error": "Empty filename"}), 400
+        
+        # Validar extensiones permitidas (si existe validación, modificarla)
+        # Permitir archivos sin extensión (fid, ser) y con extensiones conocidas
+        allowed_extensions = {'.csv', '.txt', '.jdf', '.jdx', '.ft', '.ft1', '.ft2', '.zip', ''}
+
+        file_ext = Path(file.filename).suffix.lower()
+
+        # Si el archivo se llama 'fid' o 'ser' sin extensión, es válido
+        if file.filename.lower() in ['fid', 'ser', 'acqus', 'procs'] or file_ext in allowed_extensions:
+            pass  # Archivo válido
+        else:
+            # Aún así intentar procesarlo (para máxima compatibilidad)
+            print(f"⚠️  Archivo con extensión inusual: {file.filename}")
 
         # Verificar company_id
         company_id = request.form.get("company_id")
@@ -196,6 +302,9 @@ def analyze_spectrum():
         file_path = OUTPUT_DIR / file.filename
         file.save(file_path)
         logging.debug(f"File saved temporarily to: {file_path}")
+
+        file_path = extract_and_find_data(file_path)
+        logging.debug(f"Data path to analyze: {file_path}")
 
         # Obtener parámetros opcionales
         parameters = {}

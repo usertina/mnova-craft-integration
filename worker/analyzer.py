@@ -1,11 +1,14 @@
 import csv
 import json
+import logging
 import numpy as np
 import re
 from pathlib import Path
 from typing import Dict, List, Tuple
 from scipy.signal import find_peaks, peak_widths
 import sys
+from nmr_reader import NMRDataReader, is_nmrglue_available
+
 
 # Añadir ruta al backend para imports
 sys.path.append(str(Path(__file__).parent.parent / "backend"))
@@ -29,12 +32,22 @@ class SpectrumAnalyzer:
         """
         Inicializa el analizador.
         """
+        self.nmr_reader = NMRDataReader()
+        self.file_metadata = {}
         self.ppm_data = np.array([])
         self.intensity_data = np.array([])
         self.intensity_corrected = np.array([])
         self.baseline_value = None
         self.analysis_results = {}
-        
+
+        # Verificar disponibilidad de nmrglue
+        if is_nmrglue_available():
+            print("   ✅ nmrglue disponible - Soporte FID activado")
+            print("      Formatos: Bruker, Varian, JEOL, NMRPipe, CSV")
+        else:
+            print("   ⚠️  nmrglue no disponible - Solo soporte CSV")
+            print("      Instalar con: pip install nmrglue")
+            
         # Configuración de frecuencias
         self.spectrometer_h1_freq = spectrometer_h1_freq_mhz
         self.f19_frequency = calculate_nucleus_frequency(spectrometer_h1_freq_mhz, '19F')
@@ -265,77 +278,38 @@ class SpectrumAnalyzer:
     
     def _read_spectrum(self, file_path: Path):
         """
-        Lee archivo CSV del espectro con detección automática de delimitador.
+        Lee archivo de espectro en cualquier formato soportado
+        Usa NMRDataReader para soporte multi-formato
         """
-        all_rows = []
-        
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                sample = f.read(4096)
-                f.seek(0)
-                
-                try:
-                    sniffer = csv.Sniffer()
-                    detected = sniffer.sniff(sample)
-                    delimiter = detected.delimiter
-                    print(f"   ℹ️ Delimitador detectado: {'TAB' if delimiter == chr(9) else repr(delimiter)}")
-                except csv.Error:
-                    delimiter = '\t'
-                    print(f"   ℹ️ Usando delimitador por defecto: TAB")
-                
-                csv_reader = csv.reader(f, delimiter=delimiter)
-                all_rows = list(csv_reader)
-                
-        except UnicodeDecodeError:
-            with open(file_path, 'r', encoding='latin-1') as f:
-                sample = f.read(4096)
-                f.seek(0)
-                
-                try:
-                    sniffer = csv.Sniffer()
-                    delimiter = sniffer.sniff(sample).delimiter
-                except csv.Error:
-                    delimiter = '\t'
-                
-                csv_reader = csv.reader(f, delimiter=delimiter)
-                all_rows = list(csv_reader)
-        
-        if not all_rows:
-            return
-        
-        num_cols = len(all_rows[0])
-        
-        if num_cols > 2:
-            intensity_col = self._find_best_column(all_rows, num_cols)
-        else:
-            intensity_col = 1
-        
-        ppm_values = []
-        intensity_values = []
-        
-        for row in all_rows:
-            if len(row) < 2:
-                continue
-                
-            try:
-                ppm_str = row[0].strip()
-                intensity_str = row[intensity_col].strip()
-                
-                if not ppm_str or not intensity_str:
-                    continue
-                
-                ppm = float(ppm_str)
-                intensity = float(intensity_str)
-                
-                ppm_values.append(ppm)
-                intensity_values.append(intensity)
-                
-            except (ValueError, IndexError):
-                continue
-        
-        self.ppm_data = np.array(ppm_values)
-        self.intensity_data = np.array(intensity_values)
-    
+            # Detectar formato
+            data_format = self.nmr_reader.detect_format(file_path)
+            
+            logging.info(f"   📂 Formato detectado: {data_format}")
+            
+            # Leer datos
+            ppm_values, intensity_values, metadata = self.nmr_reader.read_data(file_path)
+            
+            # Guardar metadata
+            self.file_metadata = metadata
+            
+            # Guardar datos
+            self.ppm_data = ppm_values
+            self.intensity_data = intensity_values
+            
+            logging.info(f"   ✅ Datos cargados: {len(ppm_values)} puntos")
+            logging.info(f"   📊 Formato: {metadata.get('format', 'unknown')}")
+            
+            if 'spectrometer_freq' in metadata:
+                logging.info(f"   🧲 Frecuencia: {metadata['spectrometer_freq']:.1f} MHz")
+            
+            if 'nucleus' in metadata:
+                logging.info(f"   ⚛️  Núcleo: {metadata['nucleus']}")
+            
+        except Exception as e:
+            logging.error(f"   ❌ Error leyendo datos: {e}")
+            raise
+
     def _correct_baseline(self):
         """Corrección simple de baseline (percentil 5)"""
         self.baseline_value = np.percentile(self.intensity_data, 5)

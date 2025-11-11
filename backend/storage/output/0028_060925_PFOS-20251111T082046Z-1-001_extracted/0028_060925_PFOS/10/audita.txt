@@ -1,0 +1,23 @@
+##TITLE= Audit trail, TOPSPIN		Version 3.2
+##JCAMPDX= 5.01
+##ORIGIN= Bruker BioSpin GmbH
+##OWNER= NMR
+$$ F:/vilas/data/Manuel_Zapico/nmr/MZ0027_PFOS/10/audita.txt
+##AUDIT TRAIL=  $$ (NUMBER, WHEN, WHO, WHERE, PROCESS, VERSION, WHAT)
+(   1,<2025-09-06 10:38:30.195 +0200>,<NMR>,<NMR300>,<go>,<TOPSPIN 3.2>,
+      <created by zg
+	started at 2025-09-06 03:24:12.649 +0200,
+	POWCHK disabled, PULCHK disabled,
+       configuration hash MD5:
+       3C 2F F7 6F 29 5A 96 51 55 3D CC 26 11 78 6D 9C
+       data hash MD5: 128K
+       FA 49 AD 14 82 DC 2F 93 D4 9F 35 C4 3C FA C5 D1>)
+(   2,<2025-09-06 10:38:32.164 +0200>,<NMR>,<NMR300>,<audit>,<TOPSPIN 3.2>,
+      <user comment:
+       ICON-NMR User ID: Manuel_Zapico
+       data hash MD5: 128K
+       FA 49 AD 14 82 DC 2F 93 D4 9F 35 C4 3C FA C5 D1>)
+##END=
+
+$$ hash MD5
+$$ 1D 68 0B CA 79 E1 26 9C 71 4A 6F F5 49 0D 2E 01
