@@ -19,8 +19,15 @@
     "metric": "Metric",
     "detected_peaks_count": "Detected Peaks Count",
     "total_integral": "Total Integral",
-    "snr": "S/N Ratio"
+    "snr": "S/N Ratio",
+    "detected_compounds": "Detected PFAS Compounds"
   },
+  "compounds": {
+    "confidence": "Confidence",
+    "formula": "Formula",
+    "cas": "CAS"
+  },
+  
   "results": {
     "fluor": "Total Fluorine",
     "pfas": "PFAS",

@@ -208,6 +208,12 @@
     "over_ten": "/10",
     "arbitrary": "u.a."
   },
+  "quality": {
+    "snr": "Relación S/R",
+    "baseline": "Liña de Base",
+    "peaks": "Picos",
+    "resolution": "Resolución"
+  },
   "report": {
     "title": "Informe de análise RMN",
     "subtitle": "Análise de espectroscopia de resonancia magnética nuclear",
@@ -225,6 +231,7 @@
     "chemical_composition": "Composición química",
     "detailed_statistics": "Estatísticas detalladas",
     "limits": "Límites",
-    "detected_peaks": "Picos detectados"
+    "detected_peaks": "Picos detectados",
+    "detected_compounds": "5. Compostos PFAS Detectados"
   }
 }

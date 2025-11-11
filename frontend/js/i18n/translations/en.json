@@ -208,6 +208,12 @@
     "over_ten": "/10",
     "arbitrary": "a.u."
   },
+  "quality": {
+    "snr": "S/N Ratio",
+    "baseline": "Baseline",
+    "peaks": "Peaks",
+    "resolution": "Resolution"
+  },
   "report": {
     "title": "NMR Analysis Report",
     "subtitle": "Nuclear Magnetic Resonance Spectroscopy Analysis",
@@ -225,6 +231,7 @@
     "chemical_composition": "Chemical Composition",
     "detailed_statistics": "Detailed Statistics",
     "limits": "Limits",
-    "detected_peaks": "Detected Peaks"
+    "detected_peaks": "Detected Peaks",
+    "detected_compounds": "5. Detected PFAS Compounds"
   }
 }

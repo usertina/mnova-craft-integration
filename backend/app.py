@@ -14,6 +14,8 @@ import numpy as np
 import logging
 import requests
 import threading
+import time
+import base64
 
 import zipfile
 import shutil
@@ -135,39 +137,40 @@ def health_check():
 # FUNCIÓN DE SINCRONIZACIÓN EN LA NUBE
 # ============================================================================
 
-def push_to_google_cloud(url, payload, encoder):
+
+def push_to_google_cloud(url, payload, encoder, retries=3, delay=5, timeout=30.0):
     """
-    Intenta enviar datos a la URL de Google Apps Script en un hilo separado
-    y comprueba la respuesta para asegurar que fue exitosa.
+    Envía datos a Google Apps Script de manera segura con:
+      - Reintentos automáticos
+      - Timeout ampliado
+      - Registro de fallos
     """
-    try:
-        # Convertimos los datos a JSON usando el codificador de Numpy
+    def _push():
         json_payload = json.dumps(payload, cls=encoder)
-        
-        # Hacemos el POST. timeout=10.0 (10 segundos)
-        response = requests.post(
-            url, 
-            data=json_payload, 
-            headers={'Content-Type': 'application/json'}, 
-            timeout=10.0
-        )
-        
-        # --- ¡LA MEJORA CLAVE ESTÁ AQUÍ! ---
-        # Esto revisará si la respuesta de Google fue un error (como 403, 404, 500)
-        # Si fue un error, saltará automáticamente al 'except' de abajo.
-        response.raise_for_status()
-        
-        # Si llegamos aquí, la respuesta fue exitosa (ej. 200 OK)
-        logging.info(f"  ☁️  Measurement pushed to Google Cloud successfully. (Status: {response.status_code})")
-    
-    except requests.exceptions.HTTPError as http_err:
-        # Captura errores específicos de HTTP (ej. 403 Prohibido, 404 No Encontrado)
-        # Esto es lo que te pasó a ti (HTTP 403)
-        logging.error(f"  ❌  HTTP Error pushing to cloud. Google respondió: {http_err}")
-        
-    except Exception as cloud_err:
-        # Captura otros errores (ej. sin internet, timeout, URL mal escrita)
-        logging.warning(f"  ⚠️  Failed to push measurement to cloud (Network/Timeout): {str(cloud_err)}")
+        for attempt in range(1, retries + 1):
+            try:
+                response = requests.post(
+                    url,
+                    data=json_payload,
+                    headers={'Content-Type': 'application/json'},
+                    timeout=timeout
+                )
+                response.raise_for_status()  # Lanza error si HTTP != 200
+                logging.info(f"☁️ Measurement pushed successfully (Attempt {attempt})")
+                return True
+            except requests.exceptions.RequestException as e:
+                logging.warning(f"⚠️ Attempt {attempt} failed: {e}")
+                if attempt < retries:
+                    time.sleep(delay)
+                else:
+                    logging.error(f"❌ Failed to push after {retries} attempts")
+                    # Aquí puedes marcar la medición como no sincronizada en tu DB
+                    return False
+
+    # Ejecutar el push en un hilo separado para no bloquear el proceso principal
+    thread = threading.Thread(target=_push)
+    thread.daemon = True
+    thread.start()
 
 # ============================================================================
 # extraer zip
@@ -876,6 +879,7 @@ def get_measurement(measurement_id):
         logging.error(f"❌ Unexpected error in get_measurement endpoint: {str(e)}", exc_info=True)
         return jsonify({"error": "An unexpected server error occurred"}), 500
 
+
 # ============================================================================
 # API - Exportar Reportes
 # ============================================================================
@@ -898,55 +902,39 @@ def export_report():
 
         logging.info(f"📤 Export request: Type={export_type}, Format={format_type}, Lang={lang}")
 
-        # --- ¡NUEVO! Extraer y procesar company_data ---
+        # --- Extraer y procesar company_data (Logo) ---
         company_data = data.get("company_data", {}) # Obtener datos de la empresa
         logo_url = company_data.get('logo')
         company_logo_server_path = None # Inicializar como None
 
         if logo_url:
             try:
-                # --- Lógica para convertir URL a RUTA DE SERVIDOR ---
-                # Asume que la URL es relativa a la carpeta 'static_folder' de Flask
-                # Ejemplo: logo_url = '/assets/logos/faes_logo.png'
-                # app.static_folder = '/path/to/project/frontend'
-                
                 # Quita la '/' inicial si existe para unir correctamente
                 relative_path = logo_url.lstrip('/') 
-                
                 # Construye la ruta absoluta en el servidor
-                # app.static_folder es la ruta a tu carpeta 'frontend'
                 potential_path = Path(app.static_folder) / relative_path 
-                
-                # Resuelve a ruta absoluta y normalizada
                 absolute_path = potential_path.resolve()
 
-                # *** ¡Chequeo de seguridad MUY IMPORTANTE! ***
-                # Asegurarse que la ruta resultante está DENTRO de la carpeta static
+                # Chequeo de seguridad
                 if str(absolute_path).startswith(str(Path(app.static_folder).resolve())):
                     if absolute_path.exists() and absolute_path.is_file():
-                        company_logo_server_path = str(absolute_path) # ¡Guardar como string!
+                        company_logo_server_path = str(absolute_path)
                         logging.debug(f"Logo path resolved: {company_logo_server_path}")
                     else:
                         logging.warning(f"Logo file not found at resolved path: {absolute_path}")
                 else:
-                    # Si la ruta sale de la carpeta static, es un intento de Path Traversal
                     logging.error(f"Security Alert: Logo URL resolved outside static folder: {absolute_path}")
-                    # No asignar la ruta, se usará el fallback o no habrá logo
-
             except Exception as path_err:
                 logging.error(f"Error resolving logo path for URL '{logo_url}': {path_err}")
-        else:
-             logging.debug("No logo URL provided in company_data.")
-
-        # Añadir la ruta resuelta (o None) de vuelta al diccionario company_data
+        
         company_data['logo_path_on_server'] = company_logo_server_path
         # --------------------------------------------------------
 
-        mime_types = { # (sin cambios)
+        mime_types = {
              "json": "application/json", "csv": "text/csv",
              "pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         }
-        extensions = { # (sin cambios)
+        extensions = {
              "json": "json", "csv": "csv", "pdf": "pdf", "docx": "docx"
         }
 
@@ -957,6 +945,65 @@ def export_report():
         output = None
         filename_prefix = f"CraftRMN_{export_type}_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
+        
+        # ===================================================================
+        # === INICIO DE LA LÓGICA DE CONVERSIÓN DE IMÁGENES 2D ===
+        # ===================================================================
+        # Esta función helper convertirá los paths de las imágenes 2D a Base64
+        # ANTES de pasarlos al exportador.
+        def convert_image_paths_to_base64(results_obj):
+            logging.debug("Iniciando conversión de paths de imágenes 2D a Base64 para exportar...")
+            try:
+                # Buscamos la lista de compuestos (manejando ambos nombres de clave)
+                pfas_detection = results_obj.get('pfas_detection', {})
+                compounds_list = pfas_detection.get('detected_pfas', pfas_detection.get('compounds', []))
+
+                if not compounds_list:
+                    logging.warning("No se encontró lista de compuestos ('detected_pfas' o 'compounds') en los resultados.")
+                    return
+
+                for compound in compounds_list:
+                    image_path_url = compound.get('image_2d') # Ej: "assets/molecules/pfoa_2d.png"
+                    
+                    # Si tiene un path Y no es ya un string base64...
+                    if image_path_url and not image_path_url.startswith('data:image'):
+                        relative_path = image_path_url.lstrip('/')
+                        
+                        # app.static_folder es '.../frontend'
+                        # El path absoluto es .../frontend/assets/molecules/pfoa_2d.png
+                        absolute_path = (Path(app.static_folder) / relative_path).resolve()
+                        
+                        # Chequeo de seguridad: debe estar en .../frontend/assets/
+                        assets_dir = (Path(app.static_folder) / "assets").resolve()
+                        if str(absolute_path).startswith(str(assets_dir)):
+                            if absolute_path.exists() and absolute_path.is_file():
+                                # Leer los bytes del archivo
+                                with open(absolute_path, "rb") as f:
+                                    img_bytes = f.read()
+                                # Convertir a string base64
+                                img_b64_str = base64.b64encode(img_bytes).decode('utf-8')
+                                # Reemplazar el path con el string base64 data-URL
+                                compound['image_2d'] = f"data:image/png;base64,{img_b64_str}"
+                                logging.debug(f"Convertido {image_path_url} a Base64.")
+                            else:
+                                logging.warning(f"Imagen 2D no encontrada en el servidor: {absolute_path}")
+                                compound['image_2d'] = None # Borrar si no se encuentra
+                        else:
+                            logging.warning(f"Path de imagen 2D fuera del directorio 'assets': {absolute_path}")
+                            compound['image_2d'] = None # Borrar por seguridad
+                    elif not image_path_url:
+                        logging.debug(f"Compuesto {compound.get('name')} no tiene 'image_2d'.")
+                    else:
+                        logging.debug(f"Compuesto {compound.get('name')} ya está en Base64.")
+
+            except Exception as img_conv_err:
+                logging.error(f"Error al convertir imágenes 2D a Base64: {img_conv_err}", exc_info=True)
+                # Continuar sin imágenes si falla
+        # ===================================================================
+        # === FIN DE LA LÓGICA DE CONVERSIÓN ===
+        # ===================================================================
+
+
         # --- Lógica de exportación ---
         if export_type == "dashboard":
             stats = data.get("stats", {})
@@ -966,15 +1013,13 @@ def export_report():
                  if base64_str:
                      img_bytes = ReportExporter.base64_to_bytes(base64_str)
                      if img_bytes: chart_images[key] = img_bytes
-
-            # --- ¡PASAR company_data! ---
+            
             if format_type == "pdf":
-                output = ReportExporter.export_dashboard_pdf(stats, company_data, chart_images, lang) # Modificado
+                 output = ReportExporter.export_dashboard_pdf(stats, company_data, chart_images, lang)
             elif format_type == "docx":
-                output = ReportExporter.export_dashboard_docx(stats, company_data, chart_images, lang) # Modificado
-            # ... (json/csv si aplican) ...
+                 output = ReportExporter.export_dashboard_docx(stats, company_data, chart_images, lang)
             else:
-                 return jsonify({"error": "Dashboard export to JSON/CSV not implemented with branding"}), 400
+                 return jsonify({"error": "Dashboard export to JSON/CSV not implemented"}), 400
 
 
         elif export_type == "comparison":
@@ -982,44 +1027,46 @@ def export_report():
             chart_image_base64 = data.get("chart_image")
             chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64) if chart_image_base64 else None
 
-            # --- ¡PASAR company_data! ---
+            # (Si la comparación necesita mostrar moléculas 2D, también necesitarías
+            #  llamar a 'convert_image_paths_to_base64' aquí para cada sample)
+
             if format_type == "pdf":
-                output = ReportExporter.export_comparison_pdf(samples, company_data, chart_image_bytes, lang) # Modificado
+                 output = ReportExporter.export_comparison_pdf(samples, company_data, chart_image_bytes, lang)
             elif format_type == "docx":
-                output = ReportExporter.export_comparison_docx(samples, company_data, chart_image_bytes, lang) # Modificado
+                 output = ReportExporter.export_comparison_docx(samples, company_data, chart_image_bytes, lang)
             elif format_type == "csv":
-                # CSV no necesita company_data (a menos que quieras añadirlo)
-                output = ReportExporter.export_comparison_csv(samples, lang) 
-            # ... (json si aplica) ...
+                 output = ReportExporter.export_comparison_csv(samples, lang) 
             else:
-                 output = ReportExporter.export_json(data) # JSON puede incluir company_data si quieres
+                 output = ReportExporter.export_json(data)
 
 
         elif export_type == "single":
             results = data.get("results", {})
+            
+            # --- ¡AQUÍ LLAMAMOS A LA CONVERSIÓN! ---
+            convert_image_paths_to_base64(results) 
+            # 'results' ahora tiene las imágenes en base64
+            
             chart_image_base64 = data.get("chart_image")
             chart_image_bytes = ReportExporter.base64_to_bytes(chart_image_base64) if chart_image_base64 else None
 
-            # --- ¡PASAR company_data! ---
             if format_type == "pdf":
-                output = ReportExporter.export_pdf(results, company_data, chart_image_bytes, lang) # Modificado
+                 output = ReportExporter.export_pdf(results, company_data, chart_image_bytes, lang)
             elif format_type == "docx":
-                output = ReportExporter.export_docx(results, company_data, chart_image_bytes, lang) # Modificado
+                 output = ReportExporter.export_docx(results, company_data, chart_image_bytes, lang)
             elif format_type == "csv":
-                 # CSV no necesita company_data (a menos que quieras añadirlo)
-                output = ReportExporter.export_csv(results, lang) 
+                 output = ReportExporter.export_csv(results, lang) 
             else: # json
-                # Podrías añadir company_data al JSON si quieres
-                results_with_company = {**results, "company_info": company_data} # Ejemplo
-                output = ReportExporter.export_json(results_with_company)
+                 results_with_company = {**results, "company_info": company_data}
+                 output = ReportExporter.export_json(results_with_company)
 
 
-        else: # Tipo no soportado (sin cambios)
+        else: # Tipo no soportado
              logging.warning(f"Unsupported export type requested: {export_type}")
              return jsonify({"error": f"Unsupported export type: '{export_type}'..."}), 400
 
 
-        # --- Enviar archivo generado (sin cambios) ---
+        # --- Enviar archivo generado ---
         if output is None:
              logging.error(f"Export generation failed...")
              return jsonify({"error": f"Failed to generate export file..."}), 500
@@ -1028,16 +1075,16 @@ def export_report():
         logging.info(f"✅ Sending export file: {filename} (MIME: {mime_types[format_type]})")
 
         return send_file(
-            output,
-            mimetype=mime_types[format_type],
-            as_attachment=True,
-            download_name=filename
+             output,
+             mimetype=mime_types[format_type],
+             as_attachment=True,
+             download_name=filename
         )
 
     except Exception as e:
         logging.error(f"❌ Error during export: {str(e)}", exc_info=True)
         return jsonify({"error": f"Export failed: {str(e)}"}), 500
-
+    
 # ============================================================================
 # API - Gestión de Archivos de Análisis (JSONs)
 # ============================================================================

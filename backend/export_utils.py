@@ -251,16 +251,16 @@ class ReportExporter:
         output = io.BytesIO()
 
         doc = BaseDocTemplate(output, pagesize=A4, topMargin=0.75*inch, bottomMargin=1.0*inch, 
-                            leftMargin=0.75*inch, rightMargin=0.75*inch)
+                              leftMargin=0.75*inch, rightMargin=0.75*inch)
         frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
         template = PageTemplate(id='main', frames=[frame], 
-                              onPage=lambda canvas, doc: ReportExporter._add_pdf_footer(canvas, doc, company_data))
+                                onPage=lambda canvas, doc: ReportExporter._add_pdf_footer(canvas, doc, company_data))
         doc.addPageTemplates([template])
         story = []
         styles = getSampleStyleSheet()
         
         title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24, 
-                                    textColor=colors.HexColor('#2c3e50'), spaceAfter=30, alignment=TA_CENTER)
+                                     textColor=colors.HexColor('#2c3e50'), spaceAfter=30, alignment=TA_CENTER)
         subtitle_style = ParagraphStyle('Subtitle', parent=styles['Heading2'], alignment=TA_CENTER)
         info_style = ParagraphStyle('Info', parent=styles['Normal'], alignment=TA_CENTER, fontSize=12)
 
@@ -438,78 +438,94 @@ class ReportExporter:
         story.append(stats_table)
         story.append(PageBreak())
 
-        # ✅ SECCIÓN CORREGIDA: COMPUESTOS PFAS DETECTADOS
-        pfas_detection = results.get('pfas_detection', {})
-        compounds = pfas_detection.get('compounds', [])
+        # =================================================================
+        # === INICIO DE LA SECCIÓN MODIFICADA (PFAS CON IMÁGENES 2D) ===
+        # =================================================================
         
+        pfas_detection = results.get('pfas_detection', {})
+        
+        # --- CORRECCIÓN 1: Buscar 'detected_pfas' (de app.py) si 'compounds' está vacío ---
+        compounds = pfas_detection.get('compounds', [])
+        if not compounds:
+            compounds = pfas_detection.get('detected_pfas', [])
+        
+        story.append(Paragraph(f"5. {t.t('report.detected_compounds', 'Detected PFAS Compounds')}", 
+                               styles['Heading1']))
+        story.append(Spacer(1, 0.2*inch))
+
         if compounds:
-            story.append(Paragraph(f"5. {t.t('report.detected_compounds', 'Detected PFAS Compounds')}", 
-                                 styles['Heading1']))
-            story.append(Spacer(1, 0.2*inch))
+            # --- CORRECCIÓN 2: Lógica para incluir imágenes 2D ---
+            # Ya no usamos una sola tabla. Iteramos y creamos bloques.
             
-            compounds_data = [[
-                t.t('compounds.name', 'Name'),
-                t.t('compounds.cas', 'CAS Number'),
-                t.t('compounds.formula', 'Formula'),
-                t.t('compounds.concentration', 'Concentration'),
-                t.t('compounds.confidence', 'Confidence')
-            ]]
-            
+            # Estilos para el texto del compuesto
+            compound_name_style = ParagraphStyle('CompoundName', parent=styles['Heading3'], fontSize=12, spaceAfter=6, textColor=colors.HexColor('#27ae60'))
+            compound_detail_style = ParagraphStyle('CompoundDetail', parent=styles['Normal'], fontSize=10, leftIndent=12, spaceAfter=3)
+
             for compound in compounds:
+                compound_block = [] # Usar KeepTogether para este bloque
+                
                 name = compound.get('name', 'N/A')
                 cas = compound.get('cas_number', compound.get('cas', 'N/A'))
                 formula = compound.get('formula', compound.get('molecular_formula', 'N/A'))
                 
-                conc = (compound.get('concentration') or 
-                       compound.get('estimated_concentration') or 
-                       compound.get('conc'))
-                
-                if not conc or conc == 0:
-                    total_conc = pfas_detection.get('total_pfas_concentration', 0)
-                    if total_conc and len(compounds) > 0:
-                        conc = total_conc / len(compounds)
-                
-                confidence = (compound.get('confidence_level') or 
-                             compound.get('confidence') or 
-                             compound.get('match_quality'))
-                
-                if not confidence:
-                    confidence = t.t('compounds.detected', 'Detected')
-                
-                conc_text = 'N/A'
-                if conc and conc > 0:
+                # Obtener confianza
+                confidence_val = (compound.get('confidence_level') or 
+                                  compound.get('confidence') or 
+                                  compound.get('match_quality'))
+
+                # Formatear confianza (app.py ya multiplica por 100)
+                if confidence_val:
                     try:
-                        conc_text = f"{float(conc):.4f} {t.t('units.millimolar', 'mM')}"
+                        confidence_text = f"{float(confidence_val):.1f}%"
                     except (ValueError, TypeError):
-                        conc_text = str(conc)
+                        confidence_text = str(confidence_val)
+                else:
+                    confidence_text = t.t('compounds.detected', 'Detected')
+
+                # Añadir texto
+                compound_block.append(Paragraph(name, compound_name_style))
+                compound_block.append(Paragraph(
+                    f"<b>{t.t('compounds.confidence', 'Confidence')}:</b> {confidence_text}", 
+                    compound_detail_style
+                ))
+                compound_block.append(Paragraph(
+                    f"<b>{t.t('compounds.formula', 'Formula')}:</b> {formula}", 
+                    compound_detail_style
+                ))
+                compound_block.append(Paragraph(
+                    f"<b>{t.t('compounds.cas', 'CAS')}:</b> {cas}", 
+                    compound_detail_style
+                ))
                 
-                compounds_data.append([
-                    name,
-                    cas,
-                    formula,
-                    conc_text,
-                    str(confidence)
-                ])
+                # Añadir imagen 2D si existe
+                image_b64 = compound.get('image_2d')
+                if image_b64:
+                    try:
+                        img_bytes = ReportExporter.base64_to_bytes(image_b64)
+                        if img_bytes:
+                            compound_block.append(Spacer(1, 0.1*inch))
+                            # Ajustar tamaño de imagen si es necesario
+                            img = Image(io.BytesIO(img_bytes), width=1.5*inch, height=1.5*inch, kind='bound') 
+                            img.hAlign = 'LEFT'
+                            img.leftIndent = 12
+                            compound_block.append(img)
+                    except Exception as img_err:
+                        # No añadir nada si la imagen falla
+                        print(f"Advertencia: No se pudo renderizar la imagen 2D para {name}: {img_err}")
+                
+                compound_block.append(Spacer(1, 0.25*inch)) # Espacio después de cada compuesto
+                story.append(KeepTogether(compound_block))
             
-            compounds_table = Table(compounds_data, colWidths=[2.2*inch, 1.0*inch, 0.9*inch, 1.1*inch, 0.9*inch])
-            compounds_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#27ae60')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
-            ]))
-            story.append(compounds_table)
-            story.append(Spacer(1, 0.3*inch))
+            # --- FIN CORRECCIÓN 2 ---
+        
         else:
-            story.append(Paragraph(f"5. {t.t('report.detected_compounds', 'Detected PFAS Compounds')}", 
-                                 styles['Heading1']))
-            story.append(Spacer(1, 0.1*inch))
-            story.append(Paragraph(t.t('compounds.none', 'No specific PFAS compounds were detected.'), 
-                                 styles['Normal']))
+            # Mensaje 'No detectado'
+            story.append(Paragraph(t.t('compounds.none', 'No specific PFAS compounds were detected.'),
+                                   styles['Normal']))
+        
+        # =================================================================
+        # === FIN DE LA SECCIÓN MODIFICADA ===
+        # =================================================================
         
         story.append(PageBreak())
 
@@ -548,7 +564,10 @@ class ReportExporter:
                     region_val
                 ])
 
-            peaks_table = Table(peaks_data, colWidths=[0.9*inch, 1.0*inch, 1.1*inch, 0.9*inch, 0.7*inch, 0.7*inch, 2.9*inch])
+            peaks_table = Table(peaks_data, colWidths=[0.9*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 1.4*inch])
+            # Ajustar anchos si el contenido se corta (ejemplo anterior tenía 7 columnas)
+            peaks_table = Table(peaks_data, colWidths=[0.9*inch, 1.0*inch, 0.8*inch, 0.9*inch, 0.7*inch, 0.7*inch, 1.1*inch])
+            
             peaks_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f39c12')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -562,12 +581,11 @@ class ReportExporter:
             story.append(peaks_table)
         else:
             story.append(Paragraph(t.t('peaks.none', 'No significant peaks detected.'), 
-                                 styles['Normal']))
+                                   styles['Normal']))
 
         doc.build(story)
         output.seek(0)
         return output
-
     # ========================================================================
     # EXPORTACIÓN DOCX INDIVIDUAL - VERSIÓN FINAL CORREGIDA
     # ========================================================================
@@ -762,63 +780,74 @@ class ReportExporter:
         
         doc.add_page_break()
 
-        # ✅ SECCIÓN CORREGIDA: COMPUESTOS PFAS DETECTADOS
+        # =================================================================
+        # === INICIO DE LA SECCIÓN MODIFICADA (PFAS CON IMÁGENES 2D) ===
+        # =================================================================
+        
         pfas_detection = results.get('pfas_detection', {})
+        
+        # --- CORRECCIÓN 1: Clave de diccionario ---
         compounds = pfas_detection.get('compounds', [])
+        if not compounds:
+             compounds = pfas_detection.get('detected_pfas', [])
         
         doc.add_heading(f"5. {t.t('report.detected_compounds', 'Detected PFAS Compounds')}", level=1)
         
         if compounds:
-            compounds_table = doc.add_table(rows=len(compounds) + 1, cols=5)
-            compounds_table.style = 'Light Grid Accent 1'
+            # --- CORRECCIÓN 2: Lógica para incluir imágenes 2D ---
+            # Borrar la creación de la tabla, iterar por compuesto
             
-            hdr_cells_comp = compounds_table.rows[0].cells
-            hdr_cells_comp[0].text = t.t('compounds.name', 'Name')
-            hdr_cells_comp[1].text = t.t('compounds.cas', 'CAS Number')
-            hdr_cells_comp[2].text = t.t('compounds.formula', 'Formula')
-            hdr_cells_comp[3].text = t.t('compounds.concentration', 'Concentration')
-            hdr_cells_comp[4].text = t.t('compounds.confidence', 'Confidence')
-            
-            for idx, compound in enumerate(compounds, 1):
-                if idx < len(compounds_table.rows):
-                    row_cells = compounds_table.rows[idx].cells
-                    
-                    name = compound.get('name', 'N/A')
-                    cas = compound.get('cas_number', compound.get('cas', 'N/A'))
-                    formula = compound.get('formula', compound.get('molecular_formula', 'N/A'))
-                    
-                    conc = (compound.get('concentration') or 
-                           compound.get('estimated_concentration') or 
-                           compound.get('conc'))
-                    
-                    if not conc or conc == 0:
-                        total_conc = pfas_detection.get('total_pfas_concentration', 0)
-                        if total_conc and len(compounds) > 0:
-                            conc = total_conc / len(compounds)
-                    
-                    confidence = (compound.get('confidence_level') or 
-                                 compound.get('confidence') or 
-                                 compound.get('match_quality'))
-                    
-                    if not confidence:
-                        confidence = t.t('compounds.detected', 'Detected')
-                    
-                    conc_text = 'N/A'
-                    if conc and conc > 0:
-                        try:
-                            conc_text = f"{float(conc):.4f} {t.t('units.millimolar', 'mM')}"
-                        except (ValueError, TypeError):
-                            conc_text = str(conc)
-                    
-                    row_cells[0].text = name
-                    row_cells[1].text = cas
-                    row_cells[2].text = formula
-                    row_cells[3].text = conc_text
-                    row_cells[4].text = str(confidence)
-            
-            doc.add_paragraph()
+            for compound in compounds:
+                name = compound.get('name', 'N/A')
+                cas = compound.get('cas_number', compound.get('cas', 'N/A'))
+                formula = compound.get('formula', compound.get('molecular_formula', 'N/A'))
+                
+                confidence_val = (compound.get('confidence_level') or 
+                                  compound.get('confidence') or 
+                                  compound.get('match_quality'))
+                
+                if confidence_val:
+                    try:
+                        confidence_text = f"{float(confidence_val):.1f}%"
+                    except (ValueError, TypeError):
+                        confidence_text = str(confidence_val)
+                else:
+                    confidence_text = t.t('compounds.detected', 'Detected')
+                
+                # Añadir texto
+                doc.add_heading(name, level=3)
+                
+                p = doc.add_paragraph()
+                p.add_run(f"{t.t('compounds.confidence', 'Confidence')}: ").bold = True
+                p.add_run(confidence_text)
+                
+                p = doc.add_paragraph()
+                p.add_run(f"{t.t('compounds.formula', 'Formula')}: ").bold = True
+                p.add_run(formula)
+                
+                p = doc.add_paragraph()
+                p.add_run(f"{t.t('compounds.cas', 'CAS')}: ").bold = True
+                p.add_run(cas)
+                
+                # Añadir imagen 2D
+                image_b64 = compound.get('image_2d')
+                if image_b64:
+                    try:
+                        img_bytes = ReportExporter.base64_to_bytes(image_b64)
+                        if img_bytes:
+                            doc.add_picture(io.BytesIO(img_bytes), width=Inches(1.5))
+                            doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.LEFT
+                    except Exception as img_err:
+                        print(f"Advertencia: No se pudo renderizar la imagen 2D (DOCX) para {name}: {img_err}")
+                
+                doc.add_paragraph() # Espacio
+            # --- FIN CORRECCIÓN 2 ---
         else:
             doc.add_paragraph(t.t('compounds.none', 'No specific PFAS compounds were detected.'))
+        
+        # =================================================================
+        # === FIN DE LA SECCIÓN MODIFICADA ===
+        # =================================================================
         
         doc.add_page_break()
 
@@ -831,7 +860,7 @@ class ReportExporter:
             peaks_table = doc.add_table(rows=len(peaks) + 1, cols=7)
             peaks_table.style = 'Light Grid Accent 1'
             
-            widths = [0.7, 0.8, 0.8, 0.7, 0.7, 0.6, 2.2]
+            widths = [0.7, 0.8, 0.8, 0.7, 0.7, 0.6, 1.5] # Ajustado ancho
             for i, width in enumerate(widths):
                 for cell in peaks_table.columns[i].cells:
                     cell.width = Inches(width)

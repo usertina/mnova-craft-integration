@@ -208,6 +208,12 @@
     "over_ten": "/10",
     "arbitrary": "u.a."
   },
+  "quality": {
+    "snr": "S/Z erlazioa",
+    "baseline": "Oinarri-lerroa",
+    "peaks": "Gailurrak",
+    "resolution": "Ebazpena"
+  },
   "report": {
     "title": "RMN Analisiaren Txostena",
     "subtitle": "Erresonantzia Magnetiko Nuklearraren Espektroskopia Analisia",
@@ -225,6 +231,7 @@
     "chemical_composition": "Konposizio Kimikoa",
     "detailed_statistics": "Estatistika Xehatuak",
     "limits": "Mugak",
-    "detected_peaks": "Atzemandako Gailurrak"
+    "detected_peaks": "Atzemandako Gailurrak",
+    "detected_compounds": "5. Detektatutako PFAS Konposatuak"
   }
 }

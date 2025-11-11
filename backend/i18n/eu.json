@@ -19,8 +19,15 @@
     "metric": "Metrika",
     "detected_peaks_count": "Detektatutako Gailur Kopurua",
     "total_integral": "Integral Osoa",
-    "snr": "S/Z Erlazioa"
+    "snr": "S/Z Erlazioa",
+    "detected_compounds": "Detektatutako PFAS Konposatuak"
   },
+  "compounds": {
+    "confidence": "Konfiantza",
+    "formula": "Formula",
+    "cas": "CAS"
+  },
+  
   "results": {
     "fluor": "Fluor Osoa",
     "pfas": "PFAS",

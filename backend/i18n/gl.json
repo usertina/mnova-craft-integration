@@ -19,8 +19,15 @@
     "metric": "Métrica",
     "detected_peaks_count": "Nº de picos detectados",
     "total_integral": "Integral total",
-    "snr": "Relación S/R"
+    "snr": "Relación S/R",
+    "detected_compounds": "Compostos PFAS Detectados"
   },
+  "compounds": {
+    "confidence": "Confianza",
+    "formula": "Fórmula",
+    "cas": "CAS"
+  },
+  
   "results": {
     "fluor": "Flúor total",
     "pfas": "PFAS",

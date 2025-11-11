@@ -430,9 +430,9 @@ class SpectrumAnalyzer:
         
         peaks, properties = find_peaks(
             region_intensity,
-            height=signal_threshold,       # 1. El pico debe ser más alto que el umbral final.
+            height=signal_threshold,      # 1. El pico debe ser más alto que el umbral final.
             distance=min_distance_points,
-            prominence=signal_threshold    # 2. El pico debe "sobresalir" por encima del umbral final.
+            prominence=signal_threshold   # 2. El pico debe "sobresalir" por encima del umbral final.
         )
         
         peak_list = []
@@ -458,10 +458,16 @@ class SpectrumAnalyzer:
             region = self._get_peak_region(ppm)
             area = float(intensity * width_ppm)
 
+            # --- ¡INICIO DE LA CORRECCIÓN! ---
+            # Calcular la intensidad relativa usando el max_signal_intensity de todo el espectro
+            relative_intensity = (intensity / max_signal_intensity) * 100 if max_signal_intensity > 0 else 0.0
+            # --- ¡FIN DE LA CORRECCIÓN! ---
+
             peak_list.append({
                 "index": int(i),
                 "ppm": ppm,
                 "intensity": intensity,
+                "relative_intensity": float(relative_intensity), # <-- NUEVA LÍNEA
                 "width_hz": float(width_hz),
                 "width_ppm": float(width_ppm),
                 "snr": snr,
