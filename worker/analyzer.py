@@ -153,6 +153,15 @@ class SpectrumAnalyzer:
             global_noise_level=quality_metrics.get('noise_level', 1e-9),
             max_signal_intensity=quality_metrics.get('max_signal', 1.0)
         )
+
+        # --- Calcular concentraciones ---
+        total_area = fluor_total_stats.get('total_area', 1)  # Evitar división por cero
+        pifas_area = pifas_stats.get('total_area', 0)
+
+        pifas_fraction = pifas_area / total_area if total_area != 0 else 0.0
+        pifas_concentration = float(concentration * pifas_fraction)
+        pfas_concentration = float(concentration * pifas_fraction)  # alias
+
         
         # Resultados (VERSIÓN APLANADA Y CON .tolist() PARA JSON)
         results = {
@@ -188,6 +197,8 @@ class SpectrumAnalyzer:
             "pfas_percentage": pifas_stats.get('percentage', 0), # Alias
             "pifas_area": pifas_stats.get('total_area', 0),
             "pfas_area": pifas_stats.get('total_area', 0), # Alias
+            "pifas_concentration": pifas_concentration,   
+            "pfas_concentration": pfas_concentration,     
             "total_integral": fluor_total_stats.get('total_area', 0), # Alias
 
             # --- Configuración ---

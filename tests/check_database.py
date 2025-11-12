@@ -46,7 +46,7 @@ def check_database(db_path='backend/measurements.db'):
         # Construir query dinámicamente basado en las columnas disponibles
         # Buscar la columna que contiene los datos de análisis
         analysis_column = None
-        for possible_name in ['analysis', 'analysis_data', 'data', 'results', 'analysis_json']:
+        for possible_name in ['analysis', 'analysis_data', 'data', 'results', 'analysis_json', 'raw_data']:
             if possible_name in column_names:
                 analysis_column = possible_name
                 break
@@ -55,11 +55,11 @@ def check_database(db_path='backend/measurements.db'):
             print("⚠️  No se encontró una columna de análisis estándar.")
             print("Mostrando todas las columnas disponibles...\n")
             # Seleccionar todas las columnas
-            cursor.execute("SELECT * FROM measurements ORDER BY id DESC LIMIT 10")
+            cursor.execute("SELECT * FROM measurements ORDER BY id DESC LIMIT 3")
         else:
             print(f"✅ Usando columna '{analysis_column}' para datos de análisis\n")
             # Construir query con las columnas necesarias
-            cursor.execute(f"SELECT id, filename, timestamp, {analysis_column} FROM measurements ORDER BY id DESC LIMIT 10")
+            cursor.execute(f"SELECT id, filename, timestamp, {analysis_column} FROM measurements ORDER BY id DESC LIMIT 3")
         
         measurements = cursor.fetchall()
         
@@ -74,8 +74,13 @@ def check_database(db_path='backend/measurements.db'):
         
         for idx, row in enumerate(measurements, 1):
             if analysis_column:
-                # Sabemos qué columnas esperamos
                 mid, filename, timestamp, analysis_json = row
+                if analysis_column == 'raw_data':
+                    try:
+                        raw = json.loads(analysis_json)
+                        analysis_json = raw.get('analysis', raw)
+                    except Exception as e:
+                        print(f"⚠️ No se pudo parsear raw_data en medición #{mid}: {e}")
             else:
                 # Mostrar todas las columnas disponibles
                 print(f"\n{'=' * 80}")
@@ -277,7 +282,8 @@ if __name__ == "__main__":
         'backend/measurements.db',
         'measurements.db',
         '../backend/measurements.db',
-        'backend/storage/measurements.db'
+        'backend/storage/measurements.db',
+        '../backend/storage/measurements.db'
     ]
     
     db_path = None

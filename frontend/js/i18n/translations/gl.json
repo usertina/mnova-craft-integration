@@ -173,7 +173,8 @@
     "loadingSamples": "Cargando mostras...",
     "selectMinSamples": "Selecciona polo menos 2 mostras para comparar",
     "selectFormat": "Selecciona o formato de exportación:",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "confirm": "Confirmar"
   },
   "messages": {
     "initializing": "Inicializando...",

@@ -2,6 +2,7 @@
 """
 Script de Verificación de Traducciones - CraftRMN Pro
 Compara las claves en los archivos de traducción y reporta las faltantes
+Soporta backend y frontend
 """
 
 import json
@@ -9,17 +10,20 @@ import sys
 from pathlib import Path
 from typing import Dict, Set
 
+# ----------------------------------------------------------------------
+# Funciones auxiliares
+# ----------------------------------------------------------------------
 def load_json(file_path: Path) -> Dict:
     """Carga un archivo JSON"""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        print(f"❌ Error: No se encontró el archivo {file_path}")
-        sys.exit(1)
+        print(f"❌ No se encontró {file_path}")
+        return None
     except json.JSONDecodeError as e:
         print(f"❌ Error al parsear {file_path}: {e}")
-        sys.exit(1)
+        return None
 
 def get_all_keys(d: Dict, parent_key: str = '') -> Set[str]:
     """Extrae todas las claves de forma recursiva"""
@@ -34,23 +38,28 @@ def get_all_keys(d: Dict, parent_key: str = '') -> Set[str]:
 def compare_translations(base_file: Path, target_files: list) -> None:
     """Compara el archivo base con los archivos objetivo"""
     print("="*70)
-    print("🔍 VERIFICADOR DE TRADUCCIONES - CraftRMN Pro")
+    print(f"🔍 Comparando traducciones con referencia {base_file.name}")
     print("="*70)
     
-    # Cargar archivo de referencia (español)
-    print(f"\n📖 Cargando archivo de referencia: {base_file.name}")
     base_data = load_json(base_file)
+    if base_data is None:
+        print(f"❌ No se pudo cargar la referencia {base_file}, se omite la comparación.\n")
+        return
+    
     base_keys = get_all_keys(base_data)
     print(f"   ✅ {len(base_keys)} claves encontradas en {base_file.name}")
     
     all_ok = True
     
     for target_file in target_files:
-        print(f"\n🔎 Comparando con: {target_file.name}")
+        print(f"\n🔎 Comparando con: {target_file}")
         target_data = load_json(target_file)
+        if target_data is None:
+            print(f"❌ No se pudo cargar {target_file}, se omite.\n")
+            all_ok = False
+            continue
         target_keys = get_all_keys(target_data)
         
-        # Encontrar claves faltantes
         missing_keys = base_keys - target_keys
         extra_keys = target_keys - base_keys
         
@@ -74,28 +83,34 @@ def compare_translations(base_file: Path, target_files: list) -> None:
         print("❌ FALTAN TRADUCCIONES - Ver reporte arriba")
     print("="*70 + "\n")
 
+# ----------------------------------------------------------------------
+# MAIN
+# ----------------------------------------------------------------------
 def main():
-    # Ruta del proyecto (ajustar según sea necesario)
-    i18n_dir = Path("frontend/i18n")
+    # Detectar ruta raíz del proyecto (padre de tests/)
+    ROOT_DIR = Path(__file__).resolve().parent.parent
+
+    # ---------------- BACKEND ----------------
+    backend_dir = ROOT_DIR / "backend" / "i18n"
+    backend_ref = backend_dir / "es.json"
+    backend_targets = [backend_dir / f for f in ["en.json","eu.json","gl.json"]]
     
-    if not i18n_dir.exists():
-        print(f"❌ Error: No se encontró el directorio {i18n_dir}")
-        print("   Ejecuta este script desde la raíz del proyecto.")
-        sys.exit(1)
+    print("\n=== BACKEND ===")
+    print("="*70)
+    if not backend_ref.exists():
+        print(f"❌ No se encontró {backend_ref}")
+    compare_translations(backend_ref, backend_targets)
+
+    # ---------------- FRONTEND ----------------
+    frontend_dir = ROOT_DIR / "frontend" / "js" / "i18n" / "translations"
+    frontend_ref = frontend_dir / "es.json"
+    frontend_targets = [frontend_dir / f for f in ["en.json","eu.json","gl.json"]]
     
-    # Archivos de traducción
-    es_file = i18n_dir / "es.json"
-    en_file = i18n_dir / "en.json"
-    eu_file = i18n_dir / "eu.json"
-    
-    # Verificar que existan
-    for f in [es_file, en_file, eu_file]:
-        if not f.exists():
-            print(f"❌ Error: No se encontró {f}")
-            sys.exit(1)
-    
-    # Comparar (español es la referencia)
-    compare_translations(es_file, [en_file, eu_file])
+    print("\n=== FRONTEND ===")
+    print("="*70)
+    if not frontend_ref.exists():
+        print(f"❌ No se encontró {frontend_ref}")
+    compare_translations(frontend_ref, frontend_targets)
 
 if __name__ == "__main__":
     main()

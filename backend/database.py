@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import logging
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -166,6 +167,56 @@ class Database:
         conn.close()
         return config
     
+    # ==================== 🔒 PROTECCIÓN SQL INJECTION ====================
+    
+    @staticmethod
+    def _sanitize_search_term(search_term: str) -> str:
+        """
+        ✅ Sanitiza el término de búsqueda para evitar SQL injection
+        
+        Protecciones:
+        1. Limita longitud máxima
+        2. Elimina caracteres especiales SQL
+        3. Escapa wildcards de LIKE
+        4. Valida que solo contenga caracteres seguros
+        """
+        if not search_term:
+            return ""
+        
+        # 1. Limitar longitud (evitar búsquedas muy largas)
+        max_length = 100
+        search_term = search_term[:max_length]
+        
+        # 2. Eliminar caracteres potencialmente peligrosos
+        # Solo permitir: letras, números, espacios, guiones, puntos, guion bajo
+        safe_pattern = re.compile(r'^[a-zA-Z0-9\s._-]*$')
+        if not safe_pattern.match(search_term):
+            logger.warning(f"Término de búsqueda contiene caracteres no permitidos: {search_term}")
+            # Eliminar caracteres no seguros
+            search_term = re.sub(r'[^a-zA-Z0-9\s._-]', '', search_term)
+        
+        # 3. Escapar wildcards de LIKE (_ y %) para que se busquen literalmente
+        search_term = search_term.replace('\\', '\\\\')  # Escapar backslash primero
+        search_term = search_term.replace('%', '\\%')    # Escapar %
+        search_term = search_term.replace('_', '\\_')    # Escapar _
+        
+        # 4. Eliminar espacios múltiples
+        search_term = ' '.join(search_term.split())
+        
+        return search_term
+    
+    @staticmethod
+    def _validate_company_id(company_id: str) -> bool:
+        """
+        ✅ Valida que el company_id sea seguro
+        """
+        if not company_id:
+            return False
+        
+        # Solo permitir caracteres alfanuméricos y guion bajo
+        safe_pattern = re.compile(r'^[a-zA-Z0-9_]{1,50}$')
+        return bool(safe_pattern.match(company_id))
+    
     # ==================== MEDICIONES ====================
     
     def save_measurement(self, measurement_data: Dict) -> int:
@@ -296,21 +347,33 @@ class Database:
     def get_measurements_with_search(
         self, 
         company_id: str, 
-        search_term: str, 
-        limit: int = 50, 
-        offset: int = 0
+        page: int = 1, 
+        limit: int = 50,
+        search_term: str = ""
     ) -> Dict:
-        """Obtiene mediciones con búsqueda por filename."""
+        """
+        ✅ FUNCIÓN CORREGIDA: Obtiene mediciones paginadas con búsqueda segura.
+        """
         try:
+            # ✅ VALIDAR COMPANY_ID
+            if not self._validate_company_id(company_id):
+                logger.error(f"Company ID inválido: {company_id}")
+                return {'measurements': [], 'total': 0, 'total_pages': 0}
+            
+            # ✅ SANITIZAR TÉRMINO DE BÚSQUEDA
+            search_term = self._sanitize_search_term(search_term)
+            
             conn = self.get_connection()
             cursor = conn.cursor()
             
+            offset = (page - 1) * limit
             search_pattern = f"%{search_term}%"
             
+            # ✅ CAMBIO AQUÍ: AÑADIR "ESCAPE '\\'" A LAS QUERIES
             if company_id == 'admin':
                 query = """
                     SELECT * FROM measurements 
-                    WHERE filename LIKE ?
+                    WHERE filename LIKE ? ESCAPE '\\'
                     ORDER BY timestamp DESC 
                     LIMIT ? OFFSET ?
                 """
@@ -318,7 +381,7 @@ class Database:
             else:
                 query = """
                     SELECT * FROM measurements 
-                    WHERE company_id = ? AND filename LIKE ?
+                    WHERE company_id = ? AND filename LIKE ? ESCAPE '\\'
                     ORDER BY timestamp DESC 
                     LIMIT ? OFFSET ?
                 """
@@ -346,20 +409,46 @@ class Database:
             return {'measurements': [], 'total': 0, 'total_pages': 0}
     
     def count_measurements_with_search(self, company_id: str, search_term: str) -> int:
-        """Cuenta mediciones que coinciden con un término de búsqueda."""
+        """
+        ✅ FUNCIÓN CORREGIDA: Cuenta mediciones que coinciden con un término de búsqueda.
+        
+        Protecciones implementadas:
+        - Validación de company_id
+        - Sanitización de search_term
+        - Uso de ESCAPE clause en LIKE
+        - Logging de intentos sospechosos
+        """
         try:
+            # ✅ 1. VALIDAR COMPANY_ID
+            if not self._validate_company_id(company_id):
+                logger.error(f"Company ID inválido o sospechoso: {company_id}")
+                return 0
+            
+            # ✅ 2. SANITIZAR TÉRMINO DE BÚSQUEDA
+            original_search = search_term
+            search_term = self._sanitize_search_term(search_term)
+            
+            if original_search != search_term:
+                logger.warning(f"Término de búsqueda fue sanitizado: '{original_search}' -> '{search_term}'")
+            
+            # Si después de sanitizar no queda nada, retornar 0
+            if not search_term:
+                return 0
+            
             conn = self.get_connection()
             cursor = conn.cursor()
             
+            # ✅ 3. CONSTRUIR PATTERN CON WILDCARDS (ya sanitizado)
             search_pattern = f"%{search_term}%"
             
+            # ✅ 4. USAR ESCAPE CLAUSE EN LIKE
             if company_id == 'admin':
-                query = "SELECT COUNT(*) FROM measurements WHERE filename LIKE ?"
+                query = "SELECT COUNT(*) FROM measurements WHERE filename LIKE ? ESCAPE '\\'"
                 params = (search_pattern,)
             else:
                 query = """
                     SELECT COUNT(*) FROM measurements 
-                    WHERE company_id = ? AND filename LIKE ?
+                    WHERE company_id = ? AND filename LIKE ? ESCAPE '\\'
                 """
                 params = (company_id, search_pattern)
             
@@ -368,10 +457,13 @@ class Database:
             count = result[0] if result else 0
             
             conn.close()
+            
+            logger.debug(f"Búsqueda: company={company_id}, term='{search_term}', results={count}")
             return count
             
         except Exception as e:
             logger.error(f"Error counting measurements with search: {e}")
+            logger.error(f"Company: {company_id}, Search term: {search_term}")
             return 0
     
     def delete_measurement(self, measurement_id: int, company_id: Optional[str] = None) -> bool:
@@ -380,6 +472,18 @@ class Database:
             conn = self.get_connection()
             cursor = conn.cursor()
             
+            if not isinstance(measurement_id, int) or measurement_id <= 0:
+                logger.error(f"ID de medición inválido: {measurement_id}")
+                return False
+            
+            if company_id and not self._validate_company_id(company_id):
+                logger.error(f"Company ID inválido: {company_id}")
+                return False
+
+            if company_id and company_id != 'admin' and not self._validate_company_id(company_id):
+                logger.error(f"Company ID inválido: {company_id}")
+                return 0
+
             if company_id and company_id != 'admin':
                 cursor.execute(
                     "SELECT company_id FROM measurements WHERE id = ?", 

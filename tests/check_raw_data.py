@@ -1,52 +1,81 @@
 #!/usr/bin/env python3
 """
-Ver contenido de raw_data
+Reporte de calidad interactivo para mediciones
 """
 import sqlite3
 import json
 
-db_path = 'backend/storage/measurements.db'
+# Configuración
+db_path = '../backend/storage/measurements.db'
+critical_fields = ['total_integral', 'signal_to_noise', 'pfas_detection']
+
+# Conexión a la DB
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
-cursor.execute("SELECT id, filename, raw_data FROM measurements ORDER BY id DESC LIMIT 1")
-row = cursor.fetchone()
+# Leer todas las mediciones
+cursor.execute("SELECT id, filename, raw_data FROM measurements ORDER BY id")
+rows = cursor.fetchall()
 
-if row:
-    mid, filename, raw_data = row
-    print(f"Medición #{mid}: {filename}")
-    print("=" * 80)
+if not rows:
+    print("⚠️  No se encontraron mediciones en la base de datos.")
+    conn.close()
+    exit()
+
+# Preguntar al usuario cuántas mediciones mostrar
+while True:
+    try:
+        n = int(input(f"Hay {len(rows)} mediciones. ¿Cuántas quieres mostrar? "))
+        if n <= 0:
+            print("Debes ingresar un número mayor que 0.")
+            continue
+        break
+    except ValueError:
+        print("Por favor, ingresa un número válido.")
+
+# Limitar el número de mediciones a mostrar
+rows_to_show = rows[:n]
+
+reporte = []
+
+for mid, filename, raw_data in rows_to_show:
+    entry = {'id': mid, 'filename': filename, 'status': '✅ Válida', 'issues': []}
     
-    data = json.loads(raw_data)
-    print("\nContenido de raw_data:")
-    print(json.dumps(data, indent=2, ensure_ascii=False))
+    try:
+        data = json.loads(raw_data)
+    except json.JSONDecodeError:
+        entry['status'] = '❌ JSON inválido'
+        reporte.append(entry)
+        continue
     
-    if 'analysis' in data:
-        print("\n" + "=" * 80)
-        print("Contenido de raw_data['analysis']:")
-        print("=" * 80)
-        analysis = data['analysis']
-        
-        print("\nCampos disponibles:")
-        for key in sorted(analysis.keys()):
-            val = analysis[key]
-            if isinstance(val, dict):
-                print(f"  - {key}: [dict con {len(val)} campos]")
-            elif isinstance(val, list):
-                print(f"  - {key}: [lista con {len(val)} elementos]")
-            else:
-                print(f"  - {key}: {val}")
-        
-        print("\n🔍 Verificando campos críticos:")
-        critical = ['total_integral', 'signal_to_noise', 'pfas_detection']
-        for field in critical:
-            if field in analysis:
-                val = analysis[field]
-                if val:
-                    print(f"  ✅ {field}: {val if not isinstance(val, dict) else 'presente'}")
-                else:
-                    print(f"  ⚠️  {field}: {val} (vacío)")
-            else:
-                print(f"  ❌ {field}: NO ENCONTRADO")
+    analysis = data.get('analysis', {})
+    if not analysis:
+        entry['status'] = '❌ Sin análisis'
+        reporte.append(entry)
+        continue
+    
+    # Validación de campos críticos
+    for field in critical_fields:
+        val = analysis.get(field)
+        if val is None:
+            entry['issues'].append(f"{field} NO ENCONTRADO")
+        elif field == 'pfas_detection':
+            if not isinstance(val, dict) or not val:
+                entry['issues'].append(f"{field} vacío o inválido")
+        else:
+            if val <= 0:
+                entry['issues'].append(f"{field} <= 0")
+    
+    if entry['issues']:
+        entry['status'] = '⚠️ Problemas'
+    
+    reporte.append(entry)
+
+# Mostrar reporte compacto
+print(f"\n{'ID':>5} | {'Archivo':<30} | {'Estado':<15} | Problemas")
+print("-"*80)
+for e in reporte:
+    issues = ", ".join(e['issues'])
+    print(f"{e['id']:>5} | {e['filename']:<30} | {e['status']:<15} | {issues}")
 
 conn.close()

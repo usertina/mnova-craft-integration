@@ -173,7 +173,8 @@
     "loadingSamples": "Laginak kargatzen...",
     "selectMinSamples": "Hautatu gutxienez 2 lagin alderatzeko",
     "selectFormat": "Hautatu esportazio-formatua:",
-    "cancel": "Utzi"
+    "cancel": "Utzi",
+    "confirm": "Berretsi"
   },
   "messages": {
     "initializing": "Hasieratzen...",

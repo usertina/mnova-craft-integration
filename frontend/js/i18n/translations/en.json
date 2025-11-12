@@ -173,7 +173,8 @@
     "loadingSamples": "Loading samples...",
     "selectMinSamples": "Select at least 2 samples to compare",
     "selectFormat": "Select the export format:",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "confirm": "Confirm"
   },
   "messages": {
     "initializing": "Initializing...",
