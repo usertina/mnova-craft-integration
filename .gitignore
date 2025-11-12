@@ -2,8 +2,24 @@
 # Entorno y variables
 # -------------------
 venv/
+env/
+ENV/
 .env
 .env.*
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Archivos de secretos generados
+secrets.env
+secrets.py
+secrets.json
+
+# Claves y certificados
+*.key
+*.pem
+*.p12
 
 # -------------------
 # Python
@@ -12,13 +28,16 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-*.pyd
+*$py.class
+*.so
+.Python
 
 # -------------------
 # Configuración de editor
 # -------------------
 .vscode/
 .idea/
+*.swp
 *.sublime-project
 *.sublime-workspace
 
@@ -26,7 +45,8 @@ __pycache__/
 # Logs
 # -------------------
 *.log
-
+logs/
+storage/logs/
 # -------------------
 # Bases de datos y cachés
 # -------------------
@@ -40,6 +60,15 @@ backend/storage/
 *.npy   # NumPy binary
 *.mat   # MATLAB files
 *.pkl   # Pickle files
+*.db-journal
+*.db-shm
+*.db-wal
+storage/measurements.db
+
+# Backups de BD
+*.db.bak
+*_BACKUP_*
+
 
 # -------------------
 # Archivos temporales y backups
