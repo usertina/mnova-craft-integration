@@ -11,6 +11,8 @@ from datetime import datetime
 import logging
 import uuid 
 import json
+import os
+from dotenv import load_dotenv
 
 from database import get_db
 
@@ -112,9 +114,21 @@ class ConfigManager:
 class LicenseValidator:
     """Valida la licencia del dispositivo (del admin)"""
     
-    def __init__(self, master_key: str = "CRAFTRMN_SECRET_KEY_2025"):
+    def __init__(self, master_key: str = None):
+        # ✅ CORREGIDO: Leer clave de variable de entorno
+        if master_key is None:
+            master_key = os.getenv('CRAFTRMN_MASTER_KEY')
+            
+            if not master_key:
+                raise ValueError(
+                    "❌ CRAFTRMN_MASTER_KEY no configurada.\n"
+                    "   Crea un archivo .env con la clave maestra.\n"
+                    "   Genera una con: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                )
+        
         self.master_key = master_key
-    
+        logger.info("✅ License validator inicializado con clave desde variable de entorno")
+        
     def generate_admin_license(self, device_id: str) -> str:
         """Genera una clave de licencia de ADMIN"""
         

@@ -191,6 +191,8 @@ async function initializeApp() {
         }
         
         APP_LOGGER.info(`Aplicación inicializada para ${CURRENT_COMPANY_PROFILE.company_name}`);
+        // ✅ NUEVO: Configurar logout
+        setupLogoutButton();
 
     } catch (error) {
         APP_LOGGER.error("Fallo al inicializar la app:", error);
@@ -206,6 +208,45 @@ async function initializeApp() {
         );
     }
 }
+
+/**
+ * Configurar botón de logout con JWT
+ */
+function setupLogoutButton() {
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                // ✅ Llamar al endpoint de logout
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                    await fetch(`${window.location.origin}/api/logout`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                }
+            } catch (error) {
+                console.warn('⚠️ Error en logout:', error);
+            } finally {
+                // Limpiar localStorage
+                localStorage.removeItem('company_id');
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                sessionStorage.removeItem('CURRENT_COMPANY_PROFILE');
+                
+                console.log('✅ Sesión cerrada');
+                
+                // Redirigir al portal
+                window.location.href = 'index.html';
+            }
+        });
+    } else {
+        console.warn('⚠️ Botón de logout no encontrado');
+    }
+}
+
 /**
  * Ejecuta un nuevo análisis.
  * (Modificado: Ya no pasa companyId, APIClient lo maneja)

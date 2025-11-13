@@ -244,8 +244,8 @@ class Database:
             measurement_data.get('timestamp', now),
             measurement_data.get('filename', 'unknown'),
             analysis.get('fluor_percentage'),
-            analysis.get('pifas_percentage'),
-            analysis.get('pifas_concentration'),
+            analysis.get('pifas_percentage') or analysis.get('pfas_percentage'),
+            analysis.get('pifas_concentration') or analysis.get('pfas_concentration'),
             analysis.get('concentration'),
             measurement_data.get('quality_score'),
             json.dumps(measurement_data),
@@ -619,6 +619,55 @@ class Database:
             'updated_at': row['updated_at']
         }
 
+
+    def mark_as_synced(self, measurement_id):
+        """
+        Marca una medición como sincronizada con Google Sheets.
+        """
+        conn = self.get_connection()  # <-- FIX: Obtener conexión
+        try:
+            cursor = conn.cursor()  # <-- FIX: Usar conexión local
+            cursor.execute("""
+                UPDATE measurements 
+                SET synced = 1, last_sync_attempt = ?
+                WHERE id = ?
+            """, (datetime.now().isoformat(), measurement_id))
+            
+            conn.commit()  # <-- FIX: Usar conexión local
+            logging.debug(f"✅ Medición {measurement_id} marcada como sincronizada")
+            return True
+            
+        except Exception as e:
+            logging.error(f"❌ Error marcando como sincronizado: {e}")
+            return False
+        finally:
+            conn.close()  # <-- FIX: Cerrar siempre la conexión
+
+
+    def get_pending_sync(self, limit=50):
+        """
+        Obtiene mediciones pendientes de sincronización.
+        """
+        conn = self.get_connection()  # <-- FIX: Obtener conexión
+        try:
+            cursor = conn.cursor()  # <-- FIX: Usar conexión local
+            cursor.execute("""
+                SELECT * FROM measurements
+                WHERE synced = 0
+                ORDER BY timestamp ASC
+                LIMIT ?
+            """, (limit,))
+            
+            # Usar _row_to_measurement para ser consistente
+            measurements = [self._row_to_measurement(row) for row in cursor.fetchall()]
+            logging.info(f"📤 {len(measurements)} mediciones pendientes de sincronizar")
+            return measurements
+            
+        except Exception as e:
+            logging.error(f"❌ Error obteniendo pendientes: {e}")
+            return []
+        finally:
+            conn.close()  # <-- FIX: Cerrar siempre la conexión
 
 # ==================== INSTANCIA GLOBAL ====================
 

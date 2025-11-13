@@ -86,13 +86,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.error || 'PIN o empresa incorrectos');
             }
 
-            // 3. ¡ÉXITO! Guardamos el perfil en el navegador
-            // Usamos 'CURRENT_COMPANY_PROFILE' para ser consistentes con app.html
-            sessionStorage.setItem('CURRENT_COMPANY_PROFILE', JSON.stringify(data.profile));
+            // 3. ¡ÉXITO! Guardamos el perfil y tokens en el navegador
+                console.log('✅ Validación exitosa:', data);
 
-            // 4. Redirigir a la app
-            console.log("PIN validado. Perfil guardado. Redirigiendo a app.html...");
-            window.location.href = 'app.html';
+                // ✅ NUEVO: Guardar tokens JWT
+                if (data.access_token) {
+                    localStorage.setItem('access_token', data.access_token);
+                    console.log('✅ Access token guardado');
+                }
+
+                if (data.refresh_token) {
+                    localStorage.setItem('refresh_token', data.refresh_token);
+                    console.log('✅ Refresh token guardado');
+                }
+
+                // Guardar el perfil (mantenemos sessionStorage como antes)
+                sessionStorage.setItem('CURRENT_COMPANY_PROFILE', JSON.stringify(data.profile));
+
+                // También guardamos company_id por compatibilidad
+                localStorage.setItem('company_id', companyId);
+
+                // 4. Redirigir a la app
+                console.log("PIN validado. Perfil y tokens guardados. Redirigiendo a app.html...");
+                window.location.href = 'app.html';
 
         } catch (err) {
             console.error('Error al validar PIN:', err);

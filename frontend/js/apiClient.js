@@ -18,12 +18,42 @@ class APIClient {
     }
 
     /**
-     * ✅ Headers comunes para todas las peticiones
+     * ✅ NUEVO: Helper para incluir token en headers
+     */
+    static getAuthHeaders(additionalHeaders = {}) {
+        const token = localStorage.getItem('access_token');
+        const headers = { ...additionalHeaders };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        return headers;
+    }
+
+    /**
+     * ✅ Headers comunes para todas las peticiones (sin token)
      */
     static getHeaders() {
         return {
             'Content-Type': 'application/json'
         };
+    }
+
+    /**
+     * ✅ NUEVO: Verificar si hay token válido
+     */
+    static hasValidToken() {
+        return !!localStorage.getItem('access_token');
+    }
+
+    /**
+     * ✅ NUEVO: Limpiar tokens (logout)
+     */
+    static clearTokens() {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        console.log('✅ Tokens limpiados');
     }
 
     /**
@@ -58,7 +88,7 @@ class APIClient {
         try {
             const response = await fetch(`${this.baseURL}/api/health`, {
                 method: 'GET',
-                headers: { 'Content-Type': 'application/json' }
+                headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
             });
 
             if (!response.ok) {
@@ -77,10 +107,9 @@ class APIClient {
     }
 
     /**
-     * ✅ MEJORADO: Análisis con mejor manejo de errores
+     * ✅ MEJORADO: Análisis con JWT y mejor manejo de errores
      */
     static async analyzeSpectrum(file, parameters) {
-        // ... (el código de validación y formData no cambia) ...
         if (!CURRENT_COMPANY_PROFILE || !CURRENT_COMPANY_PROFILE.company_id) {
             const errorMsg = LanguageManager?.t('errors.noCompanySelected') || 'No se ha seleccionado una empresa.';
             window.APP_LOGGER.error('analyzeSpectrum: No company selected.');
@@ -104,12 +133,23 @@ class APIClient {
         });
 
         try {
+            // ✅ NUEVO: Incluir token en headers
+            const token = localStorage.getItem('access_token');
+            const headers = {};
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+                window.APP_LOGGER.debug('✅ Token incluido en análisis');
+            } else {
+                window.APP_LOGGER.warn('⚠️ No hay token - La petición puede fallar');
+            }
+
             const response = await fetch(`${this.baseURL}/api/analyze`, {
                 method: 'POST',
+                headers: headers,
                 body: formData
             });
 
-            // ... (el parseo de 'result' no cambia) ...
             let result;
             const contentType = response.headers.get('content-type');
             
@@ -121,7 +161,6 @@ class APIClient {
                 throw new Error(`Respuesta inesperada del servidor (no JSON). Status: ${response.status}`);
             }
 
-            // ... (el manejo de errores no cambia) ...
             if (!response.ok) {
                 const backendError = this.parseBackendError(result, response);
                 
@@ -140,18 +179,14 @@ class APIClient {
                 
                 throw new Error(clientErrorMsg);
             }
-
-            // --- INICIO DEL CAMBIO ---
-            // EL BLOQUE QUE ENVUELVE 'results' HA SIDO ELIMINADO
             
             window.APP_LOGGER.debug(`Analysis successful for company ${CURRENT_COMPANY_PROFILE.company_id}:`, {
-                filename: result.file_name, // Acceso directo
+                filename: result.file_name,
                 peaks: result.peaks?.length || 0,
                 pfas_detected: result.pfas_detection?.total_detected || 0
             });
             
-            return result; // Devolver el objeto 'result' plano
-            // --- FIN DEL CAMBIO ---
+            return result;
 
         } catch (error) {
             window.APP_LOGGER.error('Analysis request failed:', error);
@@ -170,7 +205,7 @@ class APIClient {
     }
 
     /**
-     * ✅ Obtiene el historial de mediciones
+     * ✅ MEJORADO: Obtiene el historial con JWT
      */
     static async getHistory(page = 1, pageSize = 50, searchTerm = '') {
         try {
@@ -190,7 +225,7 @@ class APIClient {
 
             const response = await fetch(`${this.baseURL}/api/history?${params}`, {
                 method: 'GET',
-                headers: this.getHeaders()
+                headers: this.getAuthHeaders(this.getHeaders())
             });
 
             const data = await response.json();
@@ -212,7 +247,7 @@ class APIClient {
     }
 
     /**
-     * Exporta datos con branding de la empresa
+     * ✅ MEJORADO: Exporta datos con JWT
      */
     static async exportData(exportConfig) {
         if (!CURRENT_COMPANY_PROFILE || !CURRENT_COMPANY_PROFILE.company_id) {
@@ -237,7 +272,7 @@ class APIClient {
         try {
             const response = await fetch(`${this.baseURL}/api/export`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(requestBody)
             });
 
@@ -279,14 +314,14 @@ class APIClient {
     }
 
     /**
-     * Obtener resultado de análisis específico
+     * ✅ MEJORADO: Obtener resultado con JWT
      */
     static async getAnalysisResult(filename) {
         try {
             const encodedFilename = encodeURIComponent(filename);
             const response = await fetch(`${this.baseURL}/api/result/${encodedFilename}`, {
                 method: 'GET',
-                headers: {'Content-Type': 'application/json'}
+                headers: this.getAuthHeaders({'Content-Type': 'application/json'})
             });
 
             if (!response.ok) {
@@ -310,7 +345,7 @@ class APIClient {
     }
 
     /**
-     * Elimina una medición del historial (desde la BD)
+     * ✅ MEJORADO: Elimina medición con JWT
      */
     static async deleteHistoryItem(measurementId, filename) {
         if (!CURRENT_COMPANY_PROFILE || !CURRENT_COMPANY_PROFILE.company_id) {
@@ -326,7 +361,7 @@ class APIClient {
 
             const response = await fetch(url, {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' }
+                headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
             });
 
             const result = await response.json();
@@ -349,7 +384,7 @@ class APIClient {
     }
 
     /**
-     * Limpia todo el historial de la empresa actual (desde la BD)
+     * ✅ MEJORADO: Limpia historial con JWT
      */
     static async clearAllHistory() {
         if (!CURRENT_COMPANY_PROFILE || !CURRENT_COMPANY_PROFILE.company_id) {
@@ -365,7 +400,7 @@ class APIClient {
 
             const response = await fetch(url, {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' }
+                headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
             });
 
             const result = await response.json();
@@ -387,7 +422,7 @@ class APIClient {
     }
 
     /**
-     * Obtiene una medición específica por ID
+     * ✅ MEJORADO: Obtiene medición con JWT
      */
     static async getMeasurement(measurementId) {
         try {
@@ -396,7 +431,9 @@ class APIClient {
             
             APP_LOGGER.debug(`Fetching measurement: ${url}`);
             
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                headers: this.getAuthHeaders()
+            });
             
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -415,11 +452,13 @@ class APIClient {
     }
     
     /**
-     * Obtiene la configuración del servidor
+     * ✅ Obtiene la configuración del servidor
      */
     static async getConfig() {
         try {
-            const response = await fetch(`${this.baseURL}/api/config`);
+            const response = await fetch(`${this.baseURL}/api/config`, {
+                headers: this.getAuthHeaders()
+            });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
             window.APP_LOGGER.debug('Config loaded:', data);

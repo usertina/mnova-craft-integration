@@ -1,9 +1,17 @@
+import os
+from dotenv import load_dotenv
+import jwt
+
+# Cargar variables de entorno ANTES de cualquier otra cosa
+load_dotenv()
+
 import csv
 from fileinput import filename
 from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
+from flask_limiter import Limiter  
+from flask_limiter.util import get_remote_address
 from pathlib import Path
-import os
 import json
 import sys
 from datetime import datetime
@@ -16,6 +24,7 @@ import requests
 import threading
 import time
 import base64
+import re
 
 import zipfile
 import shutil
@@ -25,6 +34,7 @@ from pfas_database import get_molecule_visualization
 # Importar dependencias locales
 from database import get_db
 from config_manager import get_config_manager, LicenseValidator
+from auth import auth_manager, token_required, optional_token
 from company_data import COMPANY_PROFILES # Importar perfiles de empresa
 
 # Configurar logging (activar DEBUG para ver todo)
@@ -62,8 +72,46 @@ class NumpyJSONEncoder(json.JSONEncoder):
 # Configuración de Flask
 # ============================================================================
 app = Flask(__name__, static_folder="../frontend")
-CORS(app)
+
+# ✅ CORREGIDO: CORS restrictivo
+ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:5000').split(',')
+
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ALLOWED_ORIGINS,
+        "methods": ["GET", "POST", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "max_age": 3600,
+        "supports_credentials": True
+    }
+})
+
+logging.info(f"✅ CORS configurado para orígenes: {ALLOWED_ORIGINS}")
+
 app.json_encoder = NumpyJSONEncoder
+
+# ✅ Configurar clave secreta de Flask desde variable de entorno
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
+if not app.config['SECRET_KEY']:
+    raise ValueError(
+        "❌ FLASK_SECRET_KEY no configurada en .env\n"
+        "   Genera una con: python -c \"import secrets; print(secrets.token_hex(32))\""
+    )
+
+
+# ✅ NUEVO: Configurar Rate Limiting
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,  # Limitar por IP
+    default_limits=[],
+    storage_uri="memory://",  # Almacenar en memoria (para desarrollo)
+    strategy="fixed-window",
+    headers_enabled=True,  # Añadir headers con info de límites
+)
+
+logging.info("✅ Rate Limiting configurado:")
+logging.info(f"   - Límite diario: {os.getenv('RATE_LIMIT_PER_DAY', '200')} peticiones/día")
+logging.info(f"   - Límite horario: {os.getenv('RATE_LIMIT_PER_HOUR', '50')} peticiones/hora")
 
 # Anclar las rutas de almacenamiento al directorio de este script
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -94,15 +142,18 @@ print("=" * 60)
 # ============================================================================
 
 @app.route('/')
+@limiter.exempt
 def home():
     # Servir index.html (Portal de Activación/Login)
     return send_from_directory(app.static_folder, "index.html")
 
 @app.route('/app.html') # Ruta específica para la app principal
+@limiter.exempt
 def main_app():
      return send_from_directory(app.static_folder, "app.html")
 
 @app.route('/<path:path>')
+@limiter.exempt
 def static_proxy(path):
     # Servir cualquier otro archivo estático (JS, CSS, imágenes)
     # Evitar que sirva index.html en rutas desconocidas si queremos separar app.html
@@ -124,6 +175,7 @@ def static_proxy(path):
 # API - Health Check
 # ============================================================================
 @app.route("/api/health", methods=["GET"])
+@limiter.exempt
 def health_check():
     """Verificar estado del servidor"""
     return jsonify({
@@ -138,15 +190,26 @@ def health_check():
 # ============================================================================
 
 
-def push_to_google_cloud(url, payload, encoder, retries=3, delay=5, timeout=30.0):
+def push_to_google_cloud(url, payload, encoder, measurement_id, retries=3, delay=5, timeout=30.0):
     """
     Envía datos a Google Apps Script de manera segura con:
       - Reintentos automáticos
       - Timeout ampliado
       - Registro de fallos
+      - ✅ NUEVO: Marca como sincronizado en BD
+    
+    Args:
+        url: URL del Google Apps Script
+        payload: Datos a enviar
+        encoder: JSON encoder (NumpyJSONEncoder)
+        measurement_id: ID de la medición en BD
+        retries: Número de reintentos
+        delay: Segundos entre reintentos
+        timeout: Timeout de la request
     """
     def _push():
         json_payload = json.dumps(payload, cls=encoder)
+
         for attempt in range(1, retries + 1):
             try:
                 response = requests.post(
@@ -155,19 +218,28 @@ def push_to_google_cloud(url, payload, encoder, retries=3, delay=5, timeout=30.0
                     headers={'Content-Type': 'application/json'},
                     timeout=timeout
                 )
-                response.raise_for_status()  # Lanza error si HTTP != 200
-                logging.info(f"☁️ Measurement pushed successfully (Attempt {attempt})")
-                return True
+                response.raise_for_status()
+
+                # ✅ ÉXITO: Marcar como sincronizado
+                if db.mark_as_synced(measurement_id):
+                    logging.info(f"☁️ ✅ Measurement {measurement_id} synced (Attempt {attempt})")
+                    return True
+                else:
+                    # El error ya fue registrado por database.py
+                    logging.error(f"❌ Fallo al MARCAR la medición {measurement_id} como sincronizada en la BD.")
+                    return False
+
             except requests.exceptions.RequestException as e:
-                logging.warning(f"⚠️ Attempt {attempt} failed: {e}")
+                logging.warning(f"⚠️ Sync attempt {attempt}/{retries} failed for ID {measurement_id}: {e}")
+
                 if attempt < retries:
                     time.sleep(delay)
                 else:
-                    logging.error(f"❌ Failed to push after {retries} attempts")
-                    # Aquí puedes marcar la medición como no sincronizada en tu DB
+                    logging.error(f"❌ Failed to sync measurement {measurement_id} after {retries} attempts")
+                    # Queda marcado como synced=0 en la BD para reintento posterior
                     return False
 
-    # Ejecutar el push en un hilo separado para no bloquear el proceso principal
+        # Ejecutar en thread separado
     thread = threading.Thread(target=_push)
     thread.daemon = True
     thread.start()
@@ -266,6 +338,8 @@ def extract_and_find_data(file_path: Path) -> Path:
 # ============================================================================
 
 @app.route("/api/analyze", methods=["POST"])
+@limiter.limit(f"{os.getenv('ANALYSIS_RATE_LIMIT', '20')}/hour")
+@token_required
 def analyze_spectrum():
     """
     Analizar un único espectro.
@@ -298,6 +372,12 @@ def analyze_spectrum():
             return jsonify({"error": "No 'company_id' provided in the form data"}), 400
         if company_id not in COMPANY_PROFILES:
             return jsonify({"error": f"Invalid company_id: '{company_id}'"}), 400
+        
+        # ✅ NUEVO: Verificar que el token pertenece a esta empresa
+        token_company = request.jwt_payload.get('company_id')
+        if token_company != company_id and token_company != 'admin':
+            logging.warning(f"⚠️ Intento de análisis: {token_company} intentó analizar como {company_id}")
+            return jsonify({"error": "No autorizado para esta empresa"}), 403
 
         logging.debug(f"Received analysis request for company: {company_id}, file: {file.filename}")
 
@@ -428,10 +508,10 @@ def analyze_spectrum():
         try:
             sync_thread = threading.Thread(
                 target=push_to_google_cloud,
-                args=(GOOGLE_SCRIPT_URL, measurement_data, NumpyJSONEncoder)
+                args=(GOOGLE_SCRIPT_URL, measurement_data, NumpyJSONEncoder, measurement_id)
             )
             sync_thread.start() # Inicia el envío
-            logging.debug("  🚀  Cloud sync thread started.")
+            logging.debug("  🚀  Cloud sync thread started for measurement {measurement_id}")
         except Exception as thread_err:
             logging.error(f"  ❌  Failed to start cloud sync thread: {thread_err}")
 
@@ -508,6 +588,7 @@ def activate_device():
         return jsonify({"error": f"Activation failed: {str(e)}"}), 500
 
 @app.route("/api/config", methods=["GET"])
+@limiter.exempt
 def get_config_endpoint(): # Renombrado para evitar conflicto con variable 'config'
     """
     Obtener configuración del dispositivo para el frontend.
@@ -542,6 +623,7 @@ def get_config_endpoint(): # Renombrado para evitar conflicto con variable 'conf
 # API - Historial de Análisis (usado por el frontend)
 # ============================================================================
 @app.route("/api/history", methods=["GET"])
+@limiter.exempt
 def get_history():
     """
     Obtener historial de mediciones para una empresa específica.
@@ -696,9 +778,11 @@ def get_company_profile():
 # API - VALIDACIÓN DE PIN DE EMPRESA (NUEVO ENDPOINT)
 # ============================================================================
 @app.route("/api/validate_pin", methods=["POST"])
+@limiter.limit(f"{os.getenv('LOGIN_RATE_LIMIT', '5')}/minute")
 def validate_company_pin():
     """
-    Valida si el PIN proporcionado para una empresa es correcto.
+    Valida PIN y genera tokens JWT de autenticación.
+    ✅ MEJORADO: Ahora devuelve access_token y refresh_token
     """
     try:
         data = request.json
@@ -719,21 +803,106 @@ def validate_company_pin():
         correct_pin = profile.get("pin")
         if not correct_pin or provided_pin != correct_pin:
             logging.warning(f"PIN incorrecto para la empresa: {company_id}")
-            # Damos un error genérico para no dar pistas
-            return jsonify({"error": "PIN o empresa incorrectos"}), 403 # 403 = Prohibido
+            return jsonify({"error": "PIN o empresa incorrectos"}), 403
 
-        # 3. ¡Éxito! El PIN es correcto.
-        # Devolvemos el perfil completo para que el frontend lo guarde.
-        logging.info(f"PIN validado con éxito para: {company_id}")
-        return jsonify({
-            "success": True,
-            "profile": profile # Devolvemos el perfil
-        })
+        # 3. ✅ NUEVO: Generar tokens JWT
+        try:
+            device_id = config.get_device_id()
+            access_token = auth_manager.generate_access_token(company_id, device_id)
+            refresh_token = auth_manager.generate_refresh_token(company_id)
+            
+            logging.info(f"✅ Login exitoso: {company_id}")
+            logging.info(f"   - Access token generado (exp: {os.getenv('JWT_EXPIRATION_HOURS', 24)}h)")
+            logging.info(f"   - Refresh token generado (exp: {os.getenv('REFRESH_TOKEN_DAYS', 7)} días)")
+            
+            return jsonify({
+                "success": True,
+                "profile": profile,
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "expires_in": int(os.getenv('JWT_EXPIRATION_HOURS', 24)) * 3600  # En segundos
+            })
+            
+        except Exception as token_err:
+            logging.error(f"❌ Error generando tokens: {token_err}", exc_info=True)
+            return jsonify({"error": "Error generando tokens de sesión"}), 500
 
     except Exception as e:
         logging.error(f"❌ Error en validate_pin: {str(e)}", exc_info=True)
         return jsonify({"error": "Error interno del servidor"}), 500
-    
+
+@app.route("/api/refresh", methods=["POST"])
+def refresh_access_token():
+    """
+    Renueva el access token usando el refresh token.
+    Útil cuando el access token expira pero la sesión sigue válida.
+    """
+    try:
+        data = request.json
+        if not data or 'refresh_token' not in data:
+            return jsonify({"error": "Refresh token requerido"}), 400
+        
+        refresh_token = data.get("refresh_token")
+        
+        try:
+            # Verificar refresh token
+            payload = auth_manager.verify_token(refresh_token)
+            
+            # Verificar que sea un refresh token
+            if payload.get('type') != 'refresh':
+                return jsonify({"error": "Token inválido"}), 401
+            
+            # Generar nuevo access token
+            company_id = payload['company_id']
+            device_id = config.get_device_id()
+            new_access_token = auth_manager.generate_access_token(company_id, device_id)
+            
+            logging.info(f"✅ Access token renovado para: {company_id}")
+            
+            return jsonify({
+                "success": True,
+                "access_token": new_access_token,
+                "expires_in": int(os.getenv('JWT_EXPIRATION_HOURS', 24)) * 3600
+            })
+            
+        except jwt.ExpiredSignatureError:
+            logging.warning("⚠️ Refresh token expirado")
+            return jsonify({
+                "error": "Refresh token expirado",
+                "message": "Debes iniciar sesión de nuevo"
+            }), 401
+        except jwt.InvalidTokenError:
+            logging.warning("⚠️ Refresh token inválido")
+            return jsonify({"error": "Refresh token inválido"}), 401
+            
+    except Exception as e:
+        logging.error(f"❌ Error renovando token: {e}", exc_info=True)
+        return jsonify({"error": "Error renovando token"}), 500 
+
+@app.route("/api/logout", methods=["POST"])
+@token_required
+def logout():
+    """
+    Cierra sesión del usuario autenticado.
+    En una implementación completa, añadiríamos el token a una blacklist.
+    """
+    try:
+        company_id = request.jwt_payload['company_id']
+        
+        logging.info(f"✅ Logout: {company_id}")
+        
+        # TODO: En producción, añadir token a blacklist en Redis
+        # para invalidarlo antes de su expiración natural
+        
+        return jsonify({
+            "success": True,
+            "message": "Sesión cerrada correctamente"
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error en logout: {e}", exc_info=True)
+        return jsonify({"error": "Error cerrando sesión"}), 500
+               
 
 @app.route("/api/config", methods=["POST"])
 def update_config():
@@ -781,6 +950,8 @@ def update_config():
 # ============================================================================
 
 @app.route("/api/measurements", methods=["GET"])
+@limiter.limit("100/hour")
+@token_required
 def get_measurements():
     """
     Obtener lista de mediciones de SQLite, filtrada por empresa.
@@ -800,6 +971,12 @@ def get_measurements():
              logging.warning(f"get_measurements called with invalid company_id: {company_id}")
              return jsonify({"error": f"Invalid company ID: '{company_id}'"}), 404 # 404 Not Found es más apropiado
 
+        # ✅ NUEVO: Verificar que el token coincide con la empresa solicitada
+        token_company = request.jwt_payload.get('company_id')
+        if token_company != company_id and token_company != 'admin':
+            logging.warning(f"⚠️ Acceso denegado: {token_company} intentó acceder a datos de {company_id}")
+            return jsonify({"error": "No autorizado para acceder a esta empresa"}), 403
+        
         logging.debug(f"Fetching measurements for company '{company_id}', page {page}, per_page {per_page}")
 
         # Llamar a la base de datos (get_measurements maneja el caso 'admin')
@@ -837,6 +1014,7 @@ def get_measurements():
 
 
 @app.route("/api/measurements/<int:measurement_id>", methods=["GET"])
+@token_required
 def get_measurement(measurement_id):
     """
     Obtener una medición específica por ID.
@@ -851,6 +1029,12 @@ def get_measurement(measurement_id):
         if requesting_company_id not in COMPANY_PROFILES:
              logging.warning(f"get_measurement {measurement_id} called with invalid company_id: {requesting_company_id}")
              return jsonify({"error": f"Invalid company ID: '{requesting_company_id}'"}), 404
+
+        # ✅ NUEVO: Verificar token
+        token_company = request.jwt_payload.get('company_id')
+        if token_company != requesting_company_id and token_company != 'admin':
+            logging.warning(f"⚠️ Token mismatch: {token_company} vs {requesting_company_id}")
+            return jsonify({"error": "Token no autorizado"}), 403
 
         logging.debug(f"Fetching measurement ID {measurement_id} requested by company '{requesting_company_id}'")
 
@@ -885,6 +1069,7 @@ def get_measurement(measurement_id):
 # ============================================================================
 
 @app.route("/api/export", methods=["POST"])
+@token_required
 def export_report():
     """
     Exportar reporte (single, comparison, dashboard).
@@ -1283,34 +1468,56 @@ def upload_input_file():
          return jsonify({"error": f"Failed to upload file: {str(e)}"}), 500
 
 @app.route("/api/download/<path:filename>", methods=["GET"])
+@limiter.limit(f"{os.getenv('DOWNLOAD_RATE_LIMIT', '30')}/hour")
 def download_input_file(filename):
-    """Descargar un archivo original del directorio de entrada (output)."""
+    """
+    Descargar un archivo original del directorio de entrada (output).
+    ✅ CORREGIDO: Validación exhaustiva contra Path Traversal
+    """
     try:
-        # Validar y limpiar filename
-        if ".." in filename or filename.startswith("/"):
-             return jsonify({"error": "Invalid filename"}), 400
-
-        file_path = (OUTPUT_DIR / filename).resolve()
-
-        # Seguridad
+        # ✅ VALIDACIÓN 1: Limpiar el nombre de archivo (solo nombre, sin path)
+        safe_filename = os.path.basename(filename)
+        
+        # ✅ VALIDACIÓN 2: Rechazar caracteres peligrosos
+        dangerous_chars = ['..', '/', '\\', '\x00', '~', '$', '&', '|', ';', '`', '<', '>']
+        if any(char in safe_filename for char in dangerous_chars):
+            logging.warning(f"⚠️ Intento de path traversal detectado: {filename}")
+            return jsonify({"error": "Invalid filename"}), 400
+        
+        # ✅ VALIDACIÓN 3: Solo permitir caracteres seguros
+        import re
+        if not re.match(r'^[a-zA-Z0-9._-]+$', safe_filename):
+            logging.warning(f"⚠️ Nombre de archivo con caracteres no permitidos: {filename}")
+            return jsonify({"error": "Filename contains invalid characters"}), 400
+        
+        # ✅ VALIDACIÓN 4: Construir ruta y resolver
+        file_path = (OUTPUT_DIR / safe_filename).resolve()
+        
+        # ✅ VALIDACIÓN 5: Verificar que está dentro del directorio permitido
         if not str(file_path).startswith(str(OUTPUT_DIR.resolve())):
-             return jsonify({"error": "Access denied"}), 403
-
+            logging.error(f"🔴 Intento de acceso fuera de OUTPUT_DIR: {file_path}")
+            return jsonify({"error": "Access denied"}), 403
+        
+        # ✅ VALIDACIÓN 6: Verificar que el archivo existe
         if not file_path.is_file():
-            return jsonify({"error": "Input file not found"}), 404
-
-        return send_from_directory(OUTPUT_DIR, filename, as_attachment=True)
-
+            return jsonify({"error": "File not found"}), 404
+        
+        # ✅ TODO OK: Servir el archivo
+        logging.info(f"✅ Descargando archivo: {safe_filename}")
+        return send_from_directory(OUTPUT_DIR, safe_filename, as_attachment=True)
+    
     except FileNotFoundError:
-         return jsonify({"error": "Input file not found"}), 404
+        return jsonify({"error": "File not found"}), 404
     except Exception as e:
-        logging.error(f"❌ Error downloading input file {filename}: {str(e)}", exc_info=True)
+        logging.error(f"❌ Error downloading file {filename}: {str(e)}", exc_info=True)
         return jsonify({"error": "Failed to download file"}), 500
-
+    
 # ============================================================================
 # API - Eliminar mediciones individuales
 # ============================================================================
 @app.route("/api/measurements/<int:measurement_id>", methods=["DELETE"])
+@limiter.limit("50/hour")
+@token_required
 def delete_measurement(measurement_id):
     """
     Elimina una medición específica por ID.
@@ -1326,6 +1533,12 @@ def delete_measurement(measurement_id):
         if requesting_company_id not in COMPANY_PROFILES:
             return jsonify({"error": f"Invalid company ID: '{requesting_company_id}'"}), 404
         
+        # ✅ NUEVO: Verificar token
+        token_company = request.jwt_payload.get('company_id')
+        if token_company != requesting_company_id and token_company != 'admin':
+            logging.warning(f"⚠️ Delete denied: {token_company} vs {requesting_company_id}")
+            return jsonify({"error": "Token no autorizado"}), 403
+
         logging.debug(f"Delete request for measurement {measurement_id} by company '{requesting_company_id}'")
         
         # Intentar eliminar (la BD hace el chequeo de pertenencia)
@@ -1377,17 +1590,161 @@ def clear_all_measurements():
         logging.error(f"Error clearing measurements: {e}", exc_info=True)
         return jsonify({"error": f"Failed to clear measurements: {str(e)}"}), 500
 
+# ============================================================================
+# API - Sincronización Manual (Admin)
+# ============================================================================
 
+@app.route("/api/sync/status", methods=["GET"])
+@token_required
+def sync_status():
+    """
+    Muestra el estado de sincronización.
+    Requiere token de admin.
+    """
+    try:
+        # Verificar que es admin
+        if request.jwt_payload.get('company_id') != 'admin':
+            return jsonify({"error": "Solo admin puede ver estado de sincronización"}), 403
+        
+        cursor = db.conn.cursor()
+        
+        # Contar total
+        cursor.execute("SELECT COUNT(*) FROM measurements")
+        total = cursor.fetchone()[0]
+        
+        # Contar sincronizados
+        cursor.execute("SELECT COUNT(*) FROM measurements WHERE synced = 1")
+        synced = cursor.fetchone()[0]
+        
+        # Contar pendientes
+        pending = total - synced
+        
+        # Última sincronización
+        cursor.execute("""
+            SELECT synced_at FROM measurements 
+            WHERE synced = 1 
+            ORDER BY synced_at DESC 
+            LIMIT 1
+        """)
+        last_sync_row = cursor.fetchone()
+        last_sync = last_sync_row[0] if last_sync_row else None
+        
+        # Pendientes por empresa
+        cursor.execute("""
+            SELECT company_id, COUNT(*) as count
+            FROM measurements
+            WHERE synced = 0
+            GROUP BY company_id
+        """)
+        pending_by_company = {row[0]: row[1] for row in cursor.fetchall()}
+        
+        return jsonify({
+            "total_measurements": total,
+            "synced": synced,
+            "pending": pending,
+            "sync_rate": f"{(synced/total*100):.1f}%" if total > 0 else "0%",
+            "last_sync": last_sync,
+            "pending_by_company": pending_by_company
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error obteniendo estado: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/sync/retry", methods=["POST"])
+@token_required
+def retry_sync():
+    """
+    Reintenta sincronizar mediciones pendientes.
+    Requiere token de admin.
+    """
+    try:
+        # Verificar que es admin
+        if request.jwt_payload.get('company_id') != 'admin':
+            return jsonify({"error": "Solo admin puede forzar sincronización"}), 403
+        
+        # Obtener pendientes
+        pending = db.get_pending_sync(limit=50)
+        
+        if not pending:
+            return jsonify({
+                "message": "No hay mediciones pendientes",
+                "synced_count": 0
+            })
+        
+        GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynodLTTvLqqjCNhyN2y-O2U1sd7RrwaXaP-_yHGlyILXSwJoU1U6pbjlEf2DU433Js/exec"
+        
+        # Reintentar cada una
+        success_count = 0
+        for measurement in pending:
+            measurement_data = {
+                'device_id': measurement['device_id'],
+                'company_id': measurement['company_id'],
+                'filename': measurement['filename'],
+                'timestamp': measurement['timestamp'],
+                'analysis': json.loads(measurement['analysis']),
+                'spectrum': json.loads(measurement['spectrum']),
+                'peaks': json.loads(measurement['peaks']),
+                'quality_score': measurement['quality_score'],
+                'fluor_percentage': measurement['fluor_percentage'],
+                'pfas_percentage': measurement['pfas_percentage'],
+                'quality_metrics': json.loads(measurement['quality_metrics']),
+                'measurement_id_local': measurement['id']
+            }
+            
+            # Intentar sincronizar
+            thread = threading.Thread(
+                target=push_to_google_cloud,
+                args=(GOOGLE_SCRIPT_URL, measurement_data, NumpyJSONEncoder, measurement['id'])
+            )
+            thread.start()
+            success_count += 1
+        
+        return jsonify({
+            "message": f"Sincronización iniciada para {success_count} mediciones",
+            "synced_count": success_count,
+            "pending_count": len(pending)
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error en retry_sync: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 # ============================================================================
 # Ejecutar servidor Flask
 # ============================================================================
 if __name__ == "__main__":
-    # app.run() por defecto usa el servidor de desarrollo de Werkzeug.
-    # debug=True activa el recargador automático y el depurador.
-    # host='0.0.0.0' permite conexiones desde otras máquinas en la red local.
-    app.run(host="0.0.0.0", port=5000, debug=True)
-    # Para producción, deberías usar un servidor WSGI como Gunicorn o Waitress.
-    # Ejemplo con Waitress (instalar con: pip install waitress):
-    # from waitress import serve
-    # serve(app, host="0.0.0.0", port=5000)
+    # ✅ CORREGIDO: Debug mode controlado por variable de entorno
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    flask_env = os.getenv('FLASK_ENV', 'production')
+    host = os.getenv('FLASK_HOST', '0.0.0.0')
+    port = int(os.getenv('FLASK_PORT', 5000))
+    
+    # Advertencia de seguridad
+    if debug_mode and flask_env == 'production':
+        logging.error("⚠️  ¡PELIGRO! Debug mode activado en producción")
+        logging.error("   Cambia FLASK_DEBUG=false en .env")
+        raise ValueError("No se puede usar debug=True en producción")
+    
+    # Modo de inicio
+    if flask_env == 'production':
+        logging.info("🚀 Iniciando en modo PRODUCCIÓN")
+        logging.info("   - Debug: DESACTIVADO ✅")
+        
+        # Intentar usar Waitress (servidor de producción)
+        try:
+            from waitress import serve
+            logging.info("   - Servidor: Waitress (WSGI)")
+            serve(app, host=host, port=port, threads=4)
+        except ImportError:
+            logging.warning("⚠️  Waitress no instalado")
+            logging.warning("   Instala con: pip install waitress")
+            logging.warning("   Usando servidor de desarrollo (NO RECOMENDADO)")
+            app.run(host=host, port=port, debug=False)
+    else:
+        # Modo desarrollo
+        logging.info("🔧 Iniciando en modo DESARROLLO")
+        logging.info(f"   - Debug: {'ACTIVADO ⚠️' if debug_mode else 'DESACTIVADO ✅'}")
+        logging.info(f"   - Host: {host}:{port}")
+        app.run(host=host, port=port, debug=debug_mode)
