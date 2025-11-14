@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
-Script Mejorado de Inspección de Base de Datos
-=============================================
-
-Detecta automáticamente las columnas de análisis, espectro y picos,
-y muestra una muestra de los datos junto con información crítica.
+Script Mejorado de Inspección de Base de Datos (Optimizado)
+=========================================================
+Inspecciona la estructura de la BD y muestra la última medición.
 
 Uso: python inspect_db.py [ruta_a_db]
 """
@@ -12,16 +10,33 @@ Uso: python inspect_db.py [ruta_a_db]
 import sqlite3
 import json
 from pathlib import Path
+import sys
 
-# Ajusta según tu estructura de proyecto
-from pathlib import Path
-BASE_DIR = Path(__file__).parent.parent  # carpeta raíz 'mnova-integration'
+# --- Configuración de Rutas ---
+BASE_DIR = Path(__file__).parent.parent
 POSSIBLE_DB_PATHS = [
     BASE_DIR / "backend" / "storage" / "measurements.db",
     BASE_DIR / "backend" / "measurements.db",
-    BASE_DIR / "storage" / "measurements.db",
-    BASE_DIR / "measurements.db",
 ]
+# -----------------------------
+
+class Colors:
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
+    CYAN = '\033[96m'
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+
+def print_header(title, level=1):
+    if level == 1:
+        print(f"\n{Colors.CYAN}{Colors.BOLD}{'=' * 80}{Colors.RESET}")
+        print(f"{Colors.CYAN}{Colors.BOLD} INSPECCIÓN: {title.upper()}{Colors.RESET}")
+        print(f"{Colors.CYAN}{Colors.BOLD}{'=' * 80}{Colors.RESET}")
+    else:
+        print(f"\n{Colors.CYAN}{'-' * 80}{Colors.RESET}")
+        print(f"{Colors.CYAN}{title}{Colors.RESET}")
+        print(f"{Colors.CYAN}{'-' * 80}{Colors.RESET}")
 
 def inspect_database(db_path):
     """Inspecciona la estructura de la base de datos"""
@@ -29,181 +44,115 @@ def inspect_database(db_path):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        print("=" * 80)
-        print(f"INSPECCIÓN DE BASE DE DATOS: {db_path}")
-        print("=" * 80)
+        print_header(f"{db_path.name}")
         
-        # Listar todas las tablas
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        tables = cursor.fetchall()
-        
-        print(f"\n📋 TABLAS ENCONTRADAS ({len(tables)}):")
-        for table in tables:
-            print(f"  - {table[0]}")
-        
-        # Inspeccionar la tabla 'measurements'
-        if any(t[0] == 'measurements' for t in tables):
-            print("\n" + "=" * 80)
-            print("ESTRUCTURA DE LA TABLA 'measurements'")
-            print("=" * 80)
-            
+        # --- 1. Estructura de la Tabla 'measurements' ---
+        print_header("Estructura de la Tabla 'measurements'", 2)
+        try:
             cursor.execute("PRAGMA table_info(measurements)")
             columns = cursor.fetchall()
+            column_names = [col[1] for col in columns]
             
-            print("\n📊 COLUMNAS:")
             for col in columns:
                 col_id, name, col_type, not_null, default, pk = col
-                pk_text = " 🔑 [PRIMARY KEY]" if pk else ""
-                not_null_text = " ⚠️  [NOT NULL]" if not_null else ""
-                default_text = f" [DEFAULT: {default}]" if default else ""
-                print(f"  {col_id}. {name}")
-                print(f"     Tipo: {col_type}{pk_text}{not_null_text}{default_text}")
+                pk_text = f" {Colors.YELLOW}[PK]{Colors.RESET}" if pk else ""
+                print(f"  - {Colors.BOLD}{name}{Colors.RESET} ({col_type}){pk_text}")
+        except sqlite3.OperationalError:
+            print(f"{Colors.RED}❌ ERROR: No se encontró la tabla 'measurements'.{Colors.RESET}")
+            return
+
+        # --- 2. Conteo de Mediciones ---
+        cursor.execute("SELECT COUNT(*) FROM measurements")
+        count = cursor.fetchone()[0]
+        print(f"\n{Colors.CYAN}Total de Mediciones: {count}{Colors.RESET}")
+        
+        if count == 0:
+            print(f"{Colors.YELLOW}La base de datos está vacía. No hay mediciones para mostrar.{Colors.RESET}")
+            conn.close()
+            return
             
-            # Contar registros
-            cursor.execute("SELECT COUNT(*) FROM measurements")
-            count = cursor.fetchone()[0]
-            print(f"\n📈 TOTAL DE MEDICIONES: {count}")
+        # --- 3. Muestra de la Última Medición ---
+        print_header(f"Muestra de la Última Medición (ID MÁS ALTO)", 2)
+        cursor.execute("SELECT * FROM measurements ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+        
+        analysis_data = None
+        analysis_col_name = None
+
+        for col_name, value in zip(column_names, row):
+            print(f"\n{Colors.BOLD}[{col_name}]{Colors.RESET}")
             
-            if count > 0:
-                # Obtener última medición
-                cursor.execute("SELECT * FROM measurements ORDER BY id DESC LIMIT 1")
-                row = cursor.fetchone()
-                column_names = [col[1] for col in columns]
-                
-                print("\n" + "=" * 80)
-                print("MUESTRA DE LA ÚLTIMA MEDICIÓN")
-                print("=" * 80)
-                
-                for col_name, value in zip(column_names, row):
-                    if value is None:
-                        print(f"\n{col_name}: NULL")
-                    elif isinstance(value, str) and len(value) > 200:
-                        try:
-                            parsed = json.loads(value)
-                            if isinstance(parsed, dict):
-                                print(f"\n{col_name}: [JSON Object con {len(parsed)} campos]")
-                                for i, key in enumerate(list(parsed.keys())[:5]):
-                                    val = parsed[key]
-                                    if isinstance(val, (dict, list)):
-                                        print(f"  - {key}: [{type(val).__name__}]")
-                                    else:
-                                        print(f"  - {key}: {val}")
-                                if len(parsed) > 5:
-                                    print(f"  ... y {len(parsed) - 5} campos más")
-                            elif isinstance(parsed, list):
-                                print(f"\n{col_name}: [JSON Array con {len(parsed)} elementos]")
-                        except:
-                            print(f"\n{col_name}: [String largo - {len(value)} caracteres]")
+            if value is None:
+                print("  NULL")
+                continue
+            
+            # Intentar decodificar JSON en columnas de texto
+            if isinstance(value, str) and value.startswith(("{", "[")):
+                try:
+                    parsed = json.loads(value)
+                    print(f"  {Colors.GREEN}[JSON Decodificado]{Colors.RESET}")
+                    
+                    # Guardar datos de análisis para el resumen final
+                    if col_name == 'analysis':
+                        analysis_data = parsed
+                        analysis_col_name = col_name
+                    elif col_name == 'raw_data' and isinstance(parsed, dict) and 'analysis' in parsed:
+                         analysis_data = parsed['analysis']
+                         analysis_col_name = f"{col_name} -> analysis"
+
+                    # Mostrar resumen de JSON
+                    if isinstance(parsed, dict):
+                        keys = list(parsed.keys())
+                        print(f"  Tipo: Objeto ({len(keys)} campos)")
+                        print(f"  Campos de ejemplo: {keys[:5]}...")
+                    elif isinstance(parsed, list):
+                        print(f"  Tipo: Array ({len(parsed)} elementos)")
+                except json.JSONDecodeError:
+                    print(f"  Tipo: String (Largo: {len(value)})")
+                    print(f"  Valor: {value[:100]}...") # No es JSON válido
+            else:
+                 print(f"  Tipo: {type(value).__name__}")
+                 print(f"  Valor: {str(value)[:100]}")
+
+        # --- 4. Resumen de Campos Críticos (si se encontraron) ---
+        if analysis_data:
+            print_header(f"Resumen de Campos Críticos (de '{analysis_col_name}')", 2)
+            
+            critical_fields = [
+                'quality_score', 'signal_to_noise', 'fluor_percentage', 
+                'pfas_percentage', 'pifas_percentage', 'pfas_concentration', 
+                'pifas_concentration', 'total_integral', 'pfas_detection'
+            ]
+            
+            for field in critical_fields:
+                value = analysis_data.get(field)
+                if value is not None:
+                    if field == 'pfas_detection' and isinstance(value, dict):
+                        detected_count = len(value.get('detected_pfas', []))
+                        print(f"  {Colors.GREEN}✅ {field}:{Colors.RESET} {detected_count} compuestos detectados")
                     else:
-                        print(f"\n{col_name}: {value}")
-                
-                # --- ANÁLISIS DE DATOS COMPLETOS ---
-                print("\n" + "=" * 80)
-                print("ANÁLISIS DE DATOS DE ANÁLISIS Y PICOS")
-                print("=" * 80)
-                
-                analysis_candidates = ['analysis', 'analysis_data', 'data', 'results', 'analysis_json', 'raw_data']
-                spectrum_candidates = ['spectrum_data']
-                peaks_candidates = ['peaks_data']
-                
-                def parse_json_column(name, value):
-                    try:
-                        return json.loads(value) if isinstance(value, str) else value
-                    except Exception as e:
-                        print(f"❌ Error parseando '{name}': {e}")
-                        return None
-                
-                # Analizar columna de análisis
-                found_analysis = False
-                for col_name in analysis_candidates:
-                    if col_name in column_names:
-                        idx = column_names.index(col_name)
-                        value = row[idx]
-                        if value:
-                            raw_json = parse_json_column(col_name, value)
-                            if col_name == 'raw_data' and isinstance(raw_json, dict):
-                                analysis = raw_json.get('analysis', {})
-                            else:
-                                analysis = raw_json
-                            if isinstance(analysis, dict):
-                                print(f"\n✅ Columna de análisis encontrada: '{col_name}'")
-                                for key in sorted(analysis.keys()):
-                                    val = analysis[key]
-                                    if isinstance(val, dict):
-                                        print(f"  - {key}: [dict con {len(val)} campos]")
-                                    elif isinstance(val, list):
-                                        print(f"  - {key}: [lista con {len(val)} elementos]")
-                                    elif isinstance(val, (int, float)):
-                                        print(f"  - {key}: {val}")
-                                    else:
-                                        print(f"  - {key}: {type(val).__name__}")
-                                # Campos críticos
-                                print(f"\n🔍 CAMPOS CRÍTICOS:")
-                                critical = ['total_integral', 'signal_to_noise', 'fluor_percentage', 
-                                           'pfas_percentage', 'pifas_percentage', 'pfas_detection']
-                                for field in critical:
-                                    if field in analysis:
-                                        val = analysis[field]
-                                        if val in [None, 0]:
-                                            print(f"  ⚠️  {field}: {val}")
-                                        else:
-                                            print(f"  ✅ {field}: presente")
-                                    else:
-                                        print(f"  ❌ {field}: NO ENCONTRADO")
-                                found_analysis = True
-                                break
-                if not found_analysis:
-                    print("❌ No se encontró columna de análisis estándar")
-                
-                # Analizar columna de espectro
-                for col_name in spectrum_candidates:
-                    if col_name in column_names:
-                        idx = column_names.index(col_name)
-                        value = row[idx]
-                        spectrum = parse_json_column(col_name, value)
-                        if isinstance(spectrum, dict):
-                            print(f"\n📊 Columna de espectro encontrada: '{col_name}'")
-                            for key in spectrum:
-                                val = spectrum[key]
-                                if isinstance(val, list):
-                                    print(f"  - {key}: lista con {len(val)} elementos")
-                                else:
-                                    print(f"  - {key}: {type(val).__name__}")
-                
-                # Analizar columna de picos
-                for col_name in peaks_candidates:
-                    if col_name in column_names:
-                        idx = column_names.index(col_name)
-                        value = row[idx]
-                        peaks = parse_json_column(col_name, value)
-                        if isinstance(peaks, list):
-                            print(f"\n⛰️  Columna de picos encontrada: '{col_name}'")
-                            print(f"  Total de picos: {len(peaks)}")
-                            for peak in peaks[:5]:
-                                print(f"   - ppm: {peak.get('ppm')}, int: {peak.get('intensity')}, area: {peak.get('area')}, region: {peak.get('region')}")
-                            if len(peaks) > 5:
-                                print(f"   ... y {len(peaks) - 5} picos más")
-                
+                        print(f"  {Colors.GREEN}✅ {field}:{Colors.RESET} {value}")
+                else:
+                    print(f"  {Colors.RED}❌ {field}: NO ENCONTRADO{Colors.RESET}")
+        else:
+            print(f"\n{Colors.YELLOW}⚠️  No se encontró una columna 'analysis' o 'raw_data' con JSON válido.{Colors.RESET}")
+
         conn.close()
-        print("\n" + "=" * 80)
-        print("FIN DE LA INSPECCIÓN")
-        print("=" * 80)
         
     except sqlite3.Error as e:
-        print(f"❌ Error de SQLite: {e}")
-    except FileNotFoundError:
-        print(f"❌ No se encontró el archivo: {db_path}")
+        print(f"{Colors.RED}❌ Error de SQLite: {e}{Colors.RESET}")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"{Colors.RED}❌ Error inesperado: {e}{Colors.RESET}")
         import traceback
         traceback.print_exc()
 
-
 if __name__ == "__main__":
-    import sys
-    
     if len(sys.argv) > 1:
-        db_path = sys.argv[1]
+        db_path_arg = Path(sys.argv[1])
+        if not db_path_arg.exists():
+            print(f"❌ No existe el archivo: {db_path_arg}")
+            sys.exit(1)
+        db_path = db_path_arg
     else:
         db_path = None
         for path in POSSIBLE_DB_PATHS:
@@ -211,15 +160,10 @@ if __name__ == "__main__":
                 db_path = path
                 break
         if not db_path:
-            print("❌ No se encontró la base de datos automáticamente.")
+            print(f"{Colors.RED}❌ No se encontró la base de datos automáticamente.{Colors.RESET}")
             print("Rutas buscadas:")
             for path in POSSIBLE_DB_PATHS:
                 print(f"  - {path}")
-            print("\nUso: python inspect_db.py <ruta_a_la_base_de_datos>")
             sys.exit(1)
-    
-    if not Path(db_path).exists():
-        print(f"❌ No existe el archivo: {db_path}")
-        sys.exit(1)
     
     inspect_database(db_path)

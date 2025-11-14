@@ -306,6 +306,9 @@ class ChartManager {
         if (!chartDiv || !chartDiv.data) return null;
 
         try {
+            // Añade un retraso de 1000ms para asegurar que el gráfico esté listo
+            await new Promise(resolve => setTimeout(resolve, 1000)); 
+            
             const imageData = await Plotly.toImage(chartDiv, {
                 format: 'png',
                 width: 800,
@@ -315,7 +318,8 @@ class ChartManager {
             window.APP_LOGGER.debug('Chart captured as base64');
             return imageData;
         } catch (error) {
-            window.APP_LOGGER.error('Error capturing chart:', error);
+            window.APP_LOGGER.error('Error capturing chart. Event object details:');
+            console.dir(error);
             return null;
         }
     }

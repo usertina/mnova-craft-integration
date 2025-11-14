@@ -404,6 +404,7 @@ class ComparisonManager {
             try {
                 const chartDiv = document.getElementById('comparisonChart');
                 if (chartDiv && window.Plotly) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                     chartImage = await Plotly.toImage(chartDiv, { format: 'png', width: 800, height: 500 });
                 }
             } catch (err) {

@@ -596,6 +596,7 @@ class DashboardManager {
         try {
             const chartDiv = document.getElementById(chartId);
             if (!chartDiv) return null;
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
             return await Plotly.toImage(chartDiv, {
                 format: 'png',
@@ -604,6 +605,7 @@ class DashboardManager {
             });
         } catch (error) {
             console.error(`[Dashboard] Error capturando gráfico ${chartId}:`, error);
+            console.dir(error);
             return null;
         }
     }

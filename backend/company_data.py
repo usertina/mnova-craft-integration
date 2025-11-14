@@ -3,9 +3,10 @@ Archivo Central de Perfiles de Empresa.
 """
 
 COMPANY_PROFILES = {
-    "admin": {
-        'company_id': 'admin',
+    "ADMIN": {
+        'company_id': 'ADMIN',
         'company_name': 'Administrador (TODOS LOS DATOS)',
+        'pin': '0000',
         'logo_url': '/assets/images/logo_qubiz.png', # Un logo de "CraftRMN" o de admin
         'primary_color': '#424242', # Gris oscuro
         'secondary_color': '#616161',

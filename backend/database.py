@@ -344,126 +344,83 @@ class Database:
             logger.error(f"Error counting measurements: {e}")
             return 0
     
-    def get_measurements_with_search(
-        self, 
-        company_id: str, 
-        page: int = 1, 
-        limit: int = 50,
-        search_term: str = ""
-    ) -> Dict:
+    def get_measurements_with_search(self, company_id, search_term, limit=50, offset=0):
         """
-        ✅ FUNCIÓN CORREGIDA: Obtiene mediciones paginadas con búsqueda segura.
+        Obtiene mediciones de una empresa filtrando por término de búsqueda.
+        
+        Args:
+            company_id: ID de la empresa
+            search_term: Término de búsqueda (busca en filename)
+            limit: Número máximo de resultados
+            offset: Offset para paginación
         """
         try:
-            # ✅ VALIDAR COMPANY_ID
-            if not self._validate_company_id(company_id):
-                logger.error(f"Company ID inválido: {company_id}")
-                return {'measurements': [], 'total': 0, 'total_pages': 0}
+            cursor = self.conn.cursor()
             
-            # ✅ SANITIZAR TÉRMINO DE BÚSQUEDA
-            search_term = self._sanitize_search_term(search_term)
-            
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            
-            offset = (page - 1) * limit
-            search_pattern = f"%{search_term}%"
-            
-            # ✅ CAMBIO AQUÍ: AÑADIR "ESCAPE '\\'" A LAS QUERIES
-            if company_id == 'admin':
+            # Construir query con búsqueda
+            if company_id == 'ADMIN':
                 query = """
-                    SELECT * FROM measurements 
-                    WHERE filename LIKE ? ESCAPE '\\'
-                    ORDER BY timestamp DESC 
+                    SELECT * FROM measurements
+                    WHERE filename LIKE ?
+                    ORDER BY timestamp DESC
                     LIMIT ? OFFSET ?
                 """
-                params = (search_pattern, limit, offset)
+                params = (f"%{search_term}%", limit, offset)
             else:
                 query = """
-                    SELECT * FROM measurements 
-                    WHERE company_id = ? AND filename LIKE ? ESCAPE '\\'
-                    ORDER BY timestamp DESC 
+                    SELECT * FROM measurements
+                    WHERE company_id = ? AND filename LIKE ?
+                    ORDER BY timestamp DESC
                     LIMIT ? OFFSET ?
                 """
-                params = (company_id, search_pattern, limit, offset)
+                params = (company_id, f"%{search_term}%", limit, offset)
             
             cursor.execute(query, params)
             rows = cursor.fetchall()
             
-            # Contar total con búsqueda
-            total = self.count_measurements_with_search(company_id, search_term)
-            total_pages = (total + limit - 1) // limit if total > 0 else 0
-            
-            conn.close()
-            
-            measurements = [self._row_to_measurement(row) for row in rows]
+            measurements = [self._row_to_dict(row) for row in rows]
             
             return {
                 'measurements': measurements,
-                'total': total,
-                'total_pages': total_pages
+                'total': len(measurements)
             }
             
         except Exception as e:
-            logger.error(f"Error getting measurements with search: {e}")
-            return {'measurements': [], 'total': 0, 'total_pages': 0}
-    
-    def count_measurements_with_search(self, company_id: str, search_term: str) -> int:
+            logging.error(f"Error en get_measurements_with_search: {e}", exc_info=True)
+            return {'measurements': [], 'total': 0}
+
+
+    def count_measurements_with_search(self, company_id, search_term):
         """
-        ✅ FUNCIÓN CORREGIDA: Cuenta mediciones que coinciden con un término de búsqueda.
+        Cuenta mediciones que coinciden con el término de búsqueda.
         
-        Protecciones implementadas:
-        - Validación de company_id
-        - Sanitización de search_term
-        - Uso de ESCAPE clause en LIKE
-        - Logging de intentos sospechosos
+        Args:
+            company_id: ID de la empresa
+            search_term: Término de búsqueda
         """
         try:
-            # ✅ 1. VALIDAR COMPANY_ID
-            if not self._validate_company_id(company_id):
-                logger.error(f"Company ID inválido o sospechoso: {company_id}")
-                return 0
+            cursor = self.conn.cursor()
             
-            # ✅ 2. SANITIZAR TÉRMINO DE BÚSQUEDA
-            original_search = search_term
-            search_term = self._sanitize_search_term(search_term)
-            
-            if original_search != search_term:
-                logger.warning(f"Término de búsqueda fue sanitizado: '{original_search}' -> '{search_term}'")
-            
-            # Si después de sanitizar no queda nada, retornar 0
-            if not search_term:
-                return 0
-            
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            
-            # ✅ 3. CONSTRUIR PATTERN CON WILDCARDS (ya sanitizado)
-            search_pattern = f"%{search_term}%"
-            
-            # ✅ 4. USAR ESCAPE CLAUSE EN LIKE
-            if company_id == 'admin':
-                query = "SELECT COUNT(*) FROM measurements WHERE filename LIKE ? ESCAPE '\\'"
-                params = (search_pattern,)
+            if company_id == 'ADMIN':
+                query = """
+                    SELECT COUNT(*) FROM measurements
+                    WHERE filename LIKE ?
+                """
+                params = (f"%{search_term}%",)
             else:
                 query = """
-                    SELECT COUNT(*) FROM measurements 
-                    WHERE company_id = ? AND filename LIKE ? ESCAPE '\\'
+                    SELECT COUNT(*) FROM measurements
+                    WHERE company_id = ? AND filename LIKE ?
                 """
-                params = (company_id, search_pattern)
+                params = (company_id, f"%{search_term}%")
             
             cursor.execute(query, params)
-            result = cursor.fetchone()
-            count = result[0] if result else 0
+            count = cursor.fetchone()[0]
             
-            conn.close()
-            
-            logger.debug(f"Búsqueda: company={company_id}, term='{search_term}', results={count}")
             return count
             
         except Exception as e:
-            logger.error(f"Error counting measurements with search: {e}")
-            logger.error(f"Company: {company_id}, Search term: {search_term}")
+            logging.error(f"Error en count_measurements_with_search: {e}", exc_info=True)
             return 0
     
     def delete_measurement(self, measurement_id: int, company_id: Optional[str] = None) -> bool:

@@ -3,54 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CraftRMN Pro - Activación / Selección</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="preconnect" href="https://rsms.me/">
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
-    
+    <title>CraftRMN Pro - Selección de Empresa</title>
     <link rel="stylesheet" href="styles/portal.css">
 </head>
+<body>
+    <!-- Portal de Selección de Empresa -->
+    <div id="company-selection" class="company-selection-container">
+        <div class="logo-container">
+            <img src="assets/images/logo_qubiz.png" alt="Qubiz Team" class="logo">
+        </div>
+        
+        <h2>Selecciona tu Empresa</h2>
+        
+        <div id="companies-grid" class="companies-grid">
+            <!-- Las empresas se cargarán aquí dinámicamente -->
+        </div>
 
-<body class="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-900 text-gray-300">
-
-    <div id="loading-view" class="text-center">
-        <div class="w-12 h-12 border-4 border-gray-600 border-t-indigo-600 rounded-full mx-auto mb-4 animate-spin"></div>
-        <p class="text-lg">Cargando configuración...</p>
-    </div>
-
-    <div id="activation-view" class="hidden w-full max-w-md p-8 bg-gray-800 rounded-lg shadow-lg text-center">
-        <img src="assets/images/logo_qubiz.png" alt="Logo" class="h-12 mx-auto mb-6">
-        <h1 class="text-2xl font-bold mb-2 text-white">Activar Dispositivo</h1>
-        <p class="mb-4 text-gray-400">Este dispositivo necesita ser activado por un administrador.</p>
-        <p class="mb-2 text-sm text-gray-500">ID del Dispositivo:</p>
-        <p id="device-id-display" class="text-lg font-mono bg-gray-700 p-2 rounded mb-6 text-gray-300 break-all">Cargando...</p>
-        <label for="license-key" class="block text-sm font-medium text-gray-300 mb-2">Clave de Licencia de Administrador:</label>
-        <input type="text" id="license-key" class="w-full px-4 py-2 mb-4 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-500" placeholder="ADMIN-RMN-XXXX...">
-        <button id="activate-button" class="w-full px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-800 disabled:opacity-50">
-            <span id="activate-btn-text">Activar Dispositivo</span>
-            <span id="activate-btn-loading" class="hidden"><i class="fas fa-spinner fa-spin mr-2"></i> Activando...</span>
-        </button>
-        <p id="activation-error" class="text-red-400 mt-4 text-sm hidden"></p>
-    </div>
-
-    <div id="company-selection-view" class="hidden w-full max-w-4xl p-8 bg-gray-800 rounded-lg shadow-lg text-center">
-        <img src="assets/images/logo_qubiz.png" alt="Logo" class="h-12 mx-auto mb-6">
-        <h1 class="text-2xl font-bold mb-6 text-white">Selecciona tu Empresa</h1>
-        <div id="company-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
-        <p id="selection-error" class="text-red-400 mt-6 text-sm hidden"></p>
-    </div>
-
-    <div id="critical-error-container" class="hidden w-full max-w-md p-8 bg-gray-800 rounded-lg shadow-lg text-center border border-red-500">
-        <img src="assets/images/logo_qubiz.png" alt="Logo" class="h-12 mx-auto mb-6 opacity-50">
-        <i class="fas fa-exclamation-triangle fa-3x text-red-500 mb-4"></i>
-        <h1 class="text-xl font-bold mb-2 text-red-300">Error Crítico</h1>
-        <p id="critical-error-message" class="text-gray-300 mb-6">No se pudo cargar la aplicación.</p>
-        <a href="index.html" class="inline-block px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700">
-            Volver a Intentar
-        </a>
+        <p id="error-message" class="error-message"></p>
     </div>
 
     <script src="js/portal.js"></script>
